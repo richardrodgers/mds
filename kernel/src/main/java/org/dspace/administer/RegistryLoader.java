@@ -10,6 +10,7 @@ package org.dspace.administer;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Stack;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -19,7 +20,13 @@ import javax.xml.transform.TransformerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.kohsuke.args4j.Argument;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
+
 import org.apache.xpath.XPathAPI;
+
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.BitstreamFormat;
 import org.dspace.content.MetadataField;
@@ -27,91 +34,97 @@ import org.dspace.content.MetadataSchema;
 import org.dspace.content.NonUniqueMetadataException;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
+
 import org.w3c.dom.Document;
+import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 /**
- * Loads the bitstream format and Dublin Core type registries into the database.
+ * Loads the bitstream format, Dublin Core type, or Command registries into the database.
  * Intended for use as a command-line tool.
  * <P>
  * Example usage:
  * <P>
- * <code>RegistryLoader -bitstream bitstream-formats.xml</code>
+ * <code>RegistryLoader -t format bitstream-formats.xml</code>
  * <P>
- * <code>RegistryLoader -dc dc-types.xml</code>
+ * <code>RegistryLoader -t metadata dc-types.xml</code>
+ * <P>
+ * <code>RegistryLoader -t command commands.xml</code>
  * 
  * @author Robert Tansley
- * @version $Revision: 5844 $
  */
 public class RegistryLoader
 {
     /** log4j category */
     private static Logger log = LoggerFactory.getLogger(RegistryLoader.class);
-
+    
+    // context
+    private Context context;
+    
+    // the load data type
+    enum DataType {format, metadata, command}
+    
+    @Option(name="-t", usage="registry data type to load", required=true)
+    private DataType loadType;
+    
+    @Argument
+    private String regFile;
+    
     /**
      * For invoking via the command line
      * 
-     * @param argv
+     * @param args
      *            command-line arguments
      */
-    public static void main(String[] argv) throws Exception
+    public static void main(String[] args) throws Exception
+    {        
+        RegistryLoader loader = new RegistryLoader();
+        CmdLineParser parser = new CmdLineParser(loader);
+        try {
+        	parser.parseArgument(args);
+        	if (loader.regFile != null) {
+        		loader.load();
+        		System.exit(0);
+        	} else {
+        		throw new CmdLineException(parser, "missing registry load file");
+        	}
+        } catch (CmdLineException clE) {
+        	System.err.println(clE.getMessage());
+        	parser.printUsage(System.err);
+        } catch (Exception e) {
+        	System.err.println(e.getMessage());
+        }
+        System.exit(1);
+    }
+    
+    private RegistryLoader() throws Exception {
+    	context = new Context();
+    }
+    
+    public void load() throws Exception
     {
-        String usage = "Usage: " + RegistryLoader.class.getName()
-                + " (-bitstream | -dc) registry-file.xml";
-
-        Context context = null;
-
         try
         {
-            context = new Context();
-
             // Can't update registries anonymously, so we need to turn off
             // authorisation
         	context.turnOffAuthorisationSystem();
-
             // Work out what we're loading
-            if (argv[0].equalsIgnoreCase("-bitstream"))
-            {
-                RegistryLoader.loadBitstreamFormats(context, argv[1]);
+            if (loadType.equals(DataType.format))  {
+                loadBitstreamFormats(context, regFile);
+            } else if (loadType.equals(DataType.metadata)) {
+                loadDublinCoreTypes(context, regFile);
+            } else if (loadType.equals(DataType.command)) {
+            	loadCommands(context, regFile);
             }
-            else if (argv[0].equalsIgnoreCase("-dc"))
-            {
-                loadDublinCoreTypes(context, argv[1]);
-            }
-            else
-            {
-                System.err.println(usage);
-            }
-
             context.complete();
-
-            System.exit(0);
-        }
-        catch (ArrayIndexOutOfBoundsException ae)
-        {
-            System.err.println(usage);
-
-            if (context != null)
-            {
+        } catch (Exception e) {
+            log.error(LogManager.getHeader(context, "error_loading_registries", ""), e);
+            if (context != null && context.isValid())  {
                 context.abort();
             }
-
-            System.exit(1);
-        }
-        catch (Exception e)
-        {
-            log.error(LogManager.getHeader(context, "error_loading_registries",
-                    ""), e);
-
-            if (context != null)
-            {
-                context.abort();
-            }
-
-            System.err.println("Error: \n - " + e.getMessage());
-            System.exit(1);
+            throw e;
         }
     }
 
@@ -206,8 +219,7 @@ public class RegistryLoader
                 "/dspace-dc-types/dc-schema");
 
         // Add each schema
-        for (int i = 0; i < schemaNodes.getLength(); i++)
-        {
+        for (int i = 0; i < schemaNodes.getLength(); i++)  {
             Node n = schemaNodes.item(i);
             loadMDSchema(context, n);
         }
@@ -217,8 +229,7 @@ public class RegistryLoader
                 "/dspace-dc-types/dc-type");
 
         // Add each one as a new field to the schema
-        for (int i = 0; i < typeNodes.getLength(); i++)
-        {
+        for (int i = 0; i < typeNodes.getLength(); i++) {
             Node n = typeNodes.item(i);
             loadDCType(context, n);
         }
@@ -235,16 +246,14 @@ public class RegistryLoader
      */
     private static void loadMDSchema(Context context, Node node) 
     		throws TransformerException, SQLException, AuthorizeException, 
-    		NonUniqueMetadataException
-    {
+    		NonUniqueMetadataException {
     	// Get the values
         String shortname = getElementData(node, "name");
         String namespace = getElementData(node, "namespace");
 
         // Check if the schema exists already
         MetadataSchema schema = MetadataSchema.find(context, shortname);
-        if (schema == null)
-        {
+        if (schema == null) {
         	// If not create it.
         	schema = new MetadataSchema();
         	schema.setNamespace(namespace);
@@ -274,8 +283,7 @@ public class RegistryLoader
         String scopeNote = getElementData(node, "scope_note");
 
         // If the schema is not provided default to DC
-        if (schema == null)
-        {
+        if (schema == null) {
             schema = MetadataSchema.DC_SCHEMA;
         }
 
@@ -288,6 +296,79 @@ public class RegistryLoader
         field.setQualifier(qualifier);
         field.setScopeNote(scopeNote);
         field.create(context);
+    }
+    
+    public static void loadCommands(Context context, String filename) 
+    	   throws AuthorizeException, IOException, SAXException,
+    	          SQLException, ParserConfigurationException, TransformerException {
+    	Document document = loadXML(filename);
+    	
+        // Get the nodes corresponding to commands
+        NodeList cmdNodes = XPathAPI.selectNodeList(document, "commands/command");
+        
+        // Add each one as a new format to the registry
+        for (int i = 0; i < cmdNodes.getLength(); i++)
+        {
+            Node n = cmdNodes.item(i);
+            loadCommand(context, n);
+        }
+
+        log.info(LogManager.getHeader(context, "load_commands",
+                "number_loaded=" + cmdNodes.getLength()));
+    }
+    
+    private static void loadCommand(Context context, Node node) 
+            throws AuthorizeException, SQLException, TransformerException {
+        // Get the values
+        String name = getElementData(node, "name");
+        String description = getElementData(node, "description");
+        
+        // Get the nodes corresponding to command steps
+        NodeList stepNodes = XPathAPI.selectNodeList(node, "step");
+        
+        // Add each one as a new command to the registry
+        Stack<Step> stack = new Stack<Step>();
+        for (int i = 0; i < stepNodes.getLength(); i++)
+        {
+            Node n = stepNodes.item(i);
+            
+            String className = getElementData(node, "class");
+            StringBuilder sb = new StringBuilder();
+            for (String arg : getRepeatedElementData(node, "argument")) {
+            	sb.append(arg).append(" ");
+            }
+            boolean noUserArgs = "false".equals(getAttributeData(node, "passuserargs"));
+            stack.push(new Step(className, sb.toString().trim(), ! noUserArgs, i));
+        }
+        // OK - is there a single step only, or a succession chain?
+        int successorId = -1;
+        Step step = null;
+        while (stack.size() > 1) {
+        	step = stack.pop();
+        	String cname = name + "-p" + step.index;
+        	Command cmd = Command.load(context, cname, description,
+		                   			   step.className, step.arguments,
+		                   			   false, step.userArgs, successorId);
+        	successorId = cmd.getID();
+        }
+        step = stack.pop();
+        Command.load(context, name, description,
+	                 step.className, step.arguments,
+	                 true, step.userArgs, successorId);
+    }
+    
+    private static class Step {
+    	public String className;
+    	public String arguments;
+    	public boolean userArgs;
+    	public int index;
+    	
+    	public Step(String className, String arguments, boolean userArgs, int index) {
+    		this.className = className;
+    		this.arguments = arguments;
+    		this.userArgs = userArgs;
+    		this.index = index;
+    	}
     }
 
     // ===================== XML Utility Methods =========================
@@ -334,8 +415,7 @@ public class RegistryLoader
         // Grab the child node
         Node childNode = XPathAPI.selectSingleNode(parentElement, childName);
 
-        if (childNode == null)
-        {
+        if (childNode == null) {
             // No child node, so no values
             return null;
         }
@@ -343,15 +423,18 @@ public class RegistryLoader
         // Get the #text
         Node dataNode = childNode.getFirstChild();
 
-        if (dataNode == null)
-        {
+        if (dataNode == null) {
             return null;
         }
 
         // Get the data
-        String value = dataNode.getNodeValue().trim();
-
-        return value;
+        return dataNode.getNodeValue().trim();
+    }
+    
+    private static String getAttributeData(Node element, String attributeName) {
+    	NamedNodeMap map = element.getAttributes();
+    	Node attrNode = map.getNamedItem(attributeName);
+    	return (attrNode != null) ? attrNode.getNodeValue() : null;
     }
 
     /**
@@ -384,8 +467,7 @@ public class RegistryLoader
 
         String[] data = new String[childNodes.getLength()];
 
-        for (int i = 0; i < childNodes.getLength(); i++)
-        {
+        for (int i = 0; i < childNodes.getLength(); i++) {
             // Get the #text node
             Node dataNode = childNodes.item(i).getFirstChild();
 

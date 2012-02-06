@@ -21,11 +21,9 @@ import java.util.TimeZone;
 
 import javax.mail.MessagingException;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.PosixParser;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +56,15 @@ public class Subscribe
 {
     /** log4j logger */
     private static Logger log = LoggerFactory.getLogger(Subscribe.class);
+    
+    // command-line options
+    @Option(name="-t", usage="Run test session")
+    private boolean test;
+    	
+    @Option(name="-h", usage="Print helpful message")
+    private boolean help;
+    
+    private Subscribe() {}
 
     /**
      * Subscribe an e-person to a collection. An e-mail will be sent every day a
@@ -481,83 +488,43 @@ public class Subscribe
                 log.info(LogManager.getHeader(context, "sent_subscription", "eperson_id=" + eperson.getID() ));
                 
             }
-
-            
         }
     }
 
     /**
      * Method for invoking subscriptions via the command line
      * 
-     * @param argv
+     * @param args
      *            command-line arguments, none used yet
      */
-    public static void main(String[] argv) 
-    {
-        String usage = "org.dspace.eperson.Subscribe [-t] or nothing to send out subscriptions.";
-        
-        Options options = new Options();
-        HelpFormatter formatter = new HelpFormatter();
-        CommandLine line = null;
-        
-        {
-            Option opt = new Option("t", "test", false, "Run test session");
-            opt.setRequired(false);
-            options.addOption(opt);
-        }
-        
-        {
-            Option opt = new Option("h", "help", false, "Print this help message");
-            opt.setRequired(false);
-            options.addOption(opt);
-        }
-
-        try
-        {
-            line = new PosixParser().parse(options, argv);
-        }
-        catch (Exception e)
-        {
-            // automatically generate the help statement
-            formatter.printHelp(usage, e.getMessage(), options, "");
-            System.exit(1);
-        }
-
-        if (line.hasOption("h"))
-        {
-            // automatically generate the help statement
-            formatter.printHelp(usage, options);
-            System.exit(1);
-        }
-        
-        boolean test = line.hasOption("t");
-
-        if(test)
-        {
-        	// RLR FIXME
-            //log.setLevel(Level.DEBUG);
-        }
-        
+    public static void main(String[] args) 
+    { 	
+        Subscribe subscribe = new Subscribe();
+        CmdLineParser parser = new CmdLineParser(subscribe);
         Context context = null;
-
-        try
-        {
-            context = new Context();
-            processDaily(context, test);
-            context.complete();
-        }
-        catch( Exception e )
-        {
-            log.error("Error processing daily", e);
-        }
-        finally
-        {
-            if( context != null && context.isValid() )
-            {
+        try {
+        	parser.parseArgument(args);
+        	if (subscribe.help) {
+        		parser.printUsage(System.err);
+        	} else {
+        		context = new Context();
+        		processDaily(context, subscribe.test);
+        		context.complete();
+        	}
+        	System.exit(0);
+        } catch (CmdLineException clE) {
+        	System.err.println(clE.getMessage());
+        	parser.printUsage(System.err);
+        } catch (Exception e) {
+        	log.error("Error processing daily", e);
+        	System.err.println(e.getMessage());
+        } finally {
+            if (context != null && context.isValid()) {
                 // Nothing is actually written
                 context.abort();
             }
         }
+        System.exit(1);
     }
     
     private static List<HarvestedItemInfo> filterOutToday(List<HarvestedItemInfo> completeList)

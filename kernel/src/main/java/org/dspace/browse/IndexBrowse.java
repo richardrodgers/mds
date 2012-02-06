@@ -18,12 +18,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.commons.cli.PosixParser;
+import org.kohsuke.args4j.Argument;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,29 +55,43 @@ public class IndexBrowse
 	/** DSpace context */
 	private Context context;
 	
+	enum Action {tables, index, full}
+	@Option(name="-a", usage="action to take: 'tables' = make tables only, 'index' = index only, 'full' = tables + index", required=true)
+	private Action action;
+	
 	/** whether to destroy and rebuild the database */
+	@Option(name="-r", usage="should we rebuild all the indices, which removes old index tables and creates new ones.  For use with -f. Mutually exclusive with -d")
 	private boolean rebuild = false;
 	
 	/** whether to destroy the database */
+	@Option(name="-d", usage="delete all the indices, but don't create new ones.  For use with -f. This is mutually exclusive with -r")
 	private boolean delete = false;
 	
 	/** the index number to start working from (for debug only) */
+	@Option(name="-s", usage="start from this index number and work upward (mostly only useful for debugging). For use with -t and -f")
 	private int start = 1;
 	
 	/** whether to execute the commands generated against the database */
+	@Option(name="-x", usage="execute all the remove and create SQL against the database. For use with -t and -f")
 	private boolean execute = false;
 	
 	/** whether there is an output file into which to write SQL */
 	private boolean fileOut = false;
 	
 	/** whether the output should be written to the standadr out */
+	@Option(name="-p", usage="write the remove and create SQL to the stdout. For use with -t and -f")
 	private boolean stdOut = false;
 	
-	/** the name of the output file */
+	/** the name of the output file NB! code comment indicated this does not work RLR */
+	@Option(name="-o", usage="write the remove and create SQL to the given file. For use with -t and -f")
 	private String outFile = null;
 	
 	/** should the operations be verbose */
+	@Option(name="-v", usage="print extra information to the stdout.  If used in conjunction with -p, you cannot use the stdout to generate your database structure")
 	private boolean verbose = false;
+	
+	@Option(name="-h", usage="show this help documentation.  Overrides all other arguments")
+	private boolean help;
 	
 	/** the configured browse indices */
 	private BrowseIndex[] bis;
@@ -622,9 +634,7 @@ public class IndexBrowse
 	 * @param argv
 	 *            Command-line arguments
 	 */
-	public static void main(String[] argv)
-		throws SQLException, BrowseException, ParseException
-	{
+	public static void main(String[] args) throws SQLException, BrowseException {
         Date startTime = new Date();
         try
         {
@@ -632,98 +642,57 @@ public class IndexBrowse
             context.turnOffAuthorisationSystem();
             IndexBrowse indexer = new IndexBrowse(context);
 
-            // create an options object and populate it
-            CommandLineParser parser = new PosixParser();
-            Options options = new Options();
-
-            // these are mutually exclusive, and represent the primary actions
-            options.addOption("t", "tables", false, "create the tables only, do not attempt to index.  Mutually exclusive with -f and -i");
-            options.addOption("i", "index", false, "actually do the indexing.  Mutually exclusive with -t and -f");
-            options.addOption("f", "full", false, "make the tables, and do the indexing.  This forces -x.  Mutually exclusive with -t and -i");
-
-            // these options can be specified only with the -f option
-            options.addOption("r", "rebuild", false, "should we rebuild all the indices, which removes old index tables and creates new ones.  For use with -f. Mutually exclusive with -d");
-            options.addOption("d", "delete", false, "delete all the indices, but don't create new ones.  For use with -f. This is mutually exclusive with -r");
-
-            // these options can be specified only with the -t and -f options
-            options.addOption("o", "out", true, "[-o <filename>] write the remove and create SQL to the given file. For use with -t and -f");  // FIXME: not currently working
-            options.addOption("p", "print", false, "write the remove and create SQL to the stdout. For use with -t and -f");
-            options.addOption("x", "execute", false, "execute all the remove and create SQL against the database. For use with -t and -f");
-            options.addOption("s", "start", true, "[-s <int>] start from this index number and work upward (mostly only useful for debugging). For use with -t and -f");
-
-            // this option can be used with any argument
-            options.addOption("v", "verbose", false, "print extra information to the stdout.  If used in conjunction with -p, you cannot use the stdout to generate your database structure");
-
-            // display the help.  If this is spefified, it trumps all other arguments
-            options.addOption("h", "help", false, "show this help documentation.  Overrides all other arguments");
-
-            CommandLine line = parser.parse(options, argv);
+            // parse command line args
+            CmdLineParser parser = new CmdLineParser(indexer);
+            try {
+            	parser.parseArgument(args);
+            } catch (CmdLineException clE) {
+            	System.err.println(clE.getMessage());
+            	parser.printUsage(System.err);
+            	System.exit(1);
+            }
+            
+            // few fixes
+            if (indexer.getOutFile() != null) {
+            	indexer.setFileOut(true);
+            	indexer.setOutFile(indexer.getOutFile());
+            }
 
             // display the help
-            if (line.hasOption("h"))
+            if (indexer.help)
             {
-                indexer.usage(options);
+            	parser.printUsage(System.err);
                 return;
             }
 
-            if (line.hasOption("v"))
-            {
-                indexer.setVerbose(true);
-            }
-
-            if (line.hasOption("i"))
+            if (indexer.action.equals(Action.index))
             {
                 indexer.createIndex();
                 return;
             }
 
-            if (line.hasOption("f"))
+            if (indexer.action.equals(Action.full) || indexer.action.equals(Action.tables))
             {
-                if (line.hasOption('r'))
-                {
-                    indexer.setRebuild(true);
-                }
-                else if (line.hasOption("d"))
-                {
-                    indexer.setDelete(true);
-                }
-            }
-
-            if (line.hasOption("f") || line.hasOption("t"))
-            {
-                if (line.hasOption("s"))
-                {
-                    indexer.setStart(Integer.parseInt(line.getOptionValue("s")));
-                }
-                if (line.hasOption("x"))
-                {
-                    indexer.setExecute(true);
-                }
-                if (line.hasOption("p"))
+                if (indexer.toStdOut())
                 {
                     indexer.setStdOut(true);
                 }
-                if (line.hasOption("o"))
-                {
-                    indexer.setFileOut(true);
-                    indexer.setOutFile(line.getOptionValue("o"));
-                }
             }
 
-            if (line.hasOption("t"))
+            if (indexer.action.equals(Action.tables))
             {
                 indexer.prepTables();
                 return;
             }
 
-            if (line.hasOption("f"))
+            if (indexer.action.equals(Action.full))
             {
                 indexer.setExecute(true);
                 indexer.initBrowse();
                 return;
             }
 
-            indexer.usage(options);
+            parser.printUsage(System.err);
             context.complete();
         }
         finally
@@ -734,17 +703,6 @@ public class IndexBrowse
             System.out.println("Elapsed time: " + ((endTime.getTime() - startTime.getTime()) / 1000) + " secs (" + (endTime.getTime() - startTime.getTime()) + " msecs)");
 
         }
-	}
-
-	/**
-	 * output the usage information
-	 * 
-	 * @param options
-	 */
-	private void usage(Options options)
-	{
-		HelpFormatter formatter = new HelpFormatter();
-    	formatter.printHelp("IndexBrowse", options);
 	}
 	
 	/**

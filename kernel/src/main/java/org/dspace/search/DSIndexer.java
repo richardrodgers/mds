@@ -27,11 +27,10 @@ import java.text.SimpleDateFormat;
 import java.text.ParseException;
 import java.util.List;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.OptionBuilder;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.PosixParser;
+import org.kohsuke.args4j.Argument;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -153,6 +152,27 @@ public class DSIndexer
         new IndexConfig("sponsor",    "dc", "description", "sponsorship",     "text"),
         new IndexConfig("identifier", "dc", "identifier",  Item.ANY,          "text")
     };
+    
+    // command-line options
+    @Option(name="-r", usage="remove an Item, Collection or Community from index based on its handle")
+    private String removeHandle;
+    
+    @Option(name="-o", usage="optimize existing index")
+    private boolean optimize;
+    
+    @Option(name="-c", usage="clean existing index removing any documents that no longer exist in the db")
+    private boolean clean;
+    
+    @Option(name="-b", usage="(re)build index, wiping out current one if it exists")
+    private boolean build;
+    
+    @Option(name="-f", usage="if updating existing index, force each handle to be reindexed even if uptodate")
+    private boolean force;
+    
+    @Option(name="-h", usage="print helpful message")
+    private boolean help;
+    
+    private DSIndexer() {}
 
     static {
     	
@@ -408,101 +428,53 @@ public class DSIndexer
     public static void main(String[] args) throws SQLException, IOException
     {
         Date startTime = new Date();
+        DSIndexer dsi = new DSIndexer();
+        CmdLineParser parser = new CmdLineParser(dsi);
         try
         {
+        	parser.parseArgument(args);
             setBatchProcessingMode(true);
             Context context = new Context();
             context.turnOffAuthorisationSystem();
 
-            String usage = "org.dspace.search.DSIndexer [-cbhof[r <item handle>]] or nothing to update/clean an existing index.";
-            Options options = new Options();
-            HelpFormatter formatter = new HelpFormatter();
-            CommandLine line = null;
-
-            options.addOption(OptionBuilder
-                            .withArgName("item handle")
-                            .hasArg(true)
-                            .withDescription(
-                                    "remove an Item, Collection or Community from index based on its handle")
-                            .create("r"));
-
-            options.addOption(OptionBuilder.isRequired(false).withDescription(
-                    "optimize existing index").create("o"));
-
-            options.addOption(OptionBuilder
-                            .isRequired(false)
-                            .withDescription(
-                                    "clean existing index removing any documents that no longer exist in the db")
-                            .create("c"));
-
-            options.addOption(OptionBuilder.isRequired(false).withDescription(
-                    "(re)build index, wiping out current one if it exists").create(
-                    "b"));
-
-            options.addOption(OptionBuilder
-                            .isRequired(false)
-                            .withDescription(
-                                    "if updating existing index, force each handle to be reindexed even if uptodate")
-                            .create("f"));
-
-            options.addOption(OptionBuilder.isRequired(false).withDescription(
-                    "print this help message").create("h"));
-
-            try
-            {
-                line = new PosixParser().parse(options, args);
-            }
-            catch (Exception e)
-            {
-                // automatically generate the help statement
-                formatter.printHelp(usage, e.getMessage(), options, "");
-                System.exit(1);
+            if (dsi.help) {
+            	// automatically generate the help statement
+            	parser.printUsage(System.err);
+            	System.exit(0);
             }
 
-            if (line.hasOption("h"))
-            {
-                // automatically generate the help statement
-                formatter.printHelp(usage, options);
-                System.exit(1);
-            }
-
-            if (line.hasOption("r"))
-            {
-                log.info("Removing " + line.getOptionValue("r") + " from Index");
-                unIndexContent(context, line.getOptionValue("r"));
-            }
-            else if (line.hasOption("o"))
-            {
-                log.info("Optimizing Index");
-                optimizeIndex(context);
-            }
-            else if (line.hasOption("c"))
-            {
-                log.info("Cleaning Index");
-                cleanIndex(context);
-            }
-            else if (line.hasOption("b"))
-            {
-                log.info("(Re)building index from scratch.");
-                createIndex(context);
-            }
-            else
-            {
-                log.info("Updating and Cleaning Index");
-                cleanIndex(context);
-                updateIndex(context, line.hasOption("f"));
+            if (dsi.removeHandle != null) {
+                //log.info("Removing " + line.getOptionValue("r") + " from Index");
+            	unIndexContent(context, dsi.removeHandle);
+            } else if (dsi.optimize) {
+            	log.info("Optimizing Index");
+            	optimizeIndex(context);
+            } else if (dsi.clean) {
+            	log.info("Cleaning Index");
+            	cleanIndex(context);
+            } else if (dsi.build) {
+            	log.info("(Re)building index from scratch.");
+            	createIndex(context);
+            } else {
+            	log.info("Updating and Cleaning Index");
+            	cleanIndex(context);
+            	updateIndex(context, dsi.force);
             }
 
             log.info("Done with indexing");
-        }
-        finally
-        {
+    	} catch (CmdLineException clE) {
+    		System.err.println(clE.getMessage());
+    		parser.printUsage(System.err);
+    	} catch (Exception e) {
+    		System.err.println(e.getMessage());
+    	} finally {
             setBatchProcessingMode(false);
             Date endTime = new Date();
             System.out.println("Started: " + startTime.getTime());
             System.out.println("Ended: " + endTime.getTime());
             System.out.println("Elapsed time: " + ((endTime.getTime() - startTime.getTime()) / 1000) + " secs (" + (endTime.getTime() - startTime.getTime()) + " msecs)");
         }
+    	System.exit(1);
     }
 
     /**

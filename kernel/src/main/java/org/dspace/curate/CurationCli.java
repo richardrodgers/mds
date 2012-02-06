@@ -9,14 +9,16 @@ package org.dspace.curate;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.IOException;
 import java.util.Iterator;
+import java.sql.SQLException;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.PosixParser;
+import org.kohsuke.args4j.Argument;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
 
+import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.Site;
 import org.dspace.core.Context;
 import org.dspace.core.PluginManager;
@@ -29,138 +31,88 @@ import org.dspace.eperson.EPerson;
  */
 public class CurationCli
 {    
+	@Option(name="-t", usage="curation task name")
+	private String taskName;
+	
+	@Option(name="-T", usage="file containing curation task names")
+	private String taskFileName;
+	
+	@Option(name="-i", usage="Id (handle) of object to perform task on, or 'all' to perform on whole repository")
+	private String idName;
+	
+	@Option(name="-q", usage="name of task queue to process")
+	private String taskQueueName;
+	
+	@Option(name="-n", usage="name of object selector to use")
+	private String selectorName;
+	
+	@Option(name="-e", usage="email address of curating eperson")
+	private String ePersonName;
+	
+	@Option(name="-r", usage="reporter to manage results - use '-' to report to console. If absent, no reporting")
+	private String reporterName;
+	
+	@Option(name="-l", usage="maximum number of objects allowed in context cache. If absent, no limit")
+	private String limit;
+	
+	@Option(name="-s", usage="transaction scope to impose: use 'object', 'curation', or 'open'. If absent, 'open' applies")
+	private String scope;
+	
+	@Option(name="-v", usage="report execution details to stdout")
+	private boolean verbose;
+	
+	@Option(name="-h", usage="display helpful message")
+	private boolean help;
+	
+	private CurationCli() {}
+	
     public static void main(String[] args) throws Exception
     {
-         // create an options object and populate it
-        CommandLineParser parser = new PosixParser();
-
-        Options options = new Options();
-
-        options.addOption("t", "task", true,
-                "curation task name");
-        options.addOption("T", "taskfile", true,
-                "file containing curation task names");
-        options.addOption("i", "id", true,
-                "Id (handle) of object to perform task on, or 'all' to perform on whole repository");
-        options.addOption("q", "queue", true,
-                 "name of task queue to process");
-        options.addOption("n", "namedselector", true,
-                "name of object selector to use");
-        options.addOption("e", "eperson", true,
-                "email address of curating eperson");
-        options.addOption("r", "reporter", true,
-                "reporter to manage results - use '-' to report to console. If absent, no reporting");
-        options.addOption("l", "limit", true,
-                "maximum number of objects allowed in context cache. If absent, no limit");
-        options.addOption("s", "scope", true,
-                "transaction scope to impose: use 'object', 'curation', or 'open'. If absent, 'open' applies");
-        options.addOption("v", "verbose", false,
-                "report activity to stdout");
-        options.addOption("h", "help", false, "help");
-
-        CommandLine line = parser.parse(options, args);
-
-        String taskName = null;
-        String taskFileName = null;
-        String idName = null;
-        String taskQueueName = null;
-        String selectorName = null;
-        String ePersonName = null;
-        String reporterName = null;
-        String limit = null;
-        String scope = null;
-        boolean verbose = false;
-
-        if (line.hasOption('h'))
-        {
-            HelpFormatter help = new HelpFormatter();
-            help.printHelp("CurationCli\n", options);
-            System.out
-                    .println("\nwhole repo: CurationCli -t estimate -i all");
-            System.out
-                    .println("single item: CurationCli -t generate -i itemId");
-            System.out
-            		.println("selector driven: CurationCli -t textextract -n just_installed");
-            System.out
-                    .println("task queue: CurationCli -q monthly");
-            System.exit(0);
+        CurationCli cli = new CurationCli();
+        CmdLineParser parser = new CmdLineParser(cli);
+        try {
+        	parser.parseArgument(args);
+        	String errmsg = cli.validate();
+        	if (errmsg != null) {
+        		throw new CmdLineException(parser, errmsg);
+        	}
+        	if (cli.help) {
+        		parser.printUsage(System.err);
+        	} else {
+        		cli.curate();
+        	}
+        	System.exit(0);
+        } catch (CmdLineException clE) {
+        	System.err.println(clE.getMessage());
+        	parser.printUsage(System.err);
+        } catch (Exception e) {
+        	System.err.println(e.getMessage());
+        }
+        System.exit(1);
+    }
+    
+    private String validate() {
+    	
+        if (idName == null && taskQueueName == null && selectorName == null) {
+            return "Id or selector must be specified: a handle, 'all', name of selector, or a task queue (-h for help)";
         }
 
-        if (line.hasOption('t'))
-        { // task
-            taskName = line.getOptionValue('t');
-        }
-
-        if (line.hasOption('T'))
-        { // task file
-            taskFileName = line.getOptionValue('T');
-        }
-
-        if (line.hasOption('i'))
-        { // id
-            idName = line.getOptionValue('i');
-        }
-
-        if (line.hasOption('q'))
-        { // task queue
-            taskQueueName = line.getOptionValue('q');
+        if (taskName == null && taskFileName == null && taskQueueName == null) {
+            return "A curation task or queue must be specified (-h for help)";
         }
         
-        if (line.hasOption('n'))
-        { // named selector
-            selectorName = line.getOptionValue('n');
-        }
-
-        if (line.hasOption('e'))
-        { // eperson
-            ePersonName = line.getOptionValue('e');
-        }
-
-        if (line.hasOption('r'))
-        { // report file
-            reporterName = line.getOptionValue('r');
+        if (limit != null && Integer.parseInt(limit) <= 0 ) {
+        	return "Cache limit '" + limit + "' must be a positive integer";
         }
         
-        if (line.hasOption('l'))
-        { // cache limit
-            limit = line.getOptionValue('l');
-        }
-        
-        if (line.hasOption('s'))
-        { // transaction scope
-            scope = line.getOptionValue('s');
-        }
-
-        if (line.hasOption('v'))
-        { // verbose
-            verbose = true;
-        }
-
-        // now validate the args
-        if (idName == null && taskQueueName == null && selectorName == null)
-        {
-            System.out.println("Id or selector must be specified: a handle, 'all', name of selector, or a task queue (-h for help)");
-            System.exit(1);
-        }
-
-        if (taskName == null && taskFileName == null && taskQueueName == null)
-        {
-            System.out.println("A curation task or queue must be specified (-h for help)");
-            System.exit(1);
-        }
-        
-        if (limit != null && Integer.parseInt(limit) <= 0 )
-        {
-        	System.out.println("Cache limit '" + limit + "' must be a positive integer");
-        	System.exit(1);
-        }
-        
-        if (scope != null && Curator.TxScope.valueOf(scope.toUpperCase()) == null)
-    	{
-        	System.out.println("Bad transaction scope '" + scope + "': only 'object', 'curation' or 'open' recognized");
-        	System.exit(1);
+        if (scope != null && Curator.TxScope.valueOf(scope.toUpperCase()) == null) {
+        	return "Bad transaction scope '" + scope + "': only 'object', 'curation' or 'open' recognized";
     	}
-
+        return null;
+    }
+    
+    private void curate() throws AuthorizeException, IOException, SQLException {
+    	
         Context c = new Context();
         if (ePersonName != null)
         {

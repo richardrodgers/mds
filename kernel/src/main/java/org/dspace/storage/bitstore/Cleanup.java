@@ -7,12 +7,9 @@
  */
 package org.dspace.storage.bitstore;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.commons.cli.PosixParser;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,79 +20,57 @@ import org.dspace.core.Context;
  * Cleans up asset store.
  * 
  * @author Peter Breton
- * @version $Revision: 5844 $
  */
 public class Cleanup
 {
-    /** log4j log */
+    // log 
     private static Logger log = LoggerFactory.getLogger(Cleanup.class);
+    
+    // option to leave database records intact
+    @Option(name="-l", usage="Leave database records but delete file from assetstore")
+    private boolean leaveDB;
+    
+    // help
+    @Option(name="-h", usage="Print helpful message")
+    private boolean help;  
+    
+    private Cleanup() {}
 
     /**
      * Cleans up asset store.
      * 
-     * @param argv -
+     * @param args -
      *            Command-line arguments
      */
-    public static void main(String[] argv)
-    {
-    	Context context = null;
-    	
+    public static void main(String[] args) throws Exception
+    {	
+        Cleanup cleanup = new Cleanup();
+        CmdLineParser parser = new CmdLineParser(cleanup);
+        Context context = null;
         try
         {
-            log.info("Cleaning up asset store");
-            
-            // set up command line parser
-            CommandLineParser parser = new PosixParser();
-            CommandLine line = null;
-
-            // create an options object and populate it
-            Options options = new Options();
-
-            options.addOption("l", "leave", false, "Leave database records but delete file from assetstore");
-            options.addOption("v", "verbose", false, "Provide verbose output");
-            options.addOption("h", "help", false, "Help");
-            
-            try
-            {            	
-                line = parser.parse(options, argv);
+            parser.parseArgument(args);
+            if (! cleanup.help) {
+            	log.info("Cleaning up asset store");
+            	log.debug("leave db records = " + cleanup.leaveDB);
+            	context = new Context();
+            	BitstreamStorageManager.cleanup(context, ! cleanup.leaveDB);
+                context.complete();
+            } else {
+            	parser.printUsage(System.err);
             }
-            catch (ParseException e)
-            {
-                log.error("Error parsing", e);
-                System.exit(1);
-            }
-            
-            // user asks for help
-            if (line.hasOption('h'))
-            {
-                printHelp(options);
-                System.exit(0);
-            }
-
-            boolean deleteDbRecords = true;
-            // Prune stage
-            if (line.hasOption('l'))
-            {
-            	log.debug("option l used setting flag to leave db records");
-                deleteDbRecords = false;    
-            }
-           	log.debug("leave db records = " + deleteDbRecords);
-           	context = new Context();
-            BitstreamStorageManager.cleanup(context, deleteDbRecords);
-            context.complete();
             System.exit(0);
+        } catch (CmdLineException clE) {
+            System.err.println(clE.getMessage());
+            parser.printUsage(System.err);
+        } catch (Exception e) {
+        	log.error("Exception", e);
+            System.err.println(e.getMessage());
+        } finally {
+        	if (context != null && context.isValid()) {
+        		context.abort();
+        	}
         }
-        catch (Exception e)
-        {
-            log.error("Caught exception:", e);
-            System.exit(1);
-        }
+        System.exit(1);
     }
-    
-    private static void printHelp(Options options)
-    {
-        HelpFormatter myhelp = new HelpFormatter();
-        myhelp.printHelp("Cleanup\n", options);
-    }
-
 }

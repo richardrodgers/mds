@@ -10,14 +10,15 @@ package org.dspace.embargo;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Date;
+import java.util.List;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.commons.cli.PosixParser;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.DCDate;
 import org.dspace.content.DCValue;
@@ -75,6 +76,30 @@ public class EmbargoManager
     // set from the DSpace configuration by init()
     private static EmbargoSetter setter = null;
     private static EmbargoLifter lifter = null;
+    
+    // command-line options
+    @Option(name="-q", usage="Do not print anything except for errors")
+    private boolean quiet;
+    
+    @Option(name="-v", usage="Print a line describing action taken for each embargoed Item found")
+    private boolean verbose;
+    
+    @Option(name="-n", usage="Do not change anything in the data model, print message instead")
+    private boolean noOp;
+    
+    @Option(name="-c", usage="Function: ONLY check the state of embargoed Items, do NOT lift any embargoes")
+    private boolean checkOnly;
+    
+    @Option(name="-l", usage="Function: ONLY lift embargoes, do NOT check the state of any embargoed Items")
+    private boolean liftOnly;
+    
+    @Option(name="-i", usage="Process ONLY this Handle identifier(s), which must be an Item. Repeatable")
+    private List<String> idList;
+    
+    @Option(name="-h", usage="Print helpful message")
+    private boolean help;
+    
+    private EmbargoManager() {}
 
     /**
      * Put an Item under embargo until the specified lift date.
@@ -195,68 +220,51 @@ public class EmbargoManager
      * <p>
      * Options:
      * <dl>
-     *   <dt>-c,--check</dt>
+     *   <dt>-c</dt>
      *   <dd>         Function: ONLY check the state of embargoed Items, do
      *                      NOT lift any embargoes.</dd>
-     *   <dt>-h,--help</dt>
+     *   <dt>-h</dt>
      *   <dd>         Help.</dd>
-     *   <dt>-i,--identifier</dt>
+     *   <dt>-i</dt>
      *   <dd>         Process ONLY this Handle identifier(s), which must be
      *                      an Item.  Can be repeated.</dd>
-     *   <dt>-l,--lift</dt>
+     *   <dt>-l</dt>
      *   <dd>         Function: ONLY lift embargoes, do NOT check the state
      *                      of any embargoed Items.</dd>
-     *   <dt>-n,--dryrun</dt>
+     *   <dt>-n</dt>
      *   <dd>         Do not change anything in the data model; print
      *                      message instead.</dd>
-     *   <dt>-v,--verbose</dt>
+     *   <dt>-v</dt>
      *   <dd>         Print a line describing action taken for each
      *                      embargoed Item found.</dd>
-     *   <dt>-q,--quiet</dt>
+     *   <dt>-q</dt>
      *   <dd>         No output except upon error.</dd>
      * </dl>
      */
-    public static void main(String argv[])
+    public static void main(String[] args)
     {
         init();
         int status = 0;
-
-        Options options = new Options();
-        options.addOption("v", "verbose", false,
-                "Print a line describing action taken for each embargoed Item found.");
-        options.addOption("q", "quiet", false,
-                "Do not print anything except for errors.");
-        options.addOption("n", "dryrun", false,
-                "Do not change anything in the data model, print message instead.");
-        options.addOption("i", "identifier", true,
-                        "Process ONLY this Handle identifier(s), which must be an Item.  Can be repeated.");
-        options.addOption("c", "check", false,
-                        "Function: ONLY check the state of embargoed Items, do NOT lift any embargoes.");
-        options.addOption("l", "lift", false,
-                        "Function: ONLY lift embargoes, do NOT check the state of any embargoed Items.");
-        options.addOption("h", "help", false, "help");
-        CommandLine line = null;
-        try
-        {
-            line = new PosixParser().parse(options, argv);
-        }
-        catch(ParseException e)
-        {
-            System.err.println("Command error: " + e.getMessage());
-            new HelpFormatter().printHelp(EmbargoManager.class.getName(), options);
+        EmbargoManager em = new EmbargoManager();
+        CmdLineParser parser = new CmdLineParser(em);
+        try {
+        	parser.parseArgument(args);
+        } catch(CmdLineException clE) {
+        	System.err.println(clE.getMessage());
+        	parser.printUsage(System.err);
             System.exit(1);
         }
 
-        if (line.hasOption('h'))
+        if (em.help)
         {
-            new HelpFormatter().printHelp(EmbargoManager.class.getName(), options);
+        	parser.printUsage(System.err);
             System.exit(0);
         }
 
-        // sanity check, --lift and --check are mutually exclusive:
-        if (line.hasOption('l') && line.hasOption('c'))
+        // sanity check, liftOnly and checkOnly are mutually exclusive:
+        if (em.liftOnly && em.checkOnly)
         {
-            System.err.println("Command error: --lift and --check are mutually exclusive, try --help for assistance.");
+            System.err.println("Command error: -l and -c are mutually exclusive, try --help for assistance.");
             System.exit(1);
         }
 
@@ -268,9 +276,9 @@ public class EmbargoManager
             Date now = new Date();
              
             // scan items under embargo
-            if (line.hasOption('i'))
+            if (em.idList.size() > 0)
             {
-                for (String handle : line.getOptionValues('i'))
+                for (String handle : em.idList)
                 {
                     DSpaceObject dso = HandleManager.resolveToObject(context, handle);
                     if (dso == null)
@@ -285,7 +293,7 @@ public class EmbargoManager
                     }
                     else
                     {
-                        if (processOneItem(context, (Item)dso, line, now))
+                        if (em.processOneItem(context, (Item)dso, now))
                         {
                             status = 1;
                         }
@@ -297,7 +305,7 @@ public class EmbargoManager
                 ItemIterator ii = Item.findByMetadataField(context, lift_schema, lift_element, lift_qualifier, Item.ANY);
                 while (ii.hasNext())
                 {
-                    if (processOneItem(context, ii.next(), line, now))
+                    if (em.processOneItem(context, ii.next(), now))
                     {
                         status = 1;
                     }
@@ -331,9 +339,7 @@ public class EmbargoManager
 
     // lift or check embargo on one Item, handle exceptions
     // return false on success, true if there was fatal exception.
-    private static boolean processOneItem(Context context, Item item, CommandLine line, Date now)
-        throws Exception
-    {
+    private boolean processOneItem(Context context, Item item, Date now) throws Exception {
         boolean status = false;
         DCValue lift[] = item.getMetadata(lift_schema, lift_element, lift_qualifier, Item.ANY);
 
@@ -346,25 +352,25 @@ public class EmbargoManager
                 log.debug("Testing embargo on item="+item.getHandle()+", date="+liftDate.toString());
                 if (liftDate.toDate().before(now))
                 {
-                    if (line.hasOption('v'))
+                    if (verbose)
                     {
                         System.err.println("Lifting embargo from Item handle=" + item.getHandle() + ", lift date=" + lift[0].value);
                     }
-                    if (line.hasOption('n'))
+                    if (noOp)
                     {
-                        if (!line.hasOption('q'))
+                        if (! quiet)
                         {
                             System.err.println("DRY RUN: would have lifted embargo from Item handle=" + item.getHandle() + ", lift date=" + lift[0].value);
                         }
                     }
-                    else if (!line.hasOption('c'))
+                    else if (! checkOnly)
                     {
                         liftEmbargo(context, item);
                     }
                 }
-                else if (!line.hasOption('l'))
+                else if (! liftOnly)
                 {
-                    if (line.hasOption('v'))
+                    if (verbose)
                     {
                         System.err.println("Checking current embargo on Item handle=" + item.getHandle() + ", lift date=" + lift[0].value);
                     }

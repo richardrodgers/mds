@@ -13,20 +13,19 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
+import org.xml.sax.SAXException;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.commons.cli.PosixParser;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
+
 import org.apache.xml.serialize.Method;
 import org.apache.xml.serialize.OutputFormat;
 import org.apache.xml.serialize.XMLSerializer;
+
 import org.dspace.content.MetadataField;
 import org.dspace.content.MetadataSchema;
 import org.dspace.core.Context;
-import org.xml.sax.SAXException;
-
 
 /**
  * @author Graham Triggs
@@ -45,43 +44,36 @@ import org.xml.sax.SAXException;
  */
 public class MetadataExporter
 {
-
+	// output file 
+	@Option(name="-f", usage="output xml file for registry", required=true)
+	private String file;
+	// schema
+	@Option(name="-s", usage="the name of the schema to export")
+	private String schema;
+	
+	// constructor
+	private MetadataExporter() {}
+	
     /**
      * @param args
-     * @throws ParseException 
      * @throws SAXException 
      * @throws IOException 
      * @throws SQLException 
      * @throws RegistryExportException 
      */
-    public static void main(String[] args) throws ParseException, SQLException, IOException, SAXException, RegistryExportException
+    public static void main(String[] args) throws SQLException, IOException, SAXException, RegistryExportException
     {
-        // create an options object and populate it
-        CommandLineParser parser = new PosixParser();
-        Options options = new Options();
-        options.addOption("f", "file",   true, "output xml file for registry");
-        options.addOption("s", "schema", true, "the name of the schema to export");
-        CommandLine line = parser.parse(options, args);
-        
-        String file   = null;
-        String schema = null;
-
-        if (line.hasOption('f'))
-        {
-            file   = line.getOptionValue('f');
+        MetadataExporter me = new MetadataExporter();
+        CmdLineParser parser = new CmdLineParser(me);
+        try {
+        	parser.parseArgument(args);
+        	saveRegistry(me.file, me.schema);
+        	System.exit(0);
+        } catch (CmdLineException clE) {
+        	System.err.println(clE.getMessage());
+        	parser.printUsage(System.err);
         }
-        else
-        {
-            usage();
-            System.exit(0);
-        }
-        
-        if (line.hasOption('s'))
-        {
-            schema = line.getOptionValue('s');
-        }
-
-        saveRegistry(file, schema);
+        System.exit(1);
     }
 
     public static void saveRegistry(String file, String schema) throws SQLException, IOException, SAXException, RegistryExportException
@@ -310,16 +302,5 @@ public class MetadataExporter
             }
         }
         return name;
-    }
-    
-    /**
-     * Print the usage message to stdout
-     */
-    public static void usage()
-    {
-        String usage = "Use this class with the following options:\n" +
-                        " -f <xml output file> : specify the output file for the schemas\n" +
-                        " -s <schema> : name of the schema to export\n";
-        System.out.println(usage);
     }
 }

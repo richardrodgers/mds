@@ -107,6 +107,7 @@ CREATE SEQUENCE group2group_seq;
 CREATE SEQUENCE group2groupcache_seq;
 CREATE SEQUENCE harvested_collection_seq;
 CREATE SEQUENCE harvested_item_seq;
+CREATE SEQUENCE command_seq;
 
 -------------------------------------------------------
 -- BitstreamFormatRegistry table
@@ -668,6 +669,20 @@ CREATE TABLE ctask_data
     visible_api         BOOL
 );
 
+-------------------------------------------------------
+-- Command table
+-------------------------------------------------------
+CREATE TABLE Command
+(
+  command_id           INTEGER PRIMARY KEY,
+  name                 VARCHAR UNIQUE,
+  description          VARCHAR,
+  class_name           VARCHAR,
+  arguments            VARCHAR,
+  launchable	       BOOL,
+  fwd_user_args        BOOL,
+  successor            INTEGER 
+);
 
 
 

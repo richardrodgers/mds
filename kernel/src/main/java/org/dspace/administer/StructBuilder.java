@@ -20,22 +20,24 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.PosixParser;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
+
 import org.apache.xpath.XPathAPI;
-import org.dspace.authorize.AuthorizeException;
-import org.dspace.content.Collection;
-import org.dspace.content.Community;
-import org.dspace.core.Context;
-import org.dspace.eperson.EPerson;
+
 import org.jdom.Element;
 import org.jdom.output.XMLOutputter;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
+
+import org.dspace.authorize.AuthorizeException;
+import org.dspace.content.Collection;
+import org.dspace.content.Community;
+import org.dspace.core.Context;
+import org.dspace.eperson.EPerson;
 
 /**
  * This class deals with importing community and collection structures from
@@ -74,6 +76,18 @@ public class StructBuilder
     /** a hashtable to hold metadata for the community being worked on */
     private static Map<String, String> communityMap = new HashMap<String, String>();
     
+    // command-line options
+    @Option(name="-f", usage="file", required=true)
+    private String file;
+    
+    @Option(name="-e", usage="eperson", required=true)
+    private String eperson;
+    
+    @Option(name="-o", usage="output", required=true)
+    private String output;
+    
+    private StructBuilder() {}
+    
     /**
      * Main method to be run from the command line to import a structure into
      * DSpace
@@ -85,43 +99,26 @@ public class StructBuilder
      * The output file will contain exactly the same as the source xml document, but
      * with the handle for each imported item added as an attribute.
      */
-    public static void main(String[] argv) 
-    	throws Exception
+    public static void main(String[] args) throws Exception
     {
-        CommandLineParser parser = new PosixParser();
-
-    	Options options = new Options();
-
-    	options.addOption( "f", "file", true, "file");
-    	options.addOption( "e", "eperson", true, "eperson");
-    	options.addOption("o", "output", true, "output");
-    	
-    	CommandLine line = parser.parse( options, argv );
-    	
-    	String file = null;
-    	String eperson = null;
-    	String output = null;
-    	
-    	if (line.hasOption('f'))
-    	{
-    	    file = line.getOptionValue('f');
-    	}
-    	
-    	if (line.hasOption('e'))
-    	{
-    	    eperson = line.getOptionValue('e');
-    	}
-    	
-    	if (line.hasOption('o'))
-    	{
-    	    output = line.getOptionValue('o');
-    	}
-    	
-    	if (output == null || eperson == null || file == null)
-    	{
-    	    usage();
-    	    System.exit(0);
-    	}
+        StructBuilder sb = new StructBuilder();
+        CmdLineParser parser = new CmdLineParser(sb);
+        try {
+        	parser.parseArgument(args);
+        	sb.build();
+        	System.exit(0);
+        } catch (CmdLineException clE) {
+        	System.err.println(clE.getMessage());
+        	parser.printUsage(System.err);
+        } catch (Exception e) {
+        	System.err.println(e.getMessage());
+        }
+        System.exit(1);
+    }
+    
+    private void build() throws AuthorizeException, IOException, 
+                        ParserConfigurationException, SAXException, SQLException,
+                        TransformerException {
     	
         // create a context
         Context context = new Context();
@@ -183,12 +180,14 @@ public class StructBuilder
     /**
      * Output the usage information
      */
+    /*
     private static void usage()
     {
         System.out.println("Usage: java StructBuilder -f <source XML file> -o <output file> -e <eperson email>");
         System.out.println("Communities will be created from the top level, and a map of communities to handles will be returned in the output file");
         return;
     }
+    */
     
     /**
      * Validate the XML document.  This method does not return, but if validation
@@ -378,7 +377,7 @@ public class StructBuilder
      * 			created communities (e.g. the handles they have been assigned)
      */
     private static Element[] handleCommunities(Context context, NodeList communities, Community parent)
-    	throws TransformerException, SQLException, Exception
+    	throws AuthorizeException, IOException, TransformerException, SQLException
     {
         Element[] elements = new Element[communities.getLength()];
         
@@ -499,7 +498,7 @@ public class StructBuilder
      * 			created collections (e.g. the handle)
      */
     private static Element[] handleCollections(Context context, NodeList collections, Community parent)
-    	throws TransformerException, SQLException, AuthorizeException, IOException, Exception
+    	throws TransformerException, SQLException, AuthorizeException, IOException
     {
         Element[] elements = new Element[collections.getLength()];
         

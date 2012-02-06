@@ -13,11 +13,10 @@ import java.sql.SQLException;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.commons.cli.PosixParser;
+import org.kohsuke.args4j.Argument;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
 
 import org.apache.xpath.XPathAPI;
 
@@ -56,36 +55,36 @@ import org.xml.sax.SAXException;
  */
 public class MetadataImporter
 {
+	// Cli options	
+	@Option(name="-f", usage="source xml file for DC fields", required=true)
+	String sourceFile;
+		
+	@Option(name="-u", usage="update an existing schema")
+	boolean forceUpdate;
+	
+	private MetadataImporter() {}
+	
 	/**
 	 * main method for reading user input from the command line
 	 */
     public static void main(String[] args)
-    	throws ParseException, SQLException, IOException, TransformerException,
+    	throws  SQLException, IOException, TransformerException,
     			ParserConfigurationException, AuthorizeException, SAXException,
     			NonUniqueMetadataException, RegistryImportException
-    {
-        boolean forceUpdate = false;
-        
-        // create an options object and populate it
-        CommandLineParser parser = new PosixParser();
-        Options options = new Options();
-        options.addOption("f", "file", true, "source xml file for DC fields");
-        options.addOption("u", "update", false, "update an existing schema");
-        CommandLine line = parser.parse(options, args);
-        
-        String file = null;
-        if (line.hasOption('f'))
-        {
-            file = line.getOptionValue('f');
+    {  	
+        MetadataImporter mi = new MetadataImporter();
+        CmdLineParser parser = new CmdLineParser(mi);
+        try {
+        	parser.parseArgument(args);
+        	loadRegistry(mi.sourceFile, mi.forceUpdate);
+        	System.exit(0);
+        } catch (CmdLineException clE) {
+        	System.err.println(clE.getMessage());
+        	parser.printUsage(System.err);
+        } catch (Exception e) {
+        	System.err.println(e.getMessage());
         }
-        else
-        {
-            usage();
-            System.exit(0);
-        }
-
-        forceUpdate = line.hasOption('u');
-        loadRegistry(file, forceUpdate);
+        System.exit(1);
     }
     
     /**
