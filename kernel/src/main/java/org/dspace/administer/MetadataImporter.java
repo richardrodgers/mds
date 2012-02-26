@@ -101,7 +101,7 @@ public class MetadataImporter
         context.turnOffAuthorisationSystem();
         
         // read the XML
-        Document document = RegistryImporter.loadXML(file);
+        Document document = RegistryLoader.loadXML(file);
 
         // Get the nodes corresponding to types
         NodeList schemaNodes = XPathAPI.selectNodeList(document, "/dspace-dc-types/dc-schema");
@@ -141,8 +141,8 @@ public class MetadataImporter
             AuthorizeException, NonUniqueMetadataException, RegistryImportException
     {
         // Get the values
-        String name = RegistryImporter.getElementData(node, "name");
-        String namespace = RegistryImporter.getElementData(node, "namespace");
+        String name = RegistryLoader.getElementData(node, "name");
+        String namespace = RegistryLoader.getElementData(node, "namespace");
         
         if (name == null || "".equals(name))
         {
@@ -213,10 +213,10 @@ public class MetadataImporter
             AuthorizeException, NonUniqueMetadataException, RegistryImportException
     {
         // Get the values
-        String schema = RegistryImporter.getElementData(node, "schema");
-        String element = RegistryImporter.getElementData(node, "element");
-        String qualifier = RegistryImporter.getElementData(node, "qualifier");
-        String scopeNote = RegistryImporter.getElementData(node, "scope_note");
+        String schema = RegistryLoader.getElementData(node, "schema");
+        String element = RegistryLoader.getElementData(node, "element");
+        String qualifier = RegistryLoader.getElementData(node, "qualifier");
+        String scopeNote = RegistryLoader.getElementData(node, "scope_note");
 
         // If the schema is not provided default to DC
         if (schema == null)

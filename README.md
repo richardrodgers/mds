@@ -57,6 +57,14 @@ A lot of application support data is held in configuration files of various sort
 We will experiment with re-drawing the line for several data types. A first example turns the script launcher data into a _command registry_ that is loaded into the DB. In addition to scaling a little better (not a big concern here), there is the additional advantage of more modular installation: whenever an add-on to DSpace includes a command-line tool, the registry can be easily updated automatically. No manual edit of launcher.xml is required.
 Notice that kernel commands (included in kernel code) should be loaded at system install time, just like other registry files.
 
+### DCValue -> MDValue ###
+
+DCValue has been replaced with MDValue, which (along with a more descriptive name) is an immutable object class for holding metadata values. The APIs using DCValue have also been replaced with more modern java idioms, and all the deprecated methods (like _AddDC()_) removed.
+
+### Generic Metadata -> Bitstreams ###
+
+Bitstreams now can possess _generic_ metadata sets (meaning any flat, name-spaced/schema-defined, qualified, multi-valued, and multi-language sets, the same as for Items) using the content API. 
+
 ## Future Work? ##
 
 Nothing definite, but there are many opportunities. Examples: replace stackable auth with proper JAAS abstraction, refactor authority into an extensible service.

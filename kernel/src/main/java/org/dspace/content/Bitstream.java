@@ -38,8 +38,8 @@ import org.dspace.storage.rdbms.TableRowIterator;
  * @version $Revision: 6281 $
  */
 public class Bitstream extends DSpaceObject
-{
-    /** log4j logger */
+{    
+    /** logger */
     private static Logger log = LoggerFactory.getLogger(Bitstream.class);
 
     /** Our context */
@@ -47,6 +47,9 @@ public class Bitstream extends DSpaceObject
 
     /** The row in the table representing this bitstream */
     private TableRow bRow;
+    
+    /** metadata for this bitstream */
+    private List<MDValue> metadata;
 
     /** The bitstream format corresponding to this bitstream */
     private BitstreamFormat bitstreamFormat;
@@ -489,6 +492,159 @@ public class Bitstream extends DSpaceObject
         bRow.setColumn("bitstream_format_id", bitstreamFormat.getID());
         modified = true;
     }
+    
+    /**
+     * Get metadata for the bitstream in a chosen schema.
+     * See <code>MetadataSchema</code> for more information about schemas.
+     * Passing in a <code>null</code> value for <code>qualifier</code>
+     * or <code>lang</code> only matches metadata fields where that
+     * qualifier or languages is actually <code>null</code>.
+     * Passing in <code>MDValue.ANY</code>
+     * retrieves all metadata fields with any value for the qualifier or
+     * language, including <code>null</code>
+     * <P>
+     * Examples:
+     * <P>
+     * Return values of the unqualified "title" field, in any language.
+     * Qualified title fields (e.g. "title.uniform") are NOT returned:
+     * <P>
+     * <code>bitstream.getMetadata("dc", "title", null, MDValue.ANY );</code>
+     * <P>
+     * Return all US English values of the "title" element, with any qualifier
+     * (including unqualified):
+     * <P>
+     * <code>bitstream.getMetadata("dc, "title", MDValue.ANY, "en_US" );</code>
+     * <P>
+     * The ordering of values of a particular element/qualifier/language
+     * combination is significant. When retrieving with wildcards, values of a
+     * particular element/qualifier/language combinations will be adjacent, but
+     * the overall ordering of the combinations is indeterminate.
+     *
+     * @param schema
+     *            the schema for the metadata field. <em>Must</em> match
+     *            the <code>name</code> of an existing metadata schema.
+     * @param element
+     *            the element name. <code>MDValue.ANY</code> matches any
+     *            element. <code>null</code> doesn't really make sense as all
+     *            metadata must have an element.
+     * @param qualifier
+     *            the qualifier. <code>null</code> means unqualified, and
+     *            <code>MDValue.ANY</code> means any qualifier (including
+     *            unqualified.)
+     * @param lang
+     *            the ISO639 language code, optionally followed by an underscore
+     *            and the ISO3166 country code. <code>null</code> means only
+     *            values with no language are returned, and
+     *            <code>MDValue.ANY</code> means values with any country code or
+     *            no country code are returned.
+     * @return metadata fields that match the parameters
+     */
+    public List<MDValue> getMetadata(String schema, String element, String qualifier,
+            					     String lang) {
+    	
+        // Build up list of matching values
+        List<MDValue> values = new ArrayList<MDValue>();
+        for (MDValue mdv : getMetadata()) {
+            if (mdv.match(schema, element, qualifier, lang)) {
+                values.add(mdv);
+            }
+        }
+        return values;
+    }
+    
+    /**
+     * Add metadata fields. These are appended to existing values.
+     * Use <code>clearMetadata</code> to remove values. The ordering of values
+     * passed in is maintained.
+     * @param schema
+     *            the schema for the metadata field. <em>Must</em> match
+     *            the <code>name</code> of an existing metadata schema.
+     * @param element
+     *            the metadata element name
+     * @param qualifier
+     *            the metadata qualifier name, or <code>null</code> for
+     *            unqualified
+     * @param lang
+     *            the ISO639 language code, optionally followed by an underscore
+     *            and the ISO3166 country code. <code>null</code> means the
+     *            value has no language (for example, a date).
+     * @param values
+     *            the values to add.
+     */
+    public void addMetadata(String schema, String element, String qualifier, String lang,
+            			    List<String> values) {
+        List<MDValue> mdValues = getMetadata();
+        String language = (lang == null ? null : lang.trim());
+        //String fieldName = schema+"."+element+((qualifier==null)? "": "."+qualifier);
+
+        // We will not verify that they are valid entries in the registry
+        // until update() is called.
+        for (String value : values) {
+        	String theValue = value;
+            if (value != null) {
+                // remove control unicode char
+                String temp = value.trim();
+                char[] dcvalue = temp.toCharArray();
+                for (int charPos = 0; charPos < dcvalue.length; charPos++) {
+                    if (Character.isISOControl(dcvalue[charPos]) &&
+                        !String.valueOf(dcvalue[charPos]).equals("\u0009") &&
+                        !String.valueOf(dcvalue[charPos]).equals("\n") &&
+                        !String.valueOf(dcvalue[charPos]).equals("\r")) {
+                        dcvalue[charPos] = ' ';
+                    }
+                }
+                theValue = String.valueOf(dcvalue);
+            } else {
+                theValue = null;
+            }
+            metadata.add(new MDValue(schema, element, qualifier, language, theValue));
+            //addDetails(fieldName);
+        }
+
+        if (values.size() > 0) {
+            modifiedMetadata = true;
+        }
+    }
+    
+    /**
+     * Clear metadata values. As with <code>getMetadata</code> above,
+     * passing in <code>null</code> only matches fields where the qualifier or
+     * language is actually <code>null</code>.<code>MDValue.ANY</code> will
+     * match any element, qualifier or language, including <code>null</code>.
+     * Thus, <code>bitstream.clearMetadat(MDValue.ANY, MDValue.ANY, MDValue.ANY)</code>
+     * will remove all metadata associated with a bitstream.
+     *
+     * @param schema
+     *            the schema for the metadata field. <em>Must</em> match
+     *            the <code>name</code> of an existing metadata schema.
+     * @param element
+     *            the element to remove, or <code>MDValue.ANY</code>
+     * @param qualifier
+     *            the qualifier. <code>null</code> means unqualified, and
+     *            <code>MDValue.ANY</code> means any qualifier (including
+     *            unqualified.)
+     * @param lang
+     *            the ISO639 language code, optionally followed by an underscore
+     *            and the ISO3166 country code. <code>null</code> means only
+     *            values with no language are removed, and <code>MDValue.ANY</code>
+     *            means values with any country code or no country code are
+     *            removed.
+     */
+    public void clearMetadata(String schema, String element, String qualifier,
+            				  String lang)
+    {
+        // We will build a list of values NOT matching the values to clear
+        List<MDValue> values = new ArrayList<MDValue>();
+        for (MDValue mdv : getMetadata()) {
+            if (! mdv.match(schema, element, qualifier, lang)) {
+                values.add(mdv);
+            }
+        }
+
+        // Now swap the old list of values for the new, unremoved values
+        metadata = values;
+        modifiedMetadata = true;
+    }
 
     /**
      * Update the bitstream metadata. Note that the content of the bitstream
@@ -512,6 +668,21 @@ public class Bitstream extends DSpaceObject
         }
         if (modifiedMetadata)
         {
+            // Synchonize DB to in-memory MD values
+        	List<MDValue> dbValues = new ArrayList<MDValue>();
+        	loadMetadata(dbValues);
+        	// first pass - additions
+            for (MDValue addValue : metadata) {
+            	if (! dbValues.contains(addValue)) {
+            		createMetadataValue(addValue);
+            	}
+            }
+            // second pass - deletions
+            for (MDValue delValue : dbValues) {
+            	if (! metadata.contains(delValue)) {
+            		deleteMetadataValue(delValue);
+            	}
+            }
             bContext.addEvent(new Event(Event.MODIFY_METADATA, Constants.BITSTREAM, getID(), getDetails()));
             modifiedMetadata = false;
             clearDetails();
@@ -552,6 +723,10 @@ public class Bitstream extends DSpaceObject
         query += (oracle ? "''" : "Null") + " where primary_bitstream_id = ? ";
         DatabaseManager.updateQuery(bContext,
                 query, bRow.getIntColumn("bitstream_id"));
+        
+        // Remove any metadata
+        DatabaseManager.updateQuery(bContext, "DELETE FROM BitstreamMDValue WHERE bitstream_id= ? ",
+                					getID());
 
         // Remove bitstream itself
         BitstreamStorageManager.delete(bContext, bRow
@@ -735,5 +910,83 @@ public class Bitstream extends DSpaceObject
                 }
             }                                   
         }
+    }
+    
+    // lazy load of metadata
+    private List<MDValue> getMetadata() {
+    	if (metadata == null) {
+    		metadata = new ArrayList<MDValue>();
+    		loadMetadata(metadata);
+    	}
+    	return metadata;
+    }
+    
+    private void loadMetadata(List<MDValue> mdList) {
+    	TableRowIterator tri = null;
+        try {
+    		tri = retrieveMetadata();
+            if (tri != null) {
+                while (tri.hasNext()) {
+                    TableRow resultRow = tri.next();
+                    // Get the associated metadata field and schema information
+                    int fieldID = resultRow.getIntColumn("metadata_field_id");
+                    MetadataField field = MetadataField.find(bContext, fieldID);
+                    if (field == null) {
+                        log.error("Loading bitstream - cannot find metadata field " + fieldID);
+                    } else {
+                        MetadataSchema schema = MetadataSchema.find(bContext, field.getSchemaID());
+                        if (schema == null) {
+                            log.error("Loading bitstream - cannot find metadata schema " + field.getSchemaID() + ", field " + fieldID);
+                        } else {
+                            // Add MDValue object to list
+                            mdList.add(new MDValue(schema.getName(),
+                            					   field.getElement(),
+                                                   field.getQualifier(),
+                                                   resultRow.getStringColumn("text_lang"),
+                                                   resultRow.getStringColumn("text_value")));
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e)   {
+            log.error("Error loading bitstream metadata");
+        } finally {
+            // close the TableRowIterator to free up resources
+            if (tri != null) {
+                tri.close();
+            }
+        }
+    }
+       
+    private TableRowIterator retrieveMetadata() throws SQLException {
+    	return DatabaseManager.queryTable(bContext, "BitstreamMDValue",
+                "SELECT * FROM BitstreamMDValue WHERE bitstream_id= ? ORDER BY metadata_field_id, place",
+                getID());
+    }
+    
+    private void createMetadataValue(MDValue value) throws SQLException, AuthorizeException {
+    	TableRow row = createMetadataRow(value);
+    	DatabaseManager.insert(bContext, row);
+    }
+    
+    private void deleteMetadataValue(MDValue value) throws SQLException, AuthorizeException {
+    	TableRow row = createMetadataRow(value);
+    	DatabaseManager.delete(bContext, row);
+    }
+    
+    private TableRow createMetadataRow(MDValue value) throws SQLException, AuthorizeException {
+    	
+    	MetadataSchema schema = MetadataSchema.findByNamespace(bContext, value.getSchema());
+    	MetadataField field = MetadataField.findByElement(bContext, schema.getSchemaID(),
+    			                                          value.getElement(), value.getQualifier());
+    	
+        // Create a table row and update it with the values
+        TableRow row = DatabaseManager.row("BitstreamMDValue");
+        row.setColumn("bitstream_id", getID());
+        row.setColumn("metadata_field_id", field.getFieldID());
+        row.setColumn("text_value", value.getValue());
+        row.setColumn("text_lang", value.getLanguage());
+        row.setColumn("place", "foo");
+        return row;
     }
 }

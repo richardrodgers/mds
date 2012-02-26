@@ -14,7 +14,7 @@ import java.util.List;
 
 import org.dspace.content.Collection;
 import org.dspace.content.Community;
-import org.dspace.content.DCValue;
+import org.dspace.content.MDValue;
 import org.dspace.content.DSpaceObject;
 import org.dspace.content.Item;
 import org.dspace.core.Context;
@@ -888,17 +888,17 @@ public class BrowseInfo
     				sb.append("{{ NULL METADATA }}");
     				break;
     			}
-				DCValue[] values = bi.getMetadata(md[0], md[1], md[2], Item.ANY);
+				List <MDValue> values = bi.getMetadata(md[0], md[1], md[2], MDValue.ANY);
 				StringBuffer value = new StringBuffer();
 				if (values != null)
 				{
-					for (int i = 0; i < values.length; i++)
+					for (int i = 0; i < values.size(); i++)
 					{
 						if (i > 0)
 						{
 							value.append(",");
 						}
-						value.append(values[i].value);
+						value.append(values.get(i).getValue());
 					}
 				}
 				else

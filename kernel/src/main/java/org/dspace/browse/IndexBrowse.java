@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 
-import org.dspace.content.DCValue;
+import org.dspace.content.MDValue;
 import org.dspace.content.Item;
 import org.dspace.authority.ChoiceAuthorityManager;
 import org.dspace.authority.MetadataAuthorityManager;
@@ -353,7 +353,7 @@ public class IndexBrowse
     {
         // Map to store the metadata from the Item
         // so that we don't grab it multiple times
-        Map<String, String> itemMDMap = new HashMap<String, String>();
+        Map<String, MDValue> itemMDMap = new HashMap<String, MDValue>();
         
         try
         {
@@ -415,26 +415,28 @@ public class IndexBrowse
                         for (int mdIdx = 0; mdIdx < bis[i].getMetadataCount(); mdIdx++)
                         {
                             String[] md = bis[i].getMdBits(mdIdx);
-                            DCValue[] values = item.getMetadata(md[0], md[1], md[2], Item.ANY);
+                            List<MDValue> values = item.getMetadata(md[0], md[1], md[2], MDValue.ANY);
 
                             // if we have values to index on, then do so
-                            if (values != null && values.length > 0)
+                            if (values != null && values.size() > 0)
                             {
                                 int minConfidence = MetadataAuthorityManager.getManager()
-                                        .getMinConfidence(values[0].schema, values[0].element, values[0].qualifier);
+                                        .getMinConfidence(values.get(0).getSchema(), values.get(0).getElement(),
+                                        		          values.get(0).getQualifier());
 
-                                for (DCValue value : values)
+                                for (MDValue value : values)
                                 {
                                     // Ensure that there is a value to index before inserting it
-                                    if (Strings.isNullOrEmpty(value.value))
+                                    if (Strings.isNullOrEmpty(value.getValue()))
                                     {
                                         log.error("Null metadata value for item " + item.getID() + ", field: " +
-                                                value.schema + "." +
-                                                value.element +
-                                                (value.qualifier == null ? "" : "." + value.qualifier));
+                                                value.getSchema() + "." +
+                                                value.getElement() +
+                                                (value.getQualifier() == null ? "" : "." + value.getQualifier()));
                                     }
                                     else
                                     {
+                                    	/*
                                         if (bis[i].isAuthorityIndex() &&
                                                 (value.authority == null || value.confidence < minConfidence))
                                         {
@@ -443,8 +445,10 @@ public class IndexBrowse
                                             continue;
 
                                         }
+                                        */
 
                                         // is there any valid (with appropriate confidence) authority key?
+                                    	/*
                                         if (value.authority != null
                                                 && value.confidence >= minConfidence)
                                         {
@@ -479,10 +483,12 @@ public class IndexBrowse
                                         }
                                         else // put it in the browse index as if it hasn't have an authority key
                                         {
+                                        */
                                             // get the normalised version of the value
-                                            String nVal = OrderFormat.makeSortString(value.value, value.language, bis[i].getDataType());
-                                            distIDSet.add(dao.getDistinctID(bis[i].getDistinctTableName(), value.value, null, nVal));
-                                        }
+                                            String nVal = OrderFormat.makeSortString(value.getValue(), value.getLanguage(),
+                                            		                                 bis[i].getDataType());
+                                            distIDSet.add(dao.getDistinctID(bis[i].getDistinctTableName(), value.getValue(), null, nVal));
+                                        //}
                                     }
                                 }
                             }
@@ -529,7 +535,7 @@ public class IndexBrowse
      * @throws BrowseException
      * @throws SQLException
      */
-    private Map<Integer, String> getSortValues(ItemMetadataProxy item, Map itemMDMap)
+    private Map<Integer, String> getSortValues(ItemMetadataProxy item, Map<String, MDValue> itemMDMap)
             throws BrowseException, SQLException
     {
         try
@@ -543,18 +549,17 @@ public class IndexBrowse
 
                 // If we've already used the metadata for this Item
                 // it will be cached in the map
-                DCValue value = null;
+                MDValue value = null;
 
-                if (itemMDMap != null)
-                {
-                    value = (DCValue) itemMDMap.get(metadata);
+                if (itemMDMap != null) {
+                    value = itemMDMap.get(metadata);
                 }
 
                 // We haven't used this metadata before, so grab it from the item
                 if (value == null)
                 {
                     String[] somd = so.getMdBits();
-                    DCValue[] dcv = item.getMetadata(somd[0], somd[1], somd[2], Item.ANY);
+                    List<MDValue> dcv = item.getMetadata(somd[0], somd[1], somd[2], MDValue.ANY);
 
                     if (dcv == null)
                     {
@@ -562,23 +567,23 @@ public class IndexBrowse
                     }
 
                     // we only use the first dc value
-                    if (dcv.length > 0)
+                    if (dcv.size() > 0)
                     {
                         // Set it as the current metadata value to use
                         // and add it to the map
-                        value = dcv[0];
+                        value = dcv.get(0);
 
                         if (itemMDMap != null)
                         {
-                            itemMDMap.put(metadata, dcv[0]);
+                            itemMDMap.put(metadata, value);
                         }
                     }
                 }
 
                 // normalise the values as we insert into the sort map
-                if (value != null && value.value != null)
+                if (value != null && value.getValue() != null)
                 {
-                    String nValue = OrderFormat.makeSortString(value.value, value.language, so.getType());
+                    String nValue = OrderFormat.makeSortString(value.getValue(), value.getLanguage(), so.getType());
                     sortMap.put(key, nValue);
                 } else {
                 	// Add an empty entry to clear out any old values in the sort columns.
@@ -1169,7 +1174,7 @@ public class IndexBrowse
 	        this.id         = id;
 	    }
 
-	    public DCValue[] getMetadata(String schema, String element, String qualifier, String lang)
+	    public List<MDValue> getMetadata(String schema, String element, String qualifier, String lang)
 	        throws SQLException
 	    {
 	        if (item != null)

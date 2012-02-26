@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.DCDate;
-import org.dspace.content.DCValue;
+import org.dspace.content.MDValue;
 import org.dspace.content.DSpaceObject;
 import org.dspace.content.Item;
 import org.dspace.content.ItemIterator;
@@ -126,7 +126,7 @@ public class EmbargoManager
         try
         {
             context.turnOffAuthorisationSystem();
-            item.clearMetadata(lift_schema, lift_element, lift_qualifier, Item.ANY);
+            item.clearMetadata(lift_schema, lift_element, lift_qualifier, MDValue.ANY);
             item.addMetadata(lift_schema, lift_element, lift_qualifier, null, slift);
             log.info("Set embargo on Item "+item.getHandle()+", expires on: "+slift);
             setter.setEmbargo(context, item);
@@ -157,17 +157,16 @@ public class EmbargoManager
         throws SQLException, AuthorizeException, IOException
     {
         init();
-        DCValue terms[] = item.getMetadata(terms_schema, terms_element,
-                terms_qualifier, Item.ANY);
+        List<MDValue> terms = item.getMetadata(terms_schema, terms_element,
+                							   terms_qualifier, MDValue.ANY);
 
         DCDate result = null;
 
-        // Its poor form to blindly use an object that could be null...
         if (terms == null)
             return null;
 
         result = setter.parseTerms(context, item,
-                terms.length > 0 ? terms[0].value : null);
+                				   terms.size() > 0 ? terms.get(0).getValue() : null);
 
         if (result == null)
             return null;
@@ -204,10 +203,10 @@ public class EmbargoManager
     {
         init();
         lifter.liftEmbargo(context, item);
-        item.clearMetadata(lift_schema, lift_element, lift_qualifier, Item.ANY);
+        item.clearMetadata(lift_schema, lift_element, lift_qualifier, MDValue.ANY);
 
         // set the dc.date.available value to right now
-        item.clearMetadata(MetadataSchema.DC_SCHEMA, "date", "available", Item.ANY);
+        item.clearMetadata(MetadataSchema.DC_SCHEMA, "date", "available", MDValue.ANY);
         item.addMetadata(MetadataSchema.DC_SCHEMA, "date", "available", null, DCDate.getCurrent().toString());
 
         log.info("Lifting embargo on Item "+item.getHandle());
@@ -302,7 +301,7 @@ public class EmbargoManager
             }
             else
             {
-                ItemIterator ii = Item.findByMetadataField(context, lift_schema, lift_element, lift_qualifier, Item.ANY);
+                ItemIterator ii = Item.findByMetadataField(context, lift_schema, lift_element, lift_qualifier, MDValue.ANY);
                 while (ii.hasNext())
                 {
                     if (em.processOneItem(context, ii.next(), now))
@@ -341,26 +340,26 @@ public class EmbargoManager
     // return false on success, true if there was fatal exception.
     private boolean processOneItem(Context context, Item item, Date now) throws Exception {
         boolean status = false;
-        DCValue lift[] = item.getMetadata(lift_schema, lift_element, lift_qualifier, Item.ANY);
+        List<MDValue> lifts = item.getMetadata(lift_schema, lift_element, lift_qualifier, MDValue.ANY);
 
-        if (lift.length > 0)
+        if (lifts.size() > 0)
         {
             // need to survive any failure on a single item, go on to process the rest.
             try
             {
-                DCDate liftDate = new DCDate(lift[0].value);
+                DCDate liftDate = new DCDate(lifts.get(0).getValue());
                 log.debug("Testing embargo on item="+item.getHandle()+", date="+liftDate.toString());
                 if (liftDate.toDate().before(now))
                 {
                     if (verbose)
                     {
-                        System.err.println("Lifting embargo from Item handle=" + item.getHandle() + ", lift date=" + lift[0].value);
+                        System.err.println("Lifting embargo from Item handle=" + item.getHandle() + ", lift date=" + lifts.get(0).getValue());
                     }
                     if (noOp)
                     {
                         if (! quiet)
                         {
-                            System.err.println("DRY RUN: would have lifted embargo from Item handle=" + item.getHandle() + ", lift date=" + lift[0].value);
+                            System.err.println("DRY RUN: would have lifted embargo from Item handle=" + item.getHandle() + ", lift date=" + lifts.get(0).getValue());
                         }
                     }
                     else if (! checkOnly)
@@ -372,7 +371,7 @@ public class EmbargoManager
                 {
                     if (verbose)
                     {
-                        System.err.println("Checking current embargo on Item handle=" + item.getHandle() + ", lift date=" + lift[0].value);
+                        System.err.println("Checking current embargo on Item handle=" + item.getHandle() + ", lift date=" + lifts.get(0).getValue());
                     }
                     setter.checkEmbargo(context, item);
                 }
@@ -444,10 +443,10 @@ public class EmbargoManager
     // it was never under embargo, or the lift date has passed.
     private static DCDate recoverEmbargoDate(Item item) {
         DCDate liftDate = null;
-        DCValue lift[] = item.getMetadata(lift_schema, lift_element, lift_qualifier, Item.ANY);
-        if (lift.length > 0)
+        List<MDValue> lifts = item.getMetadata(lift_schema, lift_element, lift_qualifier, MDValue.ANY);
+        if (lifts.size() > 0)
         {
-            liftDate = new DCDate(lift[0].value);
+            liftDate = new DCDate(lifts.get(0).getValue());
             // sanity check: do not allow an embargo lift date in the past.
             if (liftDate.toDate().before(new Date()))
             {

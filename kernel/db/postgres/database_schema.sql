@@ -103,6 +103,7 @@ CREATE SEQUENCE epersongroup2workspaceitem_seq;
 CREATE SEQUENCE metadataschemaregistry_seq;
 CREATE SEQUENCE metadatafieldregistry_seq;
 CREATE SEQUENCE metadatavalue_seq;
+CREATE SEQUENCE bitstreammdv_seq;
 CREATE SEQUENCE group2group_seq;
 CREATE SEQUENCE group2groupcache_seq;
 CREATE SEQUENCE harvested_collection_seq;
@@ -329,7 +330,18 @@ CREATE INDEX metadatavalue_item_idx ON MetadataValue(item_id);
 CREATE INDEX metadatavalue_item_idx2 ON MetadataValue(item_id,metadata_field_id);
 CREATE INDEX metadatavalue_field_fk_idx ON MetadataValue(metadata_field_id);
 CREATE INDEX metadatafield_schema_idx ON MetadataFieldRegistry(metadata_schema_id);
-  
+
+CREATE TABLE BitstreamMDValue
+(
+  bsmetadata_value_id  INTEGER PRIMARY KEY DEFAULT NEXTVAL('bitstreammdv_seq'),
+  bitstream_id         INTEGER REFERENCES Bitstream(bitstream_id),
+  metadata_field_id    INTEGER REFERENCES MetadataFieldRegistry(metadata_field_id),
+  text_value           TEXT,
+  text_lang            VARCHAR(24),
+  place                INTEGER
+);
+
+-- indexing TODO
 -------------------------------------------------------
 -- Community table
 -------------------------------------------------------

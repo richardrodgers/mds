@@ -26,7 +26,7 @@ import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.content.Collection;
 import org.dspace.content.DCDate;
-import org.dspace.content.DCValue;
+import org.dspace.content.MDValue;
 import org.dspace.content.InstallItem;
 import org.dspace.content.Item;
 import org.dspace.content.WorkspaceItem;
@@ -726,7 +726,7 @@ public class WorkflowManager
             String handle = HandleManager.findHandle(c, i);
 
             // Get title
-            DCValue[] titles = i.getMetadata("dc", "title", null, Item.ANY);
+            List<MDValue> titles = i.getMetadata("dc", "title", null, MDValue.ANY);
             String title = "";
             try
             {
@@ -736,9 +736,9 @@ public class WorkflowManager
             {
                 title = "Untitled";
             }
-            if (titles.length > 0)
+            if (titles.size() > 0)
             {
-                title = titles[0].value;
+                title = titles.get(0).getValue();
             }
 
             email.addRecipient(ep.getEmail());
@@ -1052,12 +1052,12 @@ public class WorkflowManager
     public static String getItemTitle(WorkflowItem wi) throws SQLException
     {
         Item myitem = wi.getItem();
-        DCValue[] titles = myitem.getMetadata("dc", "title", null, Item.ANY);
+        List<MDValue> titles = myitem.getMetadata("dc", "title", null, MDValue.ANY);
 
         // only return the first element, or "Untitled"
-        if (titles.length > 0)
+        if (titles.size() > 0)
         {
-            return titles[0].value;
+            return titles.get(0).getValue();
         }
         else
         {

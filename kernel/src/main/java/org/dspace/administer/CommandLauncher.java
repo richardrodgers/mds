@@ -47,7 +47,12 @@ public class CommandLauncher
             String className = cmdLineArgs.remove(0);
             invokeCommand(className, cmdLineArgs);
             System.exit(0);
-        } 
+        } else if ("install".equals(cmdName)) {
+        	// Installer built-in simply because it is needed before DB exists
+        	// so cannot be read from registry
+        	invokeCommand("org.dspace.administer.Installer", cmdLineArgs);
+        	System.exit(0);
+        }
         // OK - try to look up command
         Context ctx = null;
         try {

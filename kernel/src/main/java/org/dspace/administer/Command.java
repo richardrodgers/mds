@@ -115,13 +115,13 @@ public class Command
 
     public static Command load(Context context, String name, String description,
     		                   String className, String arguments,
-    		                   boolean launchable, boolean userArgs, int successor) throws SQLException,
-            AuthorizeException {
+    		                   boolean launchable, boolean userArgs, int successor)
+    		                throws SQLException, AuthorizeException {
         // authorized?
         if (!AuthorizeManager.isAdmin(context)) {
             throw new AuthorizeException("You must be an admin to create a Command");
         }
-
+        
         // Create a table row
         TableRow row = DatabaseManager.create(context, "command");
         

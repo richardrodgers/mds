@@ -11,7 +11,7 @@ import org.dspace.storage.rdbms.TableRowIterator;
 import org.dspace.storage.rdbms.DatabaseManager;
 import org.dspace.storage.rdbms.TableRow;
 import org.dspace.core.Context;
-import org.dspace.content.DCValue;
+import org.dspace.content.MDValue;
 import org.dspace.content.Item;
 
 import java.sql.SQLException;
@@ -89,10 +89,10 @@ public class BrowseItemDAOPostgres implements BrowseItemDAO
         return items.toArray(bis);
     }
 
-    public DCValue[] queryMetadata(int itemId, String schema, String element, String qualifier, String lang)
+    public List<MDValue> queryMetadata(int itemId, String schema, String element, String qualifier, String lang)
     	throws SQLException
     {
-    	List<DCValue> values = new ArrayList<DCValue>();
+    	List<MDValue> values = new ArrayList<MDValue>();
     	TableRowIterator tri = null;
 
         try
@@ -102,7 +102,7 @@ public class BrowseItemDAOPostgres implements BrowseItemDAO
                 Object[] params = { Integer.valueOf(itemId), element, schema };
                 tri = DatabaseManager.query(context, getByMetadataElement, params);
             }
-            else if (Item.ANY.equals(qualifier))
+            else if (MDValue.ANY.equals(qualifier))
             {
                 Object[] params = { Integer.valueOf(itemId), element, schema };
                 tri = DatabaseManager.query(context, getByMetadataAnyQualifier, params);
@@ -113,23 +113,14 @@ public class BrowseItemDAOPostgres implements BrowseItemDAO
                 tri = DatabaseManager.query(context, getByMetadata, params);
             }
 
-            if (!tri.hasNext())
-            {
-                return new DCValue[0];
-            }
-
             while (tri.hasNext())
             {
                 TableRow tr = tri.next();
-                DCValue dcv = new DCValue();
-                dcv.schema = schema;
-                dcv.element = tr.getStringColumn("element");
-                dcv.qualifier = tr.getStringColumn("qualifier");
-                dcv.language = tr.getStringColumn("text_lang");
-                dcv.value = tr.getStringColumn("text_value");
-                dcv.authority = tr.getStringColumn("authority");
-                dcv.confidence = tr.getIntColumn("confidence");
-                values.add(dcv);
+                values.add(new MDValue(schema,
+  				      tr.getStringColumn("element"),
+  				      tr.getStringColumn("qualifier"),
+  				      tr.getStringColumn("text_lang"),
+  				      tr.getStringColumn("text_value")));
             }
         }
         finally
@@ -140,7 +131,6 @@ public class BrowseItemDAOPostgres implements BrowseItemDAO
             }
         }
         
-        DCValue[] dcvs = new DCValue[values.size()];
-        return values.toArray(dcvs);
+        return values;
     }
 }

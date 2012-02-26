@@ -44,7 +44,7 @@ public class BrowseItem extends DSpaceObject
 	private Context context;
 	
 	/** a List of all the metadata */
-	private List<DCValue> metadata = new ArrayList<DCValue>();
+	private List<MDValue> metadata = new ArrayList<MDValue>();
 	
 	/** database id of the item */
 	private int id = -1;
@@ -84,7 +84,7 @@ public class BrowseItem extends DSpaceObject
 	 * @return			array of matching values
 	 * @throws SQLException
 	 */
-	public DCValue[] getMetadata(String schema, String element, String qualifier, String lang)
+	public List<MDValue> getMetadata(String schema, String element, String qualifier, String lang)
 		throws SQLException
 	{
         try
@@ -93,50 +93,45 @@ public class BrowseItem extends DSpaceObject
 
             // if the qualifier is a wildcard, we have to get it out of the
             // database
-            if (Item.ANY.equals(qualifier))
+            if (MDValue.ANY.equals(qualifier))
             {
                 return dao.queryMetadata(id, schema, element, qualifier, lang);
             }
 
             if (!metadata.isEmpty())
             {
-                List<DCValue> values = new ArrayList<DCValue>();
-                Iterator<DCValue> i = metadata.iterator();
+                List<MDValue> values = new ArrayList<MDValue>();
+                Iterator<MDValue> i = metadata.iterator();
 
                 while (i.hasNext())
                 {
-                    DCValue dcv = i.next();
-
-                    if (match(schema, element, qualifier, lang, dcv))
+                    MDValue mdv = i.next();
+                    if (mdv.match(schema, element, qualifier, lang))
                     {
-                        values.add(dcv);
+                        values.add(mdv);
                     }
                 }
 
                 if (values.isEmpty())
                 {
-                    DCValue[] dcvs = dao.queryMetadata(id, schema, element, qualifier, lang);
+                    List<MDValue> dcvs = dao.queryMetadata(id, schema, element, qualifier, lang);
                     if (dcvs != null)
                     {
-                    	Collections.addAll(metadata, dcvs);
+                    	dcvs.addAll(metadata);
                     }
                     return dcvs;
                 }
 
-                // else, Create an array of matching values
-                DCValue[] valueArray = new DCValue[values.size()];
-                valueArray = (DCValue[]) values.toArray(valueArray);
-
-                return valueArray;
+                return values;
             }
             else
             {
-                DCValue[] dcvs = dao.queryMetadata(id, schema, element, qualifier, lang);
-                if (dcvs != null)
+                List<MDValue> mdvs = dao.queryMetadata(id, schema, element, qualifier, lang);
+                if (mdvs != null)
                 {
-                	Collections.addAll(metadata, dcvs);
+                	mdvs.addAll(metadata);
                 }
-                return dcvs;
+                return mdvs;
             }
         }
         catch (BrowseException be)
@@ -194,85 +189,6 @@ public class BrowseItem extends DSpaceObject
 		this.id = id;
 	}
 	
-	/**
-     * Utility method for pattern-matching metadata elements.  This
-     * method will return <code>true</code> if the given schema,
-     * element, qualifier and language match the schema, element,
-     * qualifier and language of the <code>DCValue</code> object passed
-     * in.  Any or all of the element, qualifier and language passed
-     * in can be the <code>Item.ANY</code> wildcard.
-     *
-     * @param schema
-     *            the schema for the metadata field. <em>Must</em> match
-     *            the <code>name</code> of an existing metadata schema.
-     * @param element
-     *            the element to match, or <code>Item.ANY</code>
-     * @param qualifier
-     *            the qualifier to match, or <code>Item.ANY</code>
-     * @param language
-     *            the language to match, or <code>Item.ANY</code>
-     * @param dcv
-     *            the Dublin Core value
-     * @return <code>true</code> if there is a match
-     */
-    private boolean match(String schema, String element, String qualifier,
-            String language, DCValue dcv)
-    {
-        // We will attempt to disprove a match - if we can't we have a match
-        if (!element.equals(Item.ANY) && !element.equals(dcv.element))
-        {
-            // Elements do not match, no wildcard
-            return false;
-        }
-
-        if (qualifier == null)
-        {
-            // Value must be unqualified
-            if (dcv.qualifier != null)
-            {
-                // Value is qualified, so no match
-                return false;
-            }
-        }
-        else if (!qualifier.equals(Item.ANY))
-        {
-            // Not a wildcard, so qualifier must match exactly
-            if (!qualifier.equals(dcv.qualifier))
-            {
-                return false;
-            }
-        }
-
-        if (language == null)
-        {
-            // Value must be null language to match
-            if (dcv.language != null)
-            {
-                // Value is qualified, so no match
-                return false;
-            }
-        }
-        else if (!language.equals(Item.ANY))
-        {
-            // Not a wildcard, so language must match exactly
-            if (!language.equals(dcv.language))
-            {
-                return false;
-            }
-        }
-        else if (!schema.equals(Item.ANY))
-        {
-            if (dcv.schema != null && !dcv.schema.equals(schema))
-            {
-                // The namespace doesn't match
-                return false;
-            }
-        }
-
-        // If we get this far, we have a match
-        return true;
-    }
-
 	/* (non-Javadoc)
 	 * @see org.dspace.content.DSpaceObject#getHandle()
 	 */
@@ -375,8 +291,8 @@ public class BrowseItem extends DSpaceObject
         // FIXME: there is an exception handling problem here
 		try
 		{
-			DCValue t[] = getMetadata("dc", "title", null, Item.ANY);
-			return (t.length >= 1) ? t[0].value : null;
+			List<MDValue> titles = getMetadata("dc", "title", null, MDValue.ANY);
+			return (titles.size() >= 1) ? titles.get(0).getValue() : null;
 		}
 		catch (SQLException sqle)
 		{

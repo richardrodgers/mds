@@ -32,7 +32,7 @@ import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.content.Collection;
 import org.dspace.content.DCDate;
-import org.dspace.content.DCValue;
+import org.dspace.content.MDValue;
 import org.dspace.content.Item;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Context;
@@ -427,33 +427,27 @@ public class Subscribe
     
                     for (int j = 0; j < itemInfos.size(); j++)
                     {
-                        HarvestedItemInfo hii = (HarvestedItemInfo) itemInfos
-                                .get(j);
+                        HarvestedItemInfo hii = (HarvestedItemInfo) itemInfos.get(j);
     
-                        DCValue[] titles = hii.item.getMetadata("dc", "title", null, Item.ANY);
+                        List<MDValue> titles = hii.item.getMetadata("dc", "title", null, MDValue.ANY);
                         emailText.append("      ").append(labels.getString("org.dspace.eperson.Subscribe.title")).append(" ");
     
-                        if (titles.length > 0)
-                        {
-                            emailText.append(titles[0].value);
-                        }
-                        else
-                        {
+                        if (titles.size() > 0) {
+                            emailText.append(titles.get(0).getValue());
+                        } else {
                             emailText.append(labels.getString("org.dspace.eperson.Subscribe.untitled"));
                         }
     
-                        DCValue[] authors = hii.item.getMetadata("dc", "contributor", Item.ANY,
-                                Item.ANY);
+                        List<MDValue> authors = hii.item.getMetadata("dc", "contributor", MDValue.ANY,
+                                									 MDValue.ANY);
     
-                        if (authors.length > 0)
-                        {
+                        if (authors.size() > 0) {
                             emailText.append("\n    ").append(labels.getString("org.dspace.eperson.Subscribe.authors")).append(" ").append(
-                                    authors[0].value);
+                                    authors.get(0).getValue());
     
-                            for (int k = 1; k < authors.length; k++)
-                            {
+                            for (int k = 1; k < authors.size(); k++) {
                                 emailText.append("\n             ").append(
-                                        authors[k].value);
+                                        authors.get(k).getValue());
                             }
                         }
     
@@ -548,27 +542,27 @@ public class Subscribe
             // has the item modified today?
             if (lastUpdateStr.equals(today))
             {
-                DCValue[] dateAccArr = infoObject.item.getMetadata("dc",
-                        "date", "accessioned", Item.ANY);
+                List<MDValue> dateAccArr = infoObject.item.getMetadata("dc",
+                        								"date", "accessioned", MDValue.ANY);
                 // we need only the item archived yesterday
-                if (dateAccArr != null && dateAccArr.length > 0)
+                if (dateAccArr != null && dateAccArr.size() > 0)
                 {
-                    for (DCValue date : dateAccArr)
+                    for (MDValue date : dateAccArr)
                     {
-                        if (date != null && date.value != null)
+                        if (date != null && date.getValue() != null)
                         {
                             // if it hasn't been archived today
-                            if (date.value.startsWith(yesterday))
+                            if (date.getValue().startsWith(yesterday))
                             {
                                 filteredList.add(infoObject);
-                                log.debug("adding : " + dateAccArr[0].value
+                                log.debug("adding : " + dateAccArr.get(0).getValue()
                                         + " : " + today + " : "
                                         + infoObject.handle);
                                 break;
                             }
                             else
                             {
-                                log.debug("ignoring : " + dateAccArr[0].value
+                                log.debug("ignoring : " + dateAccArr.get(0).getValue()
                                         + " : " + today + " : "
                                         + infoObject.handle);
                             }
@@ -605,24 +599,24 @@ public class Subscribe
         
         for (HarvestedItemInfo infoObject : completeList)
         {
-            DCValue[] dateAccArr = infoObject.item.getMetadata("dc", "date", "accessioned", Item.ANY);
+            List<MDValue> dateAccArr = infoObject.item.getMetadata("dc", "date", "accessioned", MDValue.ANY);
             
-            if (dateAccArr != null && dateAccArr.length > 0)
+            if (dateAccArr != null && dateAccArr.size() > 0)
             {
-                for(DCValue date : dateAccArr)
+                for(MDValue date : dateAccArr)
                 {
-                    if(date != null && date.value != null)
+                    if(date != null && date.getValue() != null)
                     {
                         // if it has been archived yesterday
-                        if (date.value.startsWith(yesterday))
+                        if (date.getValue().startsWith(yesterday))
                         {
                             filteredList.add(infoObject);
-                            log.debug("adding : " + dateAccArr[0].value +" : " + yesterday + " : " + infoObject.handle);
+                            log.debug("adding : " + dateAccArr.get(0).getValue() +" : " + yesterday + " : " + infoObject.handle);
                             break;
                         }
                         else
                         {
-                            log.debug("ignoring : " + dateAccArr[0].value +" : " + yesterday + " : " + infoObject.handle);
+                            log.debug("ignoring : " + dateAccArr.get(0).getValue() +" : " + yesterday + " : " + infoObject.handle);
                         }
                     }
                 }

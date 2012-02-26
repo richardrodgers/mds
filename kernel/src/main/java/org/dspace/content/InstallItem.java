@@ -9,6 +9,7 @@ package org.dspace.content;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.List;
 
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.core.Constants;
@@ -129,15 +130,15 @@ public class InstallItem
         DCDate now = DCDate.getCurrent();
         
         // If the item dosn't have a date.accessioned create one.
-        DCValue[] dateAccessioned = item.getMetadata(MetadataSchema.DC_SCHEMA, "date", "accessioned", Item.ANY);
-        if (dateAccessioned.length == 0)
+        List<MDValue> dateAccessioned = item.getMetadata(MetadataSchema.DC_SCHEMA, "date", "accessioned", MDValue.ANY);
+        if (dateAccessioned.size() == 0)
         {
 	        item.addMetadata("dc", "date", "accessioned", null, now.toString());
         }
         
         // create issue date if not present
-        DCValue[] currentDateIssued = item.getMetadata(MetadataSchema.DC_SCHEMA, "date", "issued", Item.ANY);
-        if (currentDateIssued.length == 0)
+        List<MDValue> currentDateIssued = item.getMetadata(MetadataSchema.DC_SCHEMA, "date", "issued", MDValue.ANY);
+        if (currentDateIssued.size() == 0)
         {
             DCDate issued = new DCDate(now.getYear(),now.getMonth(),now.getDay(),-1,-1,-1);
             item.addMetadata("dc", "date", "issued", null, issued.toString());
@@ -158,10 +159,9 @@ public class InstallItem
         // Add handle as identifier.uri DC value.
         // First check that identifier dosn't already exist.
         boolean identifierExists = false;
-        DCValue[] identifiers = item.getMetadata(MetadataSchema.DC_SCHEMA, "identifier", "uri", Item.ANY);
-        for (DCValue identifier : identifiers)
+        for (MDValue id : item.getMetadata(MetadataSchema.DC_SCHEMA, "identifier", "uri", MDValue.ANY))
         {
-        	if (handleref.equals(identifier.value))
+        	if (handleref.equals(id.getValue()))
             {
         		identifierExists = true;
             }
@@ -188,9 +188,9 @@ public class InstallItem
         }
 
         // create issue date if not present
-        DCValue[] currentDateIssued = item.getMetadata(MetadataSchema.DC_SCHEMA, "date", "issued", Item.ANY);
+        List<MDValue> currentDateIssued = item.getMetadata(MetadataSchema.DC_SCHEMA, "date", "issued", MDValue.ANY);
 
-        if (currentDateIssued.length == 0)
+        if (currentDateIssued.size() == 0)
         {
             DCDate issued = new DCDate(now.getYear(),now.getMonth(),now.getDay(),-1,-1,-1);
             item.addMetadata("dc", "date", "issued", null, issued.toString());
@@ -199,11 +199,10 @@ public class InstallItem
          String provDescription = "Made available in DSpace on " + now
                 + " (GMT). " + getBitstreamProvenanceMessage(item);
 
-        if (currentDateIssued.length != 0)
+        if (currentDateIssued.size() > 0)
         {
-            DCDate d = new DCDate(currentDateIssued[0].value);
-            provDescription = provDescription + "  Previous issue date: "
-                    + d.toString();
+            DCDate d = new DCDate(currentDateIssued.get(0).getValue());
+            provDescription = provDescription + "  Previous issue date: " + d.toString();
         }
 
         // Add provenance description

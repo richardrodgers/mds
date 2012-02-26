@@ -11,6 +11,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -19,11 +20,11 @@ import com.google.common.base.Objects;
 import org.dspace.sort.OrderFormat;
 
 /**
- * Compare two Items by their DCValues.
+ * Compare two Items by their MDValues.
  * 
- * The DCValues to be compared are specified by the element, qualifier and
+ * The MDValues to be compared are specified by the element, qualifier and
  * language parameters to the constructor. If the Item has more than one
- * matching DCValue, then the max parameter to the constructor specifies whether
+ * matching MDValue, then the max parameter to the constructor specifies whether
  * the maximum or minimum lexicographic value will be used.
  * 
  * @author Peter Breton
@@ -177,30 +178,28 @@ public class ItemComparator implements Comparator, Serializable
     private String getValue(Item item)
     {
         // The overall array and each element are guaranteed non-null
-        DCValue[] dcvalues = item.getMetadata("dc", element, qualifier, language);
+        List<MDValue> dcvalues = item.getMetadata("dc", element, qualifier, language);
 
-        if (dcvalues.length == 0)
+        if (dcvalues.size() == 0)
         {
             return null;
         }
 
-        if (dcvalues.length == 1)
+        if (dcvalues.size() == 1)
         {
-            return normalizeTitle(dcvalues[0]);
+            return normalizeTitle(dcvalues.get(0));
         }
 
         // We want to sort using Strings, but also keep track of
         // which DCValue the value came from.
         Map<String, Integer> values = new HashMap<String, Integer>();
 
-        for (int i = 0; i < dcvalues.length; i++)
-        {
-            String value = dcvalues[i].value;
-
-            if (value != null)
-            {
-                values.put(value, Integer.valueOf(i));
+        int i = 0;
+        for (MDValue value : dcvalues) {
+            if (value != null) {
+                values.put(value.getValue(), Integer.valueOf(i));
             }
+            i++;
         }
 
         if (values.size() == 0)
@@ -214,19 +213,19 @@ public class ItemComparator implements Comparator, Serializable
 
         int index = (values.get(chosen)).intValue();
 
-        return normalizeTitle(dcvalues[index]);
+        return normalizeTitle(dcvalues.get(index));
     }
 
     /**
      * Normalize the title of a DCValue.
      */
-    private String normalizeTitle(DCValue value)
+    private String normalizeTitle(MDValue value)
     {
         if (!"title".equals(element))
         {
-            return value.value;
+            return value.getValue();
         }
 
-        return OrderFormat.makeSortString(value.value, value.language, OrderFormat.TITLE);
+        return OrderFormat.makeSortString(value.getValue(), value.getLanguage(), OrderFormat.TITLE);
     }
 }

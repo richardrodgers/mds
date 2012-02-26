@@ -54,7 +54,7 @@ import org.dspace.content.Bitstream;
 import org.dspace.content.Bundle;
 import org.dspace.content.Collection;
 import org.dspace.content.Community;
-import org.dspace.content.DCValue;
+import org.dspace.content.MDValue;
 import org.dspace.content.DSpaceObject;
 import org.dspace.content.Item;
 import org.dspace.content.ItemIterator;
@@ -140,17 +140,17 @@ public class DSIndexer
     /** Includes backwards compatible default configuration */
     private static IndexConfig[] indexConfigArr = new IndexConfig[]
     {
-        new IndexConfig("author",     "dc", "contributor", Item.ANY,          "text") ,
-        new IndexConfig("author",     "dc", "creator",     Item.ANY,          "text"),
+        new IndexConfig("author",     "dc", "contributor", MDValue.ANY,       "text"),
+        new IndexConfig("author",     "dc", "creator",     MDValue.ANY,       "text"),
         new IndexConfig("author",     "dc", "description", "statementofresponsibility", "text"),
-        new IndexConfig("title",      "dc", "title",       Item.ANY,          "text"),
-        new IndexConfig("keyword",    "dc", "subject",     Item.ANY,          "text"),
+        new IndexConfig("title",      "dc", "title",       MDValue.ANY,       "text"),
+        new IndexConfig("keyword",    "dc", "subject",     MDValue.ANY,       "text"),
         new IndexConfig("abstract",   "dc", "description", "abstract",        "text"),
         new IndexConfig("abstract",   "dc", "description", "tableofcontents", "text"),
         new IndexConfig("series",     "dc", "relation",    "ispartofseries",  "text"),
         new IndexConfig("mimetype",   "dc", "format",      "mimetype",        "text"),
         new IndexConfig("sponsor",    "dc", "description", "sponsorship",     "text"),
-        new IndexConfig("identifier", "dc", "identifier",  Item.ANY,          "text")
+        new IndexConfig("identifier", "dc", "identifier",  MDValue.ANY,       "text")
     };
     
     // command-line options
@@ -1028,27 +1028,27 @@ public class DSIndexer
         int j;
         if (indexConfigArr.length > 0)
         {
-            DCValue[] mydc;
+            List<MDValue> mydc;
 
             for (int i = 0; i < indexConfigArr.length; i++)
             {
                 // extract metadata (ANY is wildcard from Item class)
                 if (indexConfigArr[i].qualifier!= null && indexConfigArr[i].qualifier.equals("*"))
                 {
-                    mydc = item.getMetadata(indexConfigArr[i].schema, indexConfigArr[i].element, Item.ANY, Item.ANY);
+                    mydc = item.getMetadata(indexConfigArr[i].schema, indexConfigArr[i].element, MDValue.ANY, MDValue.ANY);
                 }
                 else
                 {
-                    mydc = item.getMetadata(indexConfigArr[i].schema, indexConfigArr[i].element, indexConfigArr[i].qualifier, Item.ANY);
+                    mydc = item.getMetadata(indexConfigArr[i].schema, indexConfigArr[i].element, indexConfigArr[i].qualifier, MDValue.ANY);
                 }
 
-                for (j = 0; j < mydc.length; j++)
+                for (MDValue mdv : mydc)
                 {
-                    if (!Strings.isNullOrEmpty(mydc[j].value))
+                    if (!Strings.isNullOrEmpty(mdv.getValue()))
                     {
                         if ("timestamp".equalsIgnoreCase(indexConfigArr[i].type))
                         {
-                            Date d = toDate(mydc[j].value);
+                            Date d = toDate(mdv.getValue());
                             if (d != null)
                             {
                                 doc.add( new Field(indexConfigArr[i].indexName,
@@ -1064,7 +1064,7 @@ public class DSIndexer
                         }
                         else if ("date".equalsIgnoreCase(indexConfigArr[i].type))
                         {
-                            Date d = toDate(mydc[j].value);
+                        	Date d = toDate(mdv.getValue());
                             if (d != null)
                             {
                                 doc.add( new Field(indexConfigArr[i].indexName,
@@ -1080,7 +1080,8 @@ public class DSIndexer
                         }
                         else
                         {
-                            List<String> variants = null;
+                            //List<String> variants = null;
+                            /*
                             if (mydc[j].authority != null && mydc[j].confidence >= MetadataAuthorityManager.getManager()
                                     .getMinConfidence(mydc[j].schema, mydc[j].element, mydc[j].qualifier))
                             {
@@ -1129,15 +1130,16 @@ public class DSIndexer
                             }
                             else
                             {
+                            */
 	                            // TODO: use a delegate to allow custom 'types' to be used to reformat the field
 	                            doc.add( new Field(indexConfigArr[i].indexName,
-	                                               mydc[j].value,
+	                                               mdv.getValue(),
 	                                               Field.Store.NO,
 	                                               Field.Index.ANALYZED));
-                        	}
+                        	//}
                         }
 
-                        doc.add( new Field("default", mydc[j].value, Field.Store.NO, Field.Index.ANALYZED));
+                        doc.add( new Field("default", mdv.getValue(), Field.Store.NO, Field.Index.ANALYZED));
                     }
                 }
             }
@@ -1152,10 +1154,10 @@ public class DSIndexer
             for (SortOption so : SortOption.getSortOptions())
             {
                 String[] somd = so.getMdBits();
-                DCValue[] dcv = item.getMetadata(somd[0], somd[1], somd[2], Item.ANY);
-                if (dcv.length > 0)
+                List<MDValue> dcv = item.getMetadata(somd[0], somd[1], somd[2], MDValue.ANY);
+                if (dcv.size() > 0)
                 {
-                    String value = OrderFormat.makeSortString(dcv[0].value, dcv[0].language, so.getType());
+                    String value = OrderFormat.makeSortString(dcv.get(0).getValue(), dcv.get(0).getLanguage(), so.getType());
                     doc.add( new Field("sort_" + so.getName(), value, Field.Store.NO, Field.Index.NOT_ANALYZED) );
                 }
             }

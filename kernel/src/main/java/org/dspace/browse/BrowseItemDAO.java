@@ -7,9 +7,10 @@
  */
 package org.dspace.browse;
 
-import org.dspace.content.DCValue;
-
 import java.sql.SQLException;
+import java.util.List;
+
+import org.dspace.content.MDValue;
 
 public interface BrowseItemDAO
 {
@@ -40,6 +41,6 @@ public interface BrowseItemDAO
      * @return
      * @throws SQLException
      */
-    public DCValue[] queryMetadata(int itemId, String schema, String element, String qualifier, String lang)
+    public List<MDValue> queryMetadata(int itemId, String schema, String element, String qualifier, String lang)
     	throws SQLException;
 }
