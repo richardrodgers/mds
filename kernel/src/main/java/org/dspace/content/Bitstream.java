@@ -674,13 +674,13 @@ public class Bitstream extends DSpaceObject
         	// first pass - additions
             for (MDValue addValue : metadata) {
             	if (! dbValues.contains(addValue)) {
-            		createMetadataValue(addValue);
+                	DatabaseManager.insert(bContext, createMetadataRow(addValue));
             	}
             }
             // second pass - deletions
             for (MDValue delValue : dbValues) {
             	if (! metadata.contains(delValue)) {
-            		deleteMetadataValue(delValue);
+            		DatabaseManager.delete(bContext, createMetadataRow(delValue));
             	}
             }
             bContext.addEvent(new Event(Event.MODIFY_METADATA, Constants.BITSTREAM, getID(), getDetails()));
@@ -963,17 +963,7 @@ public class Bitstream extends DSpaceObject
                 "SELECT * FROM BitstreamMDValue WHERE bitstream_id= ? ORDER BY metadata_field_id, place",
                 getID());
     }
-    
-    private void createMetadataValue(MDValue value) throws SQLException, AuthorizeException {
-    	TableRow row = createMetadataRow(value);
-    	DatabaseManager.insert(bContext, row);
-    }
-    
-    private void deleteMetadataValue(MDValue value) throws SQLException, AuthorizeException {
-    	TableRow row = createMetadataRow(value);
-    	DatabaseManager.delete(bContext, row);
-    }
-    
+        
     private TableRow createMetadataRow(MDValue value) throws SQLException, AuthorizeException {
     	
     	MetadataSchema schema = MetadataSchema.findByNamespace(bContext, value.getSchema());
