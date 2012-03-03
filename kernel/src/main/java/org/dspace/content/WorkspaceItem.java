@@ -159,7 +159,7 @@ public class WorkspaceItem implements InProgressSubmission
         AuthorizeManager.addPolicy(c, i, Constants.READ, e);
 
 
-        if (ConfigurationManager.getProperty("workflow", "workflow.framework").equals("originalworkflow")) {
+       // if (ConfigurationManager.getProperty("workflow", "workflow.framework").equals("originalworkflow")) {
             if (step1group != null)
             {
                 AuthorizeManager.addPolicy(c, i, Constants.READ, step1group);
@@ -174,13 +174,13 @@ public class WorkspaceItem implements InProgressSubmission
             {
                 AuthorizeManager.addPolicy(c, i, Constants.READ, step3group);
             }
-        }
+        //}
 
 
         // write permission
         AuthorizeManager.addPolicy(c, i, Constants.WRITE, e);
 
-        if (ConfigurationManager.getProperty("workflow", "workflow.framework").equals("originalworkflow")) {
+        //if (ConfigurationManager.getProperty("workflow", "workflow.framework").equals("originalworkflow")) {
             if (step1group != null)
             {
                 AuthorizeManager.addPolicy(c, i, Constants.WRITE, step1group);
@@ -195,12 +195,12 @@ public class WorkspaceItem implements InProgressSubmission
             {
                 AuthorizeManager.addPolicy(c, i, Constants.WRITE, step3group);
             }
-        }
+        //}
 
         // add permission
         AuthorizeManager.addPolicy(c, i, Constants.ADD, e);
 
-        if (ConfigurationManager.getProperty("workflow", "workflow.framework").equals("originalworkflow")) {
+        //if (ConfigurationManager.getProperty("workflow", "workflow.framework").equals("originalworkflow")) {
             if (step1group != null)
             {
                 AuthorizeManager.addPolicy(c, i, Constants.ADD, step1group);
@@ -215,12 +215,12 @@ public class WorkspaceItem implements InProgressSubmission
             {
                 AuthorizeManager.addPolicy(c, i, Constants.ADD, step3group);
             }
-        }
+        //}
 
         // remove contents permission
         AuthorizeManager.addPolicy(c, i, Constants.REMOVE, e);
 
-        if (ConfigurationManager.getProperty("workflow", "workflow.framework").equals("originalworkflow")) {
+        //if (ConfigurationManager.getProperty("workflow", "workflow.framework").equals("originalworkflow")) {
             if (step1group != null)
             {
                 AuthorizeManager.addPolicy(c, i, Constants.REMOVE, step1group);
@@ -235,7 +235,7 @@ public class WorkspaceItem implements InProgressSubmission
             {
                 AuthorizeManager.addPolicy(c, i, Constants.REMOVE, step3group);
             }
-        }
+        //}
 
         // Copy template if appropriate
         Item templateItem = coll.getTemplateItem();

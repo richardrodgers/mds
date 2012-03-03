@@ -178,7 +178,12 @@ public class BitstreamStorageManager
     		String value = attrs.get(column);
     		if (value != null)
     		{
-    	        bitstream.setColumn(column, value);
+    			// argh - special case!
+    			if (! "size_bytes".equals(column)) {
+    				bitstream.setColumn(column, value);
+    			} else {
+    				bitstream.setColumn(column, Long.valueOf(value));
+    			}
     		}
     	}
 	}

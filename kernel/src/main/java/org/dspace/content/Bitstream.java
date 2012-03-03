@@ -552,6 +552,13 @@ public class Bitstream extends DSpaceObject
         return values;
     }
     
+    public void addMetadata(String schema, String element, String qualifier, String lang,
+		    String value) {
+    	List<String> values = new ArrayList<String>();
+    	values.add(value);
+    	addMetadata(schema, element, qualifier, lang, values);
+    }
+    
     /**
      * Add metadata fields. These are appended to existing values.
      * Use <code>clearMetadata</code> to remove values. The ordering of values

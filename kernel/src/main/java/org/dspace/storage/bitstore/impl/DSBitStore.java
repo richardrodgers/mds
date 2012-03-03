@@ -155,9 +155,9 @@ public class DSBitStore implements BitStore
         in.close();
      
         Map<String, String> attrs = new HashMap<String, String>();
-        attrs.put("size", String.valueOf(file.length()));
+        attrs.put("size_bytes", String.valueOf(file.length()));
         attrs.put("checksum", Utils.toHex(dis.getMessageDigest().digest()));
-        attrs.put("algorithm", CSA);
+        attrs.put("checksum_algorithm", CSA);
         return attrs;
 	}
 	

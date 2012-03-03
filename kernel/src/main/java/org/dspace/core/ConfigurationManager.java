@@ -908,7 +908,7 @@ public class ConfigurationManager
             // Load configuration from default location
             else
             {
-                url = ConfigurationManager.class.getResource("/dspace.cfg");
+                url = ConfigurationManager.class.getResource("/kernel.cfg");
                 if (url != null)
                 {
                     log.info("Loading from classloader: " + url);
@@ -919,8 +919,8 @@ public class ConfigurationManager
             
             if (url == null)
             {
-                log.error("Cannot find dspace.cfg");
-                throw new IllegalStateException("Cannot find dspace.cfg");
+                log.error("Cannot find kernel.cfg");
+                throw new IllegalStateException("Cannot find kernel.cfg");
             }
             else
             {
