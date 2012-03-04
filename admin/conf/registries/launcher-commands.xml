@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<dspace-commands>
+    <command>
+        <name>import</name>
+        <description>Import content - communities, collections, and items - into DSpace</description>
+        <step>
+            <class>org.dspace.app.admin.ContentImport</class>
+        </step>
+    </command>
+</dspace-commands>

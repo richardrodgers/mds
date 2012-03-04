@@ -8,6 +8,7 @@
 
     <modules>
       <module>kernel</module>
+      <module>admin</module>
       <module>rest</module>
     </modules>
 
