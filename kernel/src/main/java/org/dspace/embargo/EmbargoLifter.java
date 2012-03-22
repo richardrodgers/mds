@@ -14,9 +14,8 @@ import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.Item;
 import org.dspace.core.Context;
 
-
 /**
- * Plugin interface for the embargo lifting function.
+ * Interface for the embargo lifting function.
  *
  * @author Larry Stone
  * @author Richard Rodgers

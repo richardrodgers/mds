@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import org.dspace.content.DSpaceObject;
 import org.dspace.core.Context;
-import org.dspace.core.PluginManager;
+import org.dspace.core.ConfigurationManager;
 import org.dspace.curate.record.Record;
 import org.dspace.curate.record.Records;
 import org.dspace.curate.record.Recorder;
@@ -104,19 +104,22 @@ public class ResolvedTask
     		recorder = (Recorder)curator.obtainResource(recorderKey);
     		if (recorder == null)
     		{
-    			recorder = (Recorder)PluginManager.getSinglePlugin("curate", Recorder.class);
-    			if (recorder != null)
-    			{
-    				recorder.init();
-    				String policy = null;
-    				if (recorder instanceof Closeable)
-    				{
-    					policy = "close";
+    			String recorderClass = ConfigurationManager.getProperty("curate", "recorder.impl");
+    			if (recorderClass != null) {
+    				try {
+    					recorder = (Recorder)Class.forName(recorderClass).newInstance();
+    					recorder.init();
+    					String policy = null;
+    					if (recorder instanceof Closeable)
+    					{
+    						policy = "close";
+    					}
+    					curator.manageResource(recorderKey, recorder, policy);
+    				} catch (Exception e) {
+    					log.error("Error instantiating recorder", e);
+    					throw new IOException("Missing Recorder");
     				}
-    				curator.manageResource(recorderKey, recorder, policy);
-    			}
-    			else
-    			{
+    			} else {
     				log.error("No recorder configured");
     				throw new IOException("Missing Recorder");
     			}

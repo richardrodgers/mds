@@ -25,12 +25,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.dspace.core.ConfigurationManager;
-import org.dspace.core.PluginManager;
 
 /**
  * TaskResolver takes a logical name of a curation task and attempts to deliver 
  * a suitable implementation object. Supported implementation types include:
- * (1) Classpath-local Java classes configured and loaded via PluginManager.
+ * (1) Classpath-local Java classes loaded via ConfigurationManager.
  * (2) Local script-based tasks, viz. coded in any scripting language whose
  * runtimes are accessible via the JSR-223 scripting API. This really amounts
  * to the family of dynamic JVM languages: JRuby, Jython, Groovy, Javascript, etc
@@ -196,10 +195,16 @@ public class TaskResolver
 	 */
 	public ResolvedTask resolveTask(String taskName)
 	{
-		CurationTask ctask = (CurationTask)PluginManager.getNamedPlugin("curate", CurationTask.class, taskName);
-		if (ctask != null)
-		{
-			return new ResolvedTask(taskName, ctask);
+		// likely a java task - try first
+		String taskClass = ConfigurationManager.getProperty("curate", "task." + taskName);
+		if (taskClass != null) {
+			try {
+				CurationTask ctask = (CurationTask)Class.forName(taskClass).newInstance();
+				return new ResolvedTask(taskName, ctask);
+			} catch (Exception e) {
+				log.error("Error instantiating task: " + taskName, e);
+				return null;
+			}
 		}
 		// maybe it is implemented by a script?
 		loadCatalog();

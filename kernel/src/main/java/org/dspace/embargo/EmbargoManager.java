@@ -29,7 +29,6 @@ import org.dspace.content.MetadataSchema;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
-import org.dspace.core.PluginManager;
 import org.dspace.handle.HandleManager;
 
 /**
@@ -404,16 +403,24 @@ public class EmbargoManager
             lift_schema = getSchemaOf(lift);
             lift_element = getElementOf(lift);
             lift_qualifier = getQualifierOf(lift);
+            
+        	String setterClass = ConfigurationManager.getProperty("embargo.setter");
+        	if (setterClass == null)
+        	{
+        		throw new IllegalStateException("No EmbargoSetter implementation defined in DSpace configuration.");
+        	}
+        	
+        	String lifterClass = ConfigurationManager.getProperty("embargo.lifter");
+        	if (lifterClass == null)
+        	{
+        		throw new IllegalStateException("No EmbargoLifter implementation defined in DSpace configuration.");
+        	}
 
-            setter = (EmbargoSetter)PluginManager.getSinglePlugin(EmbargoSetter.class);
-            if (setter == null)
-            {
-                throw new IllegalStateException("The EmbargoSetter plugin was not defined in DSpace configuration.");
-            }
-            lifter = (EmbargoLifter)PluginManager.getSinglePlugin(EmbargoLifter.class);
-            if (lifter == null)
-            {
-                throw new IllegalStateException("The EmbargoLifter plugin was not defined in DSpace configuration.");
+            try {
+            	setter = (EmbargoSetter)Class.forName(setterClass).newInstance();
+            	lifter = (EmbargoLifter)Class.forName(lifterClass).newInstance();
+            } catch (Exception e) {
+            	throw new IllegalStateException("Instantiation failure for Embargo Setter or Lifter");
             }
         }
     }

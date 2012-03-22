@@ -7,7 +7,9 @@
  */
 package org.dspace.sort;
 
-import org.dspace.core.PluginManager;
+import java.util.Properties;
+
+import org.dspace.core.ConfigurationManager;
 
 /**
  * Class implementing static helpers for anywhere that interacts with the sort columns
@@ -42,14 +44,23 @@ public class OrderFormat
 	public static final String DATE   = "date";
     public static final String AUTHORITY = "authority";
 	
-	// Array of all available order delegates - avoids excessive calls to plugin manager
-	private static final String[] delegates = PluginManager.getAllPluginNames(OrderFormatDelegate.class);
+	// Array of all available order delegates
+	private static final String[] delegates;
 
     private static final OrderFormatDelegate authorDelegate = new OrderFormatAuthor();
     private static final OrderFormatDelegate titleDelegate  = new OrderFormatTitle();
     private static final OrderFormatDelegate textDelegate   = new OrderFormatText();
     private static final OrderFormatDelegate dateDelegate   = new OrderFormatDate();
     private static final OrderFormatDelegate authorityDelegate = new OrderFormatText();
+    
+    static {
+    	Properties delProps = ConfigurationManager.getMatchedProperties("delegate");
+    	delegates = new String[delProps.size()];
+    	int i = 0;
+    	for (String key: delProps.stringPropertyNames()) {
+    		delegates[i++] = key;
+    	}
+    }
     
     /**
      * Generate a sort string for the given DC metadata
@@ -112,11 +123,16 @@ public class OrderFormat
    		if (name != null && name.length() > 0)
    		{
    			// Check the cached array of names to see if the delegate has been configured
-	   		for (int idx = 0; idx < delegates.length; idx++)
+	   		for (String delegate: delegates)
 	   		{
-	   			if (delegates[idx].equals(name))
+	   			if (delegate.equals(name))
 	   			{
-	   				return (OrderFormatDelegate)PluginManager.getNamedPlugin(OrderFormatDelegate.class, name);
+	   				String delClass = ConfigurationManager.getProperty("delegate." + name);
+	   				try {
+	   					return (OrderFormatDelegate)Class.forName(delClass).newInstance();
+	   				} catch (Exception e) {
+	   					// should log this
+	   				}
 	   			}
 	   		}
    		}

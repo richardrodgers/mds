@@ -59,7 +59,11 @@ Notice that kernel commands (included in kernel code) should be loaded at system
 
 ### DCValue -> MDValue ###
 
-DCValue has been replaced with MDValue, which (along with a more descriptive name) is an immutable object class for holding metadata values. The APIs using DCValue have also been replaced with more modern java idioms, and all the deprecated methods (like _AddDC()_) removed.
+DCValue has been replaced with MDValue, which (along with a more descriptive name) is an immutable object class for holding metadata values. The APIs using DCValue have also been replaced with more modern java idioms, and all the deprecated methods (like _addDC()_) removed.
+
+### PluginManager Unplugged ###
+
+PluginManager has been removed in favor of both simpler (on the low end) and more powerful (on the high end, e.g. DI) alternatives. See discussion in mds wiki.
 
 ### Generic Metadata -> Bitstreams ###
 

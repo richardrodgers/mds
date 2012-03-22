@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory;
 
 import org.dspace.content.MetadataField;
 import org.dspace.core.ConfigurationManager;
-import org.dspace.core.PluginManager;
 
 /**
  * Broker for ChoiceAuthority plugins, and for other information configured
@@ -78,17 +77,25 @@ public final class ChoiceAuthorityManager
 
                     // XXX FIXME maybe add sanity check, call
                     // MetadataField.findByElement to make sure it's a real field.
-                     
-                    ChoiceAuthority ma = (ChoiceAuthority)
-                        PluginManager.getNamedPlugin(ChoiceAuthority.class, ConfigurationManager.getProperty(key));
+                    String name = ConfigurationManager.getProperty(key);
+                    String caClass = ConfigurationManager.getProperty("authority.impl" + name);
+                    ChoiceAuthority ma = null;
+                    if (caClass != null) {
+                    	try {
+                    		ma = (ChoiceAuthority)Class.forName(caClass).newInstance();
+                    		controller.put(fkey, ma);
+                    	} catch (Exception e) {
+                    		log.error("Error instantiating CA class: " + caClass, e);
+                    		ma = null;
+                    	}
+                    }
                     if (ma == null)
                     {
                         log.warn("Skipping invalid configuration for "+key+" because named plugin not found: "+ConfigurationManager.getProperty(key));
                         continue property;
                     }
-                    controller.put(fkey, ma);
                      
-                    log.debug("Choice Control: For field="+fkey+", Plugin="+ma);
+                    log.debug("Choice Control: For field="+fkey+", Impl="+ma);
                 }
                 else if (key.startsWith(choicesPresentation))
                 {

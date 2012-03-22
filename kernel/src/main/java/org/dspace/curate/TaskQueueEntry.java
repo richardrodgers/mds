@@ -86,7 +86,7 @@ public final class TaskQueueEntry
      * Return the list of tasks associated with this entry.
      * 
      * @return tasks
-     *         the list of task names (Plugin names)
+     *         the list of logical task names
      */
     public List<String> getTaskNames()
     {

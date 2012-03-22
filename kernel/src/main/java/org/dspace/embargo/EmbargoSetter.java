@@ -16,7 +16,7 @@ import org.dspace.content.Item;
 import org.dspace.core.Context;
 
 /**
- * Plugin interface for the embargo setting function.
+ * Interface for the embargo setting function.
  *
  * @author Larry Stone
  * @author Richard Rodgers

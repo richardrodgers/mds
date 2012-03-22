@@ -19,7 +19,7 @@ import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Context;
 
 /**
- * Plugin implementation of the embargo setting function. The parseTerms()
+ * Implementation of the embargo setting function. The parseTerms()
  * method performs a look-up to a table that relates a terms expression
  * to a fixed number of days. Table constructed from a dspace.cfg property
  * with syntax:

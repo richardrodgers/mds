@@ -15,7 +15,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.dspace.core.Context;
-import org.dspace.core.PluginManager;
+import org.dspace.core.ConfigurationManager;
 import org.dspace.eperson.EPerson;
 
 /**
@@ -48,8 +48,17 @@ import org.dspace.eperson.EPerson;
 public class AuthenticationManager
 {
     /** List of authentication methods, highest precedence first. */
-    private static AuthenticationMethod methodStack[] =
-        (AuthenticationMethod[])PluginManager.getPluginSequence("authentication", AuthenticationMethod.class);
+    private static AuthenticationMethod methodStack[];
+    
+    static {
+    	String[] methods = ConfigurationManager.getProperty("authentication", "sequence").split(",");
+    	methodStack = new AuthenticationMethod[methods.length];
+    	try {
+    		for (int i = 0; i < methods.length; i++) {
+    			methodStack[i] = (AuthenticationMethod)Class.forName(methods[i].trim()).newInstance();
+    		}
+    	} catch (Exception e) {}
+    }
 
     /**
      * Test credentials for authenticity.

@@ -21,7 +21,7 @@ import org.kohsuke.args4j.Option;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.Site;
 import org.dspace.core.Context;
-import org.dspace.core.PluginManager;
+import org.dspace.core.ConfigurationManager;
 import org.dspace.eperson.EPerson;
 
 /**
@@ -224,11 +224,17 @@ public class CurationCli
         else
         {
             // process the task queue
-            TaskQueue queue = (TaskQueue)PluginManager.getSinglePlugin("curate", TaskQueue.class);
-            if (queue == null)
-            {
+        	String tqClass = ConfigurationManager.getProperty("curate", "taskqueue.impl");
+        	if (tqClass == null) {
                 System.out.println("No implementation configured for queue");
-                throw new UnsupportedOperationException("No queue service available");
+                throw new UnsupportedOperationException("No queue service available");        		
+        	}
+            TaskQueue queue = null;
+            try {
+            	queue = (TaskQueue)Class.forName(tqClass).newInstance();
+            } catch (Exception e) {
+                System.out.println("Error instantiating task queue");
+                throw new UnsupportedOperationException("No queue service available");     
             }
             // use current time as our reader 'ticket'
             long ticket = System.currentTimeMillis();

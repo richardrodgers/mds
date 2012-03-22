@@ -27,7 +27,7 @@ import org.dspace.content.ItemIterator;
 import org.dspace.content.Site;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
-import org.dspace.core.PluginManager;
+import org.dspace.core.ConfigurationManager;
 import org.dspace.handle.HandleManager;
 
 /**
@@ -441,7 +441,15 @@ public class Curator
     {
         if (taskQ == null)
         {
-            taskQ = (TaskQueue)PluginManager.getSinglePlugin("curate", TaskQueue.class);
+        	String tqClass = ConfigurationManager.getProperty("curate", "taskqueue.impl");
+        	if (tqClass != null) {
+        		try {
+        			taskQ = (TaskQueue)Class.forName(tqClass).newInstance();
+        		} catch (Exception e) {
+        			log.error("Error instantiating task queue", e);
+        			taskQ = null;
+        		}
+        	}
         }
         if (taskQ != null)
         {

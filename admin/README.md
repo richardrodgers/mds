@@ -40,7 +40,7 @@ where metadata files have the same format as item metadata, but pertain to the b
 
 <http://demo.dspace.org/jspui/bitstream/10673/51471/6/saf.zip>
 
-So if you want to quickly fire up an mds instance with a little data (2 items in one collection), just use this set.
+So if you want to quickly fire up an mds instance with a little data (2 items in one collection), just use this URL.
 
 
 

@@ -103,18 +103,15 @@ public class ConfigurationManager
 //    }
     
     /**
-     * REMOVED - Flushing the properties could be dangerous in the current DSpace state
-     * Need to consider how it will affect in-flight processes
-     *
      * Discard properties for a module -  will force a reload from disk
      * when any of module's properties are requested
      * 
      * @param module the module name
      */
-//    public static void flush(String module)
-//    {
-//        moduleProps.remove(module);
-//    }
+    public static void flush(String module)
+    {
+        moduleProps.remove(module);
+    }
     
     /**
      * Returns all properties in main configuration
@@ -126,6 +123,18 @@ public class ConfigurationManager
         Properties props = getMutableProperties();
         return props == null ? null : (Properties)props.clone();
     }
+    
+    /**
+     * Returns all properties in main configuration matching passed prefix
+     * 
+     * @param prefix - property name prefix to match
+     * @return properties - all non-modular matching properties
+     */
+    public static Properties getMatchedProperties(String prefix)
+    {
+        Properties props = getMutableProperties();
+        return props == null ? null : matchedProperties(props, prefix);
+    }
 
     private static Properties getMutableProperties()
     {
@@ -135,6 +144,18 @@ public class ConfigurationManager
         }
 
         return properties;
+    }
+    
+    private static Properties matchedProperties(Properties props, String prefix) {
+    	Properties matched = new Properties();
+    	Enumeration pn = props.propertyNames();
+    	while(pn.hasMoreElements()) {
+    		String name = (String)pn.nextElement();
+    		if (name.startsWith(prefix)) {
+    			matched.put(name.substring(prefix.length() + 1), props.getProperty(name));
+    		}
+    	}
+    	return matched;
     }
 
     /**
@@ -148,6 +169,18 @@ public class ConfigurationManager
     {
         Properties props = getMutableProperties(module);
         return props == null ? null : (Properties)props.clone();
+    }
+    /**
+     * Returns all properties in module configuration matching passed prefix
+     * @param module
+     *        the name of the module
+     * @param prefix - property name prefix to match
+     * @return properties - all non-modular matching properties
+     */
+    public static Properties getMatchedProperties(String module, String prefix)
+    {
+        Properties props = getMutableProperties(module);
+        return props == null ? null : matchedProperties(props, prefix);
     }
 
     private static Properties getMutableProperties(String module)
