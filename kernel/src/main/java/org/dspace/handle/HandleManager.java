@@ -375,6 +375,38 @@ public class HandleManager
             return row.getStringColumn("handle");
         }
     }
+    
+    /**
+     * Return the handle for an Object, or null if the Object has no handle.
+     * 
+     * @param context
+     *            DSpace context
+     * @param dso
+     *            The object to obtain a handle for
+     * @return The handle for object, or null if the object has no handle.
+     * @exception SQLException
+     *                If a database error occurs
+     */
+    public static String findHandle(Context context, int type, int id)
+            throws SQLException
+    {
+        TableRow row = getHandleInternal(context, type, id);
+        if (row == null)
+        {
+            if (type == Constants.SITE)
+            {
+                return Site.getSiteHandle();
+            }
+            else
+            {
+                return null;
+            }
+        }
+        else
+        {
+            return row.getStringColumn("handle");
+        }
+    }
 
     /**
      * Return all the handles which start with prefix.

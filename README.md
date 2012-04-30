@@ -65,9 +65,29 @@ DCValue has been replaced with MDValue, which (along with a more descriptive nam
 
 PluginManager has been removed in favor of both simpler (on the low end) and more powerful (on the high end, e.g. DI) alternatives. See discussion in mds wiki.
 
-### Generic Metadata -> Bitstreams ###
+### Generic Metadata -> DSpaceObjects ###
 
-Bitstreams now can possess _generic_ metadata sets (meaning any flat, name-spaced/schema-defined, qualified, multi-valued, and multi-language sets, the same as for Items) using the content API. 
+All DSpaceObjects (Communities, Collections, Items, Bundles, Bitstreams, EPersons, Groups) can now possess _generic_ metadata sets (meaning any flat, name-spaced/schema-defined, qualified, multi-valued, and multi-language sets, the same as for Items) using the content API.
+
+### Content Array APIs -> Generic List APIs ###
+
+All content APIs that return or receive arrays of objects have been replaced with more modern idiomatic generic lists. For example the Item method:
+
+    public Bundle[] getBundles() throws SQLException
+
+    // new signature
+
+    public List<Bundle> getBundles() throws IOException
+
+This simplifies the method implementations, and results in easier-to-use code. 
+
+### UUIDs -> DSpaceObjects ###
+
+All DSpaceObjects are assigned a global unique identifier (i.e. independent of relational DB IDs, CNRI handles, etc). This internal or object identifier has many functions and has been proposed/prototyped in many development efforts (e.g. as part of the DSpace 2.0 work).
+
+### Pluggable Search ###
+
+The search code has been refactored to allow different, pluggable _providers_ such as in-process Lucene, SOLR, etc. The code has also been modified to allow indexing of any DSpaceObject metadata: e.g. BitStream generic metadata. Finally, the refactor allows _multiple_ simultaneous indexes, so that one could, e.g. have an administrative index (e.g. Lucene), along with a pubic index (e.g. SOLR).
 
 ## Future Work? ##
 

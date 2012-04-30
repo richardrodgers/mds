@@ -13,6 +13,9 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Objects;
+
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.content.DSpaceObject;
@@ -52,17 +55,6 @@ public class EPerson extends DSpaceObject
     /** log4j logger */
     private static Logger log = LoggerFactory.getLogger(EPerson.class);
 
-    /** Our context */
-    private Context myContext;
-
-    /** The row in the table representing this eperson */
-    private TableRow myRow;
-
-    /** Flag set when data is modified, for events */
-    private boolean modified;
-
-    /** Flag set when metadata is modified, for events */
-    private boolean modifiedMetadata;
 
     /**
      * Construct an EPerson
@@ -72,16 +64,12 @@ public class EPerson extends DSpaceObject
      * @param row
      *            the corresponding row in the table
      */
-    EPerson(Context context, TableRow row)
-    {
-        myContext = context;
-        myRow = row;
+    EPerson(Context context, TableRow row) {
+        this.context = context;
+        tableRow = row;
 
         // Cache ourselves
         context.cache(this, row.getIntColumn("eperson_id"));
-        modified = false;
-        modifiedMetadata = false;
-        clearDetails();
     }
 
     /**
@@ -91,30 +79,14 @@ public class EPerson extends DSpaceObject
      * @return true if ResourcePolicy objects are equal
      */
     @Override
-    public boolean equals(Object obj)
-    {
-        if (obj == null)
-        {
-            return false;
-        }
-        if (getClass() != obj.getClass())
-        {
-            return false;
-        }
-        final EPerson other = (EPerson) obj;
-        if (this.getID() != other.getID())
-        {
-            return false;
-        }
-        if (!this.getEmail().equals(other.getEmail()))
-        {
-            return false;
-        }
-        if (!this.getFullName().equals(other.getFullName()))
-        {
-            return false;
-        }
-        return true;
+    public boolean equals(Object obj) {
+    	if (obj instanceof EPerson) {
+    		final EPerson other = (EPerson) obj;
+    		return (getID() == other.getID() &&
+    			    Objects.equal(getEmail(), other.getEmail()) &&
+    			    Objects.equal(getFullName(), other.getFullName()));
+    	}
+        return false;
     }
 
     /**
@@ -123,16 +95,9 @@ public class EPerson extends DSpaceObject
      * @return int hash of object
      */
     @Override
-    public int hashCode()
-    {
-        int hash = 5;
-        hash = 89 * hash + this.getID();
-        hash = 89 * hash + (this.getEmail() != null? this.getEmail().hashCode():0);
-        hash = 89 * hash + (this.getFullName() != null? this.getFullName().hashCode():0);
-        return hash;
+    public int hashCode() {
+    	return Objects.hashCode(getID(), getEmail(), getFullName());
     }
-
-
 
     /**
      * Get an EPerson from the database.
@@ -144,24 +109,19 @@ public class EPerson extends DSpaceObject
      * 
      * @return the EPerson format, or null if the ID is invalid.
      */
-    public static EPerson find(Context context, int id) throws SQLException
-    {
+    public static EPerson find(Context context, int id) throws SQLException {
         // First check the cache
         EPerson fromCache = (EPerson) context.fromCache(EPerson.class, id);
 
-        if (fromCache != null)
-        {
+        if (fromCache != null) {
             return fromCache;
         }
 
         TableRow row = DatabaseManager.find(context, "eperson", id);
 
-        if (row == null)
-        {
+        if (row == null) {
             return null;
-        }
-        else
-        {
+        } else {
             return new EPerson(context, row);
         }
     }
@@ -172,10 +132,8 @@ public class EPerson extends DSpaceObject
      * @return EPerson, or {@code null} if none such exists.
      */
     public static EPerson findByEmail(Context context, String email)
-            throws SQLException, AuthorizeException
-    {
-        if (email == null)
-        {
+            throws SQLException, AuthorizeException {
+        if (email == null) {
             return null;
         }
         
@@ -256,8 +214,7 @@ public class EPerson extends DSpaceObject
      * @return array of EPerson objects
      */
     public static EPerson[] search(Context context, String query)
-            throws SQLException
-    {
+            throws SQLException {
         return search(context, query, -1, -1);
     }
     
@@ -277,8 +234,7 @@ public class EPerson extends DSpaceObject
      * @return array of EPerson objects
      */
     public static EPerson[] search(Context context, String query, int offset, int limit) 
-    		throws SQLException
-	{
+    		throws SQLException	{
 		String params = "%"+query.toLowerCase()+"%";
         StringBuffer queryBuf = new StringBuffer();
         queryBuf.append("SELECT * FROM eperson WHERE eperson_id = ? OR ");
@@ -381,8 +337,7 @@ public class EPerson extends DSpaceObject
         }
         finally
         {
-            if (rows != null)
-            {
+            if (rows != null) {
                 rows.close();
             }
         }
@@ -433,8 +388,6 @@ public class EPerson extends DSpaceObject
 		return count.intValue();
 	}
     
-    
-    
     /**
      * Find all the epeople that match a particular query
      * <ul>
@@ -446,7 +399,7 @@ public class EPerson extends DSpaceObject
      * 
      * @return array of EPerson objects
      */
-    public static EPerson[] findAll(Context context, int sortField)
+    public static List<EPerson> findAll(Context context, int sortField)
             throws SQLException
     {
         String s;
@@ -474,42 +427,30 @@ public class EPerson extends DSpaceObject
 
         // NOTE: The use of 's' in the order by clause can not cause an SQL 
         // injection because the string is derived from constant values above.
-        TableRowIterator rows = DatabaseManager.query(context, 
+        TableRowIterator tri = DatabaseManager.query(context, 
                 "SELECT * FROM eperson ORDER BY "+s);
 
-        try
-        {
-            List<TableRow> epeopleRows = rows.toList();
-
-            EPerson[] epeople = new EPerson[epeopleRows.size()];
-
-            for (int i = 0; i < epeopleRows.size(); i++)
-            {
-                TableRow row = (TableRow) epeopleRows.get(i);
-
-                // First check the cache
+        List<EPerson> epeople = new ArrayList<EPerson>();
+        
+        try {
+            while (tri.hasNext()) {
+            	TableRow row = tri.next();
+            	// First check the cache
                 EPerson fromCache = (EPerson) context.fromCache(EPerson.class, row
                         .getIntColumn("eperson_id"));
 
-                if (fromCache != null)
-                {
-                    epeople[i] = fromCache;
-                }
-                else
-                {
-                    epeople[i] = new EPerson(context, row);
+                if (fromCache != null) {
+                    epeople.add(fromCache);
+                } else {
+                    epeople.add(new EPerson(context, row));
                 }
             }
-
-            return epeople;
-        }
-        finally
-        {
-            if (rows != null)
-            {
-                rows.close();
+        } finally {
+            if (tri != null)  {
+                tri.close();
             }
         }
+        return epeople;
     }
 
     /**
@@ -532,6 +473,7 @@ public class EPerson extends DSpaceObject
         TableRow row = DatabaseManager.create(context, "eperson");
 
         EPerson e = new EPerson(context, row);
+        e.createDSO();
 
         log.info(LogManager.getHeader(context, "create_eperson", "eperson_id="
                 + e.getID()));
@@ -549,8 +491,7 @@ public class EPerson extends DSpaceObject
             EPersonDeletionException
     {
         // authorized?
-        if (!AuthorizeManager.isAdmin(myContext))
-        {
+        if (!AuthorizeManager.isAdmin(context))   {
             throw new AuthorizeException(
                     "You must be an admin to delete an EPerson");
         }
@@ -566,28 +507,31 @@ public class EPerson extends DSpaceObject
             throw new EPersonDeletionException(constraintList);
         }
 
-        myContext.addEvent(new Event(Event.DELETE, Constants.EPERSON, getID(), getEmail()));
+        context.addEvent(new Event(Event.DELETE, Constants.EPERSON, getID(), getEmail()));
 
         // Remove from cache
-        myContext.removeCached(this, getID());
+        context.removeCached(this, getID());
 
         // XXX FIXME: This sidesteps the object model code so it won't
         // generate  REMOVE events on the affected Groups.
 
         // Remove any group memberships first
-        DatabaseManager.updateQuery(myContext,
+        DatabaseManager.updateQuery(context,
                 "DELETE FROM EPersonGroup2EPerson WHERE eperson_id= ? ",
                 getID());
 
         // Remove any subscriptions
-        DatabaseManager.updateQuery(myContext,
+        DatabaseManager.updateQuery(context,
                 "DELETE FROM subscription WHERE eperson_id= ? ",
                 getID());
+        
+        // remove DSO info
+        destroyDSO();
 
         // Remove ourself
-        DatabaseManager.delete(myContext, myRow);
+        DatabaseManager.delete(context, tableRow);
 
-        log.info(LogManager.getHeader(myContext, "delete_eperson",
+        log.info(LogManager.getHeader(context, "delete_eperson",
                 "eperson_id=" + getID()));
     }
 
@@ -596,11 +540,11 @@ public class EPerson extends DSpaceObject
      * 
      * @return the internal identifier
      */
-    public int getID()
-    {
-        return myRow.getIntColumn("eperson_id");
+    @Override
+    public int getID() {
+        return tableRow.getIntColumn("eperson_id");
     }
-    
+        
     /**
      * Get the e-person's language
      * 
@@ -608,7 +552,7 @@ public class EPerson extends DSpaceObject
      */
      public String getLanguage()
      {
-         return myRow.getStringColumn("language");
+         return tableRow.getStringColumn("language");
      }
      
      /**
@@ -621,11 +565,9 @@ public class EPerson extends DSpaceObject
      */
      public void setLanguage(String language)
      {
-         myRow.setColumn("language", language);
+         tableRow.setColumn("language", language);
      }
-  
-
-
+ 
 
     public String getHandle()
     {
@@ -640,7 +582,7 @@ public class EPerson extends DSpaceObject
      */
     public String getEmail()
     {
-        return myRow.getStringColumn("email");
+        return tableRow.getStringColumn("email");
     }
 
     /**
@@ -656,7 +598,7 @@ public class EPerson extends DSpaceObject
             s = s.toLowerCase();
         }
 
-        myRow.setColumn("email", s);
+        tableRow.setColumn("email", s);
         modified = true;
     }
 
@@ -667,7 +609,7 @@ public class EPerson extends DSpaceObject
      */
     public String getNetid()
     {
-        return myRow.getStringColumn("netid");
+        return tableRow.getStringColumn("netid");
     }
 
     /**
@@ -678,7 +620,7 @@ public class EPerson extends DSpaceObject
      */
     public void setNetid(String s)
     {
-        myRow.setColumn("netid", s);
+        tableRow.setColumn("netid", s);
         modified = true;
     }
 
@@ -688,10 +630,9 @@ public class EPerson extends DSpaceObject
      * 
      * @return their full name
      */
-    public String getFullName()
-    {
-        String f = myRow.getStringColumn("firstname");
-        String l = myRow.getStringColumn("lastname");
+    public String getFullName() {
+        String f = tableRow.getStringColumn("firstname");
+        String l = tableRow.getStringColumn("lastname");
 
         if ((l == null) && (f == null))
         {
@@ -714,7 +655,7 @@ public class EPerson extends DSpaceObject
      */
     public String getFirstName()
     {
-        return myRow.getStringColumn("firstname");
+        return tableRow.getStringColumn("firstname");
     }
 
     /**
@@ -725,7 +666,7 @@ public class EPerson extends DSpaceObject
      */
     public void setFirstName(String firstname)
     {
-        myRow.setColumn("firstname", firstname);
+        tableRow.setColumn("firstname", firstname);
         modified = true;
     }
 
@@ -736,7 +677,7 @@ public class EPerson extends DSpaceObject
      */
     public String getLastName()
     {
-        return myRow.getStringColumn("lastname");
+        return tableRow.getStringColumn("lastname");
     }
 
     /**
@@ -747,7 +688,7 @@ public class EPerson extends DSpaceObject
      */
     public void setLastName(String lastname)
     {
-        myRow.setColumn("lastname", lastname);
+        tableRow.setColumn("lastname", lastname);
         modified = true;
     }
 
@@ -759,7 +700,7 @@ public class EPerson extends DSpaceObject
      */
     public void setCanLogIn(boolean login)
     {
-        myRow.setColumn("can_log_in", login);
+        tableRow.setColumn("can_log_in", login);
         modified = true;
     }
 
@@ -770,7 +711,7 @@ public class EPerson extends DSpaceObject
      */
     public boolean canLogIn()
     {
-        return myRow.getBooleanColumn("can_log_in");
+        return tableRow.getBooleanColumn("can_log_in");
     }
 
     /**
@@ -781,7 +722,7 @@ public class EPerson extends DSpaceObject
      */
     public void setRequireCertificate(boolean isrequired)
     {
-        myRow.setColumn("require_certificate", isrequired);
+        tableRow.setColumn("require_certificate", isrequired);
         modified = true;
     }
 
@@ -792,7 +733,7 @@ public class EPerson extends DSpaceObject
      */
     public boolean getRequireCertificate()
     {
-        return myRow.getBooleanColumn("require_certificate");
+        return tableRow.getBooleanColumn("require_certificate");
     }
 
     /**
@@ -803,7 +744,7 @@ public class EPerson extends DSpaceObject
      */
     public void setSelfRegistered(boolean sr)
     {
-        myRow.setColumn("self_registered", sr);
+        tableRow.setColumn("self_registered", sr);
         modified = true;
     }
 
@@ -814,7 +755,7 @@ public class EPerson extends DSpaceObject
      */
     public boolean getSelfRegistered()
     {
-        return myRow.getBooleanColumn("self_registered");
+        return tableRow.getBooleanColumn("self_registered");
     }
 
     /**
@@ -828,9 +769,9 @@ public class EPerson extends DSpaceObject
      * @exception IllegalArgumentException
      *                if the requested metadata field doesn't exist
      */
-    public String getMetadata(String field)
+    public String getLocalMetadata(String field)
     {
-        return myRow.getStringColumn(field);
+        return tableRow.getStringColumn(field);
     }
 
     /**
@@ -846,9 +787,8 @@ public class EPerson extends DSpaceObject
      */
     public void setMetadata(String field, String value)
     {
-        myRow.setColumn(field, value);
+        tableRow.setColumn(field, value);
         modifiedMetadata = true;
-        addDetails(field);
     }
 
     /**
@@ -862,7 +802,7 @@ public class EPerson extends DSpaceObject
         // FIXME: encoding
         String encoded = Utils.getMD5(s);
 
-        myRow.setColumn("password", encoded);
+        tableRow.setColumn("password", encoded);
         modified = true;
     }
 
@@ -874,7 +814,7 @@ public class EPerson extends DSpaceObject
      */
     public void setPasswordHash(String s)
     {
-        myRow.setColumn("password", s);
+        tableRow.setColumn("password", s);
         modified = true;
     }
 
@@ -884,7 +824,7 @@ public class EPerson extends DSpaceObject
      */
     public String getPasswordHash()
     {
-        return myRow.getStringColumn("password");
+        return tableRow.getStringColumn("password");
     }
 
     /**
@@ -898,7 +838,7 @@ public class EPerson extends DSpaceObject
     {
         String encoded = Utils.getMD5(attempt);
 
-        return (encoded.equals(myRow.getStringColumn("password")));
+        return (encoded.equals(tableRow.getStringColumn("password")));
     }
 
     /**
@@ -908,34 +848,22 @@ public class EPerson extends DSpaceObject
     {
         // Check authorisation - if you're not the eperson
         // see if the authorization system says you can
-        if (!myContext.ignoreAuthorization()
-                && ((myContext.getCurrentUser() == null) || (getID() != myContext
-                        .getCurrentUser().getID())))
-        {
-            AuthorizeManager.authorizeAction(myContext, this, Constants.WRITE);
+        if (!context.ignoreAuthorization()
+                && ((context.getCurrentUser() == null) || (getID() != context
+                        .getCurrentUser().getID()))) {
+            AuthorizeManager.authorizeAction(context, this, Constants.WRITE);
         }
 
-        DatabaseManager.update(myContext, myRow);
-
-        log.info(LogManager.getHeader(myContext, "update_eperson",
+        log.info(LogManager.getHeader(context, "update_eperson",
                 "eperson_id=" + getID()));
-
-        if (modified)
-        {
-            myContext.addEvent(new Event(Event.MODIFY, Constants.EPERSON, getID(), null));
-            modified = false;
-        }
-        if (modifiedMetadata)
-        {
-            myContext.addEvent(new Event(Event.MODIFY_METADATA, Constants.EPERSON, getID(), getDetails()));
-            modifiedMetadata = false;
-            clearDetails();
-        }
+        
+        updateDSO();
     }
 
     /**
      * return type found in Constants
      */
+    @Override
     public int getType()
     {
         return Constants.EPERSON;
@@ -956,7 +884,7 @@ public class EPerson extends DSpaceObject
         List<String> tableList = new ArrayList<String>();
 
         // check for eperson in item table
-        TableRowIterator tri = DatabaseManager.query(myContext, 
+        TableRowIterator tri = DatabaseManager.query(context, 
                 "SELECT * from item where submitter_id= ? ",
                 getID());
 
@@ -990,7 +918,7 @@ public class EPerson extends DSpaceObject
     private void getXMLWorkflowConstraints(List<String> tableList) throws SQLException {
          TableRowIterator tri;
         // check for eperson in claimtask table
-        tri = DatabaseManager.queryTable(myContext, "cwf_claimtask",
+        tri = DatabaseManager.queryTable(context, "cwf_claimtask",
                 "SELECT * from cwf_claimtask where owner_id= ? ",
                 getID());
 
@@ -1011,7 +939,7 @@ public class EPerson extends DSpaceObject
         }
 
         // check for eperson in pooltask table
-        tri = DatabaseManager.queryTable(myContext, "cwf_pooltask",
+        tri = DatabaseManager.queryTable(context, "cwf_pooltask",
                 "SELECT * from cwf_pooltask where eperson_id= ? ",
                 getID());
 
@@ -1032,7 +960,7 @@ public class EPerson extends DSpaceObject
         }
 
         // check for eperson in workflowitemrole table
-        tri = DatabaseManager.queryTable(myContext, "cwf_workflowitemrole",
+        tri = DatabaseManager.queryTable(context, "cwf_workflowitemrole",
                 "SELECT * from cwf_workflowitemrole where eperson_id= ? ",
                 getID());
 
@@ -1057,7 +985,7 @@ public class EPerson extends DSpaceObject
     private void getOriginalWorkflowConstraints(List<String> tableList) throws SQLException {
         TableRowIterator tri;
         // check for eperson in workflowitem table
-        tri = DatabaseManager.query(myContext, 
+        tri = DatabaseManager.query(context, 
                 "SELECT * from workflowitem where owner= ? ",
                 getID());
 
@@ -1078,7 +1006,7 @@ public class EPerson extends DSpaceObject
         }
 
         // check for eperson in tasklistitem table
-        tri = DatabaseManager.query(myContext, 
+        tri = DatabaseManager.query(context, 
                 "SELECT * from tasklistitem where eperson_id= ? ",
                 getID());
 

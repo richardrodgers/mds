@@ -113,7 +113,7 @@ public class CommunityFiliator
     
     public static void move(Context c, Community parent, Collection child) 
         throws SQLException, AuthorizeException, IOException {
-    	Community oldParent = child.getCommunities()[0];
+    	Community oldParent = child.getCommunities().get(0);
     	// first give child a new (additional) parent - orphans are killed off
     	parent.addCollection(child);
     	// now it's safe to remove old parent

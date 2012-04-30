@@ -40,6 +40,9 @@ public class QueryArgs
 
     /** number of metadata elements to display before truncating using "et al" */
     private int etAl = ConfigurationManager.getIntProperty("webui.itemlist.author-limit");
+    
+    // target index - initialized to default
+    private String indexName = DSIndexer.DEFAULT_INDEX;
 
     /**
      * @return  the number of metadata fields at which to truncate with "et al"
@@ -141,5 +144,22 @@ public class QueryArgs
     public void setSortOrder(String sortOrder)
     {
         this.sortOrder = sortOrder;
+    }
+    
+    /**
+     * Returns the index target of this query
+     * 
+     */
+    public String getTargetIndex() {
+    	return indexName;
+    }
+    
+    /**
+     * Assigns the index target. 
+     * NB: all queryArgs intialized to the 'default' index
+     * 
+     */
+    public void setTargetIndex(String indexName) {
+    	this.indexName = indexName;
     }
 }

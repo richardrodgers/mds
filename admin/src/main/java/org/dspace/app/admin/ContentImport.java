@@ -173,7 +173,8 @@ public class ContentImport {
     };
     
     public static void main(String[] args) throws Exception {
-        DSIndexer.setBatchProcessingMode(true);
+    	DSIndexer indexer = new DSIndexer();
+        indexer.setBatchProcessingMode(true);
         Date startTime = new Date();
         int status = 1;
 
@@ -200,7 +201,7 @@ public class ContentImport {
         } catch (Exception e) {
         	System.err.println(e.getMessage());
         } finally {
-            DSIndexer.setBatchProcessingMode(false);
+            indexer.setBatchProcessingMode(false);
             Date endTime = new Date();
             System.out.println("Started: " + startTime.getTime());
             System.out.println("Ended: " + endTime.getTime());
@@ -641,7 +642,7 @@ public class ContentImport {
 
         for (int i = 0; i < mdNodes.getLength(); i++) {
             Node n = mdNodes.item(i);
-            community.setMetadata(getAttributeValue(n, "element"), getStringValue(n));
+            community.setMetadataValue(getAttributeValue(n, "element"), getStringValue(n));
         }
         
         // add logo file if present
@@ -686,7 +687,7 @@ public class ContentImport {
 
         for (int i = 0; i < mdNodes.getLength(); i++) {
             Node n = mdNodes.item(i);
-            collection.setMetadata(getAttributeValue(n, "element"), getStringValue(n));
+            collection.setMetadataValue(getAttributeValue(n, "element"), getStringValue(n));
         }
         
         // add logo file if present
@@ -773,7 +774,7 @@ public class ContentImport {
                 
                 // apply any bitstream permissions - must be done post-install
                 if (bsPerms.size() > 0) {
-                	 Bitstream[] bitstreams = item.getNonInternalBitstreams();
+                	 List<Bitstream> bitstreams = item.getNonInternalBitstreams();
                 	 for (Map.Entry<Integer, String> entry : bsPerms.entrySet()) {
                 		 for (Bitstream bs : bitstreams) {
                 			 if (entry.getKey() == bs.getID()) {
@@ -1144,15 +1145,15 @@ public class ContentImport {
         
         if (!isTest) {
             // find the bundle
-            Bundle[] bundles = item.getBundles(newBundleName);
+            List<Bundle> bundles = item.getBundles(newBundleName);
             Bundle targetBundle = null;
 
-            if (bundles.length < 1) {
+            if (bundles.size() < 1) {
                 // not found, create a new one
                 targetBundle = item.createBundle(newBundleName);
             } else {
                 // put bitstreams into first bundle
-                targetBundle = bundles[0];
+                targetBundle = bundles.get(0);
             }
 
             // now add the bitstream
@@ -1161,11 +1162,11 @@ public class ContentImport {
             bs.setName(fileName);
             
             if (options.containsKey("description")) {
-            	bs.setDescription(options.get("description"));
+            	bs.setMetadataValue("dsl.description", options.get("description"));
             }
             
             if (options.containsKey("source")) {
-            	bs.setDescription(options.get("source"));
+            	bs.setSource(options.get("source"));
             }
             
             if (options.containsKey("metadata")) {
@@ -1225,15 +1226,15 @@ public class ContentImport {
 
         if(!isTest) {
         	// find the bundle
-	        Bundle[] bundles = i.getBundles(newBundleName);
+	        List<Bundle> bundles = i.getBundles(newBundleName);
 	        Bundle targetBundle = null;
 	            
-	        if( bundles.length < 1 ) {
+	        if (bundles.size() < 1 ) {
 	            // not found, create a new one
 	            targetBundle = i.createBundle(newBundleName);
 	        } else {
 	            // put bitstreams into first bundle
-	            targetBundle = bundles[0];
+	            targetBundle = bundles.get(0);
 	        }
 	
 	        // now add the bitstream

@@ -41,11 +41,7 @@ public class FixDefaultPolicies
         //////////////////////
         // carnage begins here
         //////////////////////
-        Collection[] collections = Collection.findAll(c);
-
-        for (int i = 0; i < collections.length; i++)
-        {
-            Collection t = collections[i];
+        for (Collection t : Collection.findAll(c)) {
 
             System.out.println("Collection " + t + " " + t.getMetadata("name"));
 
@@ -84,11 +80,7 @@ public class FixDefaultPolicies
         }
 
         // now ensure communities have READ policies
-        Community[] communities = Community.findAll(c);
-
-        for (int i = 0; i < communities.length; i++)
-        {
-            Community t = communities[i];
+        for (Community t : Community.findAll(c)) {
 
             System.out.println("Community " + t + " " + t.getMetadata("name"));
 

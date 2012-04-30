@@ -34,6 +34,8 @@ public class SearchConsumer implements Consumer
 
     // handles to delete since IDs are not useful by now.
     private Set<String> handlesToDelete = null;
+    
+    private DSIndexer indexer = new DSIndexer();
 
     public void initialize() throws Exception
     {
@@ -86,7 +88,7 @@ public class SearchConsumer implements Consumer
             {
                 st = Constants.ITEM;
                 et = Event.MODIFY;
-                subject = ((Bundle) subject).getItems()[0];
+                subject = ((Bundle) subject).getItems().get(0);
                 if (log.isDebugEnabled())
                 {
                     log.debug("Transforming Bundle event into MODIFY of Item "
@@ -179,7 +181,7 @@ public class SearchConsumer implements Consumer
                 {
                     try
                     {
-                        DSIndexer.indexContent(ctx, iu, true);
+                        indexer.indexContent(ctx, iu, true);
                         log.debug("Indexed "
                              + Constants.typeText[iu.getType()]
                              + ", id=" + String.valueOf(iu.getID())
@@ -196,7 +198,7 @@ public class SearchConsumer implements Consumer
             {
                 try
                 {
-                    DSIndexer.unIndexContent(ctx, hdl);
+                    indexer.unIndexContent(ctx, hdl);
                     if (log.isDebugEnabled())
                     {
                         log.debug("UN-Indexed Item, handle=" + hdl);
@@ -219,7 +221,6 @@ public class SearchConsumer implements Consumer
     public void finish(Context ctx) throws Exception
     {
         // No-op
-
     }
 
 }

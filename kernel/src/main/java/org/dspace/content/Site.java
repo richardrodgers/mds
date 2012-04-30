@@ -49,6 +49,8 @@ public class Site extends DSpaceObject
     {
         return SITE_ID;
     }
+    
+    public int getDSOiD() { return -1; }
 
     /**
      * Get the Handle of the object. This may return <code>null</code>

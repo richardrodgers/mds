@@ -80,19 +80,12 @@ public class ItemCounter
 	 * 
 	 * @throws ItemCountException
 	 */
-	public void buildItemCounts()
-		throws ItemCountException
-	{
-		try
-		{
-			Community[] tlc = Community.findAllTop(context);
-			for (int i = 0; i < tlc.length; i++)
-			{
-				count(tlc[i]);
+	public void buildItemCounts() throws ItemCountException	{
+		try {
+			for (Community tlc : Community.findAllTop(context)) {
+				count(tlc);
 			}
-		}
-		catch (SQLException e)
-		{
+		} catch (SQLException e) {
 			log.error("caught exception: ", e);
 			throw new ItemCountException(e);
 		}
@@ -177,17 +170,13 @@ public class ItemCounter
 			dao.communityCount(community, count);
 			
 			// now get the sub-communities
-			Community[] scs = community.getSubcommunities();
-			for (int i = 0; i < scs.length; i++)
-			{
-				count(scs[i]);
+			for (Community sc : community.getSubcommunities()) {
+				count(sc);
 			}
 			
 			// now get the collections
-			Collection[] cols = community.getCollections();
-			for (int i = 0; i < cols.length; i++)
-			{
-				count(cols[i]);
+			for (Collection col : community.getCollections()) {
+				count(col);
 			}
 		}
 		catch (SQLException e)

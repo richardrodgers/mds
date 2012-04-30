@@ -20,6 +20,14 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Objects;
 
 import org.dspace.content.DSpaceObject;
+import org.dspace.content.Collection;
+import org.dspace.content.Community;
+import org.dspace.content.Item;
+import org.dspace.content.Bitstream;
+import org.dspace.content.Bundle;
+import org.dspace.content.Site;
+import org.dspace.eperson.Group;
+import org.dspace.eperson.EPerson;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 
@@ -317,7 +325,7 @@ public class Event implements Serializable
         }
         else
         {
-            return DSpaceObject.find(context, type, id);
+            return find(context, type, id);
         }
     }
 
@@ -329,7 +337,7 @@ public class Event implements Serializable
      */
     public DSpaceObject getSubject(Context context) throws SQLException
     {
-        return DSpaceObject.find(context, getSubjectType(), getSubjectID());
+        return find(context, getSubjectType(), getSubjectID());
     }
 
     /**
@@ -638,5 +646,20 @@ public class Event implements Serializable
                 + ", transactionID="
                 + (transactionID == null ? "[null]" : "\"" + transactionID
                         + "\"") + ")";
+    }
+    
+    private static DSpaceObject find(Context context, int type, int id)
+    	throws SQLException {
+    	switch (type)  {
+            case Constants.BITSTREAM : return Bitstream.find(context, id);
+    		case Constants.BUNDLE    : return Bundle.find(context, id);
+    		case Constants.ITEM      : return Item.find(context, id);
+    		case Constants.COLLECTION: return Collection.find(context, id);
+    		case Constants.COMMUNITY : return Community.find(context, id);
+    		case Constants.GROUP     : return Group.find(context, id);
+    		case Constants.EPERSON   : return EPerson.find(context, id);
+    		case Constants.SITE      : return Site.find(context, id);
+    	}
+        return null;
     }
 }

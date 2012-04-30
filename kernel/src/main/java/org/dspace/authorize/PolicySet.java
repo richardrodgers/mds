@@ -190,16 +190,12 @@ public class PolicySet
                     {
                         Item myitem = i.next();
 
-                        Bundle[] bundles = myitem.getBundles();
-
-                        for (int j = 0; j < bundles.length; j++)
-                        {
-                            Bundle t = bundles[j]; // t for target
+                        for (Bundle bundle : myitem.getBundles()) {
 
                             // is this a replace? delete policies first
                             if (isReplace || clearOnly)
                             {
-                                AuthorizeManager.removeAllPolicies(c, t);
+                                AuthorizeManager.removeAllPolicies(c, bundle);
                             }
 
                             if (!clearOnly)
@@ -207,7 +203,7 @@ public class PolicySet
                                 // now add the policy
                                 ResourcePolicy rp = ResourcePolicy.create(c);
 
-                                rp.setResource(t);
+                                rp.setResource(bundle);
                                 rp.setAction(actionID);
                                 rp.setGroup(group);
 
@@ -225,37 +221,26 @@ public class PolicySet
                         Item myitem = i.next();
                         System.out.println("Item " + myitem.getID());
 
-                        Bundle[] bundles = myitem.getBundles();
-
-                        for (int j = 0; j < bundles.length; j++)
-                        {
-                            System.out.println("Bundle " + bundles[j].getID());
-
-                            Bitstream[] bitstreams = bundles[j].getBitstreams();
-
-                            for (int k = 0; k < bitstreams.length; k++)
-                            {
-                                Bitstream t = bitstreams[k]; // t for target
-
+                        for (Bundle bundle : myitem.getBundles()) {
+                        	
+                            System.out.println("Bundle " + bundle.getID());
+                            for (Bitstream bitstream : bundle.getBitstreams()) {
                                 if ( filter == null ||
-                                     t.getName().indexOf( filter ) != -1 )
-                                {
+                                     bitstream.getName().indexOf( filter ) != -1 ) {
                                     // is this a replace? delete policies first
-                                    if (isReplace || clearOnly)
-                                    {
-                                            AuthorizeManager.removeAllPolicies(c, t);
+                                    if (isReplace || clearOnly) {
+                                       AuthorizeManager.removeAllPolicies(c, bitstream);
                                     }
 
-                                    if (!clearOnly)
-                                    {
-                                            // now add the policy
-                                            ResourcePolicy rp = ResourcePolicy.create(c);
+                                    if (!clearOnly) {
+                                        // now add the policy
+                                        ResourcePolicy rp = ResourcePolicy.create(c);
 
-                                            rp.setResource(t);
-                                            rp.setAction(actionID);
-                                            rp.setGroup(group);
+                                        rp.setResource(bitstream);
+                                        rp.setAction(actionID);
+                                        rp.setGroup(group);
 
-                                            rp.update();
+                                        rp.update();
                                     }
                                 }
                             }

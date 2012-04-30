@@ -984,7 +984,7 @@ public class AuthorizeManager
         else if (AuthorizeConfiguration
                 .canCommunityAdminManageCollectionWorkflows())
         {
-            authorizeAction(context, collection.getCommunities()[0], Constants.ADMIN);
+            authorizeAction(context, collection.getCommunities().get(0), Constants.ADMIN);
         }
         else if (! isAdmin(context))
         {
@@ -1017,7 +1017,7 @@ public class AuthorizeManager
         else if (AuthorizeConfiguration
                 .canCommunityAdminManageCollectionSubmitters())
         {
-            authorizeAction(context, collection.getCommunities()[0], Constants.ADMIN);
+            authorizeAction(context, collection.getCommunities().get(0), Constants.ADMIN);
         }
         else if (! isAdmin(context))
         {
@@ -1053,7 +1053,7 @@ public class AuthorizeManager
         else if (AuthorizeConfiguration
                 .canCommunityAdminManageCollectionAdminGroup())
         {
-            authorizeAction(context, collection.getCommunities()[0], Constants.ADMIN);
+            authorizeAction(context, collection.getCommunities().get(0), Constants.ADMIN);
         }
         else if (! isAdmin(context))
         {
@@ -1081,12 +1081,12 @@ public class AuthorizeManager
     public static void authorizeRemoveAdminGroup(Context context,
             Collection collection) throws AuthorizeException, SQLException
     {
-        Community[] parentCommunities = collection.getCommunities();
+        List<Community> parentCommunities = collection.getCommunities();
         if (AuthorizeConfiguration
                 .canCommunityAdminManageCollectionAdminGroup()
-                && parentCommunities != null && parentCommunities.length > 0)
+                && parentCommunities != null && parentCommunities.size() > 0)
         {
-            authorizeAction(context, collection.getCommunities()[0], Constants.ADMIN);
+            authorizeAction(context, parentCommunities.get(0), Constants.ADMIN);
         }
         else if (! isAdmin(context))
         {
@@ -1125,8 +1125,8 @@ public class AuthorizeManager
                 && AuthorizeConfiguration
                         .canCommunityAdminManageCollectionTemplateItem())
         {
-            Community[] communities = collection.getCommunities();
-            Community parent = communities != null && communities.length > 0 ? communities[0]
+            List<Community> communities = collection.getCommunities();
+            Community parent = communities != null && communities.size() > 0 ? communities.get(0)
                     : null;
             authorizeAction(context, parent, Constants.ADMIN);
         }
@@ -1162,7 +1162,7 @@ public class AuthorizeManager
         else if (AuthorizeConfiguration.canCommunityAdminPerformItemWithdrawn())
         {
             authorized = authorizeActionBoolean(context, item.getOwningCollection()
-                                             .getCommunities()[0], Constants.ADMIN);
+                                             .getCommunities().get(0), Constants.ADMIN);
         }
 
         if (!authorized)
@@ -1195,28 +1195,25 @@ public class AuthorizeManager
      public static void authorizeReinstateItem(Context context, Item item)
              throws SQLException, AuthorizeException
      {
-         Collection[] colls = item.getCollections();
-
-         for (int i = 0; i < colls.length; i++)
-         {
+         for (Collection coll : item.getCollections()) {
              if (!AuthorizeConfiguration
                      .canCollectionAdminPerformItemReinstatiate())
              {
                  if (AuthorizeConfiguration
                          .canCommunityAdminPerformItemReinstatiate()
                          && authorizeActionBoolean(context,
-                                 colls[i].getCommunities()[0], Constants.ADMIN))
+                                 coll.getCommunities().get(0), Constants.ADMIN))
                  {
                      // authorized
                  }
                  else
                  {
-                     authorizeAction(context, colls[i], Constants.ADD, false);
+                     authorizeAction(context, coll, Constants.ADD, false);
                  }
              }
              else
              {
-            	 authorizeAction(context, colls[i], Constants.ADD);
+            	 authorizeAction(context, coll, Constants.ADD);
              }
          }
      }

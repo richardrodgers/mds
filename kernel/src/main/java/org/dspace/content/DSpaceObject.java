@@ -8,54 +8,320 @@
 package org.dspace.content;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.StringTokenizer;
+import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.dspace.authorize.AuthorizeException;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
-import org.dspace.eperson.EPerson;
-import org.dspace.eperson.Group;
+import org.dspace.event.Event;
+import org.dspace.storage.bitstore.BitstreamStorageManager;
+import org.dspace.storage.rdbms.DatabaseManager;
+import org.dspace.storage.rdbms.TableRow;
+import org.dspace.storage.rdbms.TableRowIterator;
 
 /**
  * Abstract base class for DSpace objects
  */
 public abstract class DSpaceObject
 {
-    // accumulate information to add to "detail" element of content Event,
-    // e.g. to document metadata fields touched, etc.
-    private StringBuffer eventDetails = null;
-
+    /** logger */
+    private static Logger log = LoggerFactory.getLogger(DSpaceObject.class);
+    
+    /** Our context */
+    protected Context context;
+    
+    /** The row in the table representing this object */
+    protected TableRow tableRow;
+        
+    // Object identifier (UUID)
+    private String objectId;
+    
+    // Object metadata
+    private List<MDValue> metadata;
+    
+    // Flag set when metadata is modified
+    protected boolean modifiedMetadata;
+    
+    /** Flag set when data is modified, for events */
+    protected boolean modified;
+    
     /**
-     * Reset the cache of event details.
+     * Creates the DSpaceObject. This includes assigning
+     * a unique object ID (a UUID).
      */
-    protected void clearDetails()
-    {
-        eventDetails = null;
+    protected void createDSO() throws SQLException {
+    	TableRow dsoRow = DatabaseManager.create(context, "dspaceobject");
+    	dsoRow.setColumn("dso_type_id", getType());
+    	dsoRow.setColumn("object_id", UUID.randomUUID().toString());
+    	DatabaseManager.update(context, dsoRow);
+    	// bind the DSO ID as a foreign key to this object
+    	tableRow.setColumn("dso_id", dsoRow.getIntColumn("dso_id"));
     }
-
+    
+    protected void updateDSO() throws AuthorizeException, SQLException {
+        DatabaseManager.update(context, tableRow);
+        if (modified) {
+            context.addEvent(new Event(Event.MODIFY, getType(), getID(), null));
+            modified = false;
+        }
+        updateMetadata();
+    }
+    
     /**
-     * Add a string to the cache of event details.  Automatically
-     * separates entries with a comma.
-     * Subclass can just start calling addDetails, since it creates
-     * the cache if it needs to.
-     * @param d detail string to add.
+     * Destroys the DSpaceObject belonging to this subclass.
      */
-    protected void addDetails(String d)
-    {
-        if (eventDetails == null)
+    protected void destroyDSO() throws SQLException {
+    	DatabaseManager.delete(context, "dspaceobject", getDSOiD());
+    }
+    
+    /**
+     * Get metadata for the bitstream in a chosen schema.
+     * See <code>MetadataSchema</code> for more information about schemas.
+     * Passing in a <code>null</code> value for <code>qualifier</code>
+     * or <code>lang</code> only matches metadata fields where that
+     * qualifier or languages is actually <code>null</code>.
+     * Passing in <code>MDValue.ANY</code>
+     * retrieves all metadata fields with any value for the qualifier or
+     * language, including <code>null</code>
+     * <P>
+     * Examples:
+     * <P>
+     * Return values of the unqualified "title" field, in any language.
+     * Qualified title fields (e.g. "title.uniform") are NOT returned:
+     * <P>
+     * <code>bitstream.getMetadata("dc", "title", null, MDValue.ANY );</code>
+     * <P>
+     * Return all US English values of the "title" element, with any qualifier
+     * (including unqualified):
+     * <P>
+     * <code>bitstream.getMetadata("dc, "title", MDValue.ANY, "en_US" );</code>
+     * <P>
+     * The ordering of values of a particular element/qualifier/language
+     * combination is significant. When retrieving with wildcards, values of a
+     * particular element/qualifier/language combinations will be adjacent, but
+     * the overall ordering of the combinations is indeterminate.
+     *
+     * @param schema
+     *            the schema for the metadata field. <em>Must</em> match
+     *            the <code>name</code> of an existing metadata schema.
+     * @param element
+     *            the element name. <code>MDValue.ANY</code> matches any
+     *            element. <code>null</code> doesn't really make sense as all
+     *            metadata must have an element.
+     * @param qualifier
+     *            the qualifier. <code>null</code> means unqualified, and
+     *            <code>MDValue.ANY</code> means any qualifier (including
+     *            unqualified.)
+     * @param lang
+     *            the ISO639 language code, optionally followed by an underscore
+     *            and the ISO3166 country code. <code>null</code> means only
+     *            values with no language are returned, and
+     *            <code>MDValue.ANY</code> means values with any country code or
+     *            no country code are returned.
+     * @return metadata fields that match the parameters
+     */
+    public List<MDValue> getMetadata(String schema, String element, String qualifier,
+            					     String lang) {
+    	
+        // Build up list of matching values
+        List<MDValue> values = new ArrayList<MDValue>();
+        for (MDValue mdv : getMetadata()) {
+            if (mdv.match(schema, element, qualifier, lang)) {
+                values.add(mdv);
+            }
+        }
+        return values;
+    }
+    
+    /**
+     * Retrieve metadata field values from a given metadata string
+     * of the form <schema prefix>.<element>[.<qualifier>|.*]
+     *
+     * @param mdString
+     *            The metadata string of the form
+     *            <schema prefix>.<element>[.<qualifier>|.*]
+     */
+    public List<MDValue> getMetadata(String mdString) {
+        StringTokenizer dcf = new StringTokenizer(mdString, ".");
+        
+        String[] tokens = { "", "", "" };
+        int i = 0;
+        while(dcf.hasMoreTokens()) {
+            tokens[i] = dcf.nextToken().trim();
+            i++;
+        }
+        String schema = tokens[0];
+        String element = tokens[1];
+        String qualifier = tokens[2];
+        
+        if ("*".equals(qualifier))
         {
-            eventDetails = new StringBuffer(d);
+            return getMetadata(schema, element, MDValue.ANY, MDValue.ANY);
+        }
+        else if ("".equals(qualifier))
+        {
+            return getMetadata(schema, element, null, MDValue.ANY);
         }
         else
         {
-            eventDetails.append(", ").append(d);
+            return getMetadata(schema, element, qualifier, MDValue.ANY);
         }
     }
-
+    
+    public String getMetadataValue(String name) {
+        List<MDValue> vals = getMetadata(name);
+        return (vals.size() >= 1) ? vals.get(0).getValue() : null;
+    }
+    
+    public void addMetadata(String schema, String element, String qualifier, String lang,
+		    String value) {
+    	List<String> values = new ArrayList<String>();
+    	values.add(value);
+    	addMetadata(schema, element, qualifier, lang, values);
+    }
+    
     /**
-     * @return summary of event details, or null if there are none.
+     * Add metadata fields. These are appended to existing values.
+     * Use <code>clearMetadata</code> to remove values. The ordering of values
+     * passed in is maintained.
+     * @param schema
+     *            the schema for the metadata field. <em>Must</em> match
+     *            the <code>name</code> of an existing metadata schema.
+     * @param element
+     *            the metadata element name
+     * @param qualifier
+     *            the metadata qualifier name, or <code>null</code> for
+     *            unqualified
+     * @param lang
+     *            the ISO639 language code, optionally followed by an underscore
+     *            and the ISO3166 country code. <code>null</code> means the
+     *            value has no language (for example, a date).
+     * @param values
+     *            the values to add.
      */
-    protected String getDetails()
-    {
-        return (eventDetails == null ? null : eventDetails.toString());
+    public void addMetadata(String schema, String element, String qualifier, String lang,
+            			    List<String> values) {
+        List<MDValue> mdValues = getMetadata();
+        String language = (lang == null ? null : lang.trim());
+        String fieldName = schema+"."+element+((qualifier==null)? "": "."+qualifier);
+
+        // We will not verify that they are valid entries in the registry
+        // until update() is called.
+        for (String value : values) {
+        	String theValue = value;
+            if (value != null) {
+                // remove control unicode char
+                String temp = value.trim();
+                char[] dcvalue = temp.toCharArray();
+                for (int charPos = 0; charPos < dcvalue.length; charPos++) {
+                    if (Character.isISOControl(dcvalue[charPos]) &&
+                        !String.valueOf(dcvalue[charPos]).equals("\u0009") &&
+                        !String.valueOf(dcvalue[charPos]).equals("\n") &&
+                        !String.valueOf(dcvalue[charPos]).equals("\r")) {
+                        dcvalue[charPos] = ' ';
+                    }
+                }
+                theValue = String.valueOf(dcvalue);
+            } else {
+                theValue = null;
+            }
+            metadata.add(new MDValue(schema, element, qualifier, language, theValue));
+        }
+
+        if (values.size() > 0) {
+            modifiedMetadata = true;
+        }
+    }
+    
+    /**
+     * Clear metadata values. As with <code>getMetadata</code> above,
+     * passing in <code>null</code> only matches fields where the qualifier or
+     * language is actually <code>null</code>.<code>MDValue.ANY</code> will
+     * match any element, qualifier or language, including <code>null</code>.
+     * Thus, <code>bitstream.clearMetadat(MDValue.ANY, MDValue.ANY, MDValue.ANY)</code>
+     * will remove all metadata associated with a bitstream.
+     *
+     * @param schema
+     *            the schema for the metadata field. <em>Must</em> match
+     *            the <code>name</code> of an existing metadata schema.
+     * @param element
+     *            the element to remove, or <code>MDValue.ANY</code>
+     * @param qualifier
+     *            the qualifier. <code>null</code> means unqualified, and
+     *            <code>MDValue.ANY</code> means any qualifier (including
+     *            unqualified.)
+     * @param lang
+     *            the ISO639 language code, optionally followed by an underscore
+     *            and the ISO3166 country code. <code>null</code> means only
+     *            values with no language are removed, and <code>MDValue.ANY</code>
+     *            means values with any country code or no country code are
+     *            removed.
+     */
+    public void clearMetadata(String schema, String element, String qualifier,
+            				  String lang) {
+        // We will build a list of values NOT matching the values to clear
+        List<MDValue> values = new ArrayList<MDValue>();
+        for (MDValue mdv : getMetadata()) {
+            if (! mdv.match(schema, element, qualifier, lang)) {
+                values.add(mdv);
+            }
+        }
+
+        // Now swap the old list of values for the new, unremoved values
+        metadata = values;
+        modifiedMetadata = true;
+    }
+    
+    public void setMetadataValue(String name, String value) throws AuthorizeException, SQLException {
+        String[] tokens = name.split("\\.");
+        String qualifier = (tokens.length > 2) ? tokens[2] : null;
+        if ("*".equals(qualifier)) {
+        	qualifier = MDValue.ANY;
+        }
+        
+        clearMetadata(tokens[0], tokens[1], qualifier, MDValue.ANY);
+        addMetadata(tokens[0], tokens[1], qualifier, "us_en", value);
+    }
+    
+    protected void updateMetadata() throws AuthorizeException, SQLException {
+        if (modifiedMetadata) {
+            // Synchonize DB to in-memory MD values
+        	List<MDValue> dbValues = new ArrayList<MDValue>();
+        	loadMetadata(dbValues);
+        	StringBuffer details = new StringBuffer();
+        	int idx = 0;
+        	// first pass - additions
+            for (MDValue addValue : metadata) {
+            	if (! dbValues.contains(addValue)) {
+                	DatabaseManager.insert(context, createMetadataRow(addValue));
+                	String fieldName = addValue.getSchema() + "." + addValue.getElement() +
+                			           ((addValue.getQualifier() == null) ? "" : "." + addValue.getQualifier());
+                	if (idx++ > 0) {
+                		details.append(",");
+                	}
+                	details.append(fieldName);
+            	}
+            }
+            // second pass - deletions
+            for (MDValue delValue : dbValues) {
+            	if (! metadata.contains(delValue)) {
+            		DatabaseManager.delete(context, createMetadataRow(delValue));
+            	}
+            }
+            context.addEvent(new Event(Event.MODIFY_METADATA, getType(), getID(), details.toString()));
+            modifiedMetadata = false;
+        }
+    }
+    
+    protected void deleteMetadata() throws AuthorizeException, SQLException {
+        DatabaseManager.updateQuery(context, "DELETE FROM MetadataValue WHERE dso_id= ? ",
+        		getDSOiD());
     }
 
     /**
@@ -71,14 +337,35 @@ public abstract class DSpaceObject
      * @return internal ID of object
      */
     public abstract int getID();
-
+    
+    /**
+     * Get the DSpaceObject ID (database primary key) of this object
+     * 
+     * @return internal DSpaceObject ID of object
+     */
+    private int getDSOiD() {
+    	return tableRow.getIntColumn("dso_id");
+    }
+    
     /**
      * Get the Handle of the object. This may return <code>null</code>
      * 
      * @return Handle of the object, or <code>null</code> if it doesn't have
      *         one
      */
-    public abstract String getHandle();
+    public String getHandle() {
+    	return null;
+    }
+    
+    public String getObjectId() throws SQLException {
+    	if (objectId == null) {
+    		TableRow row = DatabaseManager.find(context, "dspaceobject", getDSOiD());
+    		if (row != null) {
+    			objectId = row.getStringColumn("object_id");
+    		}
+    	}
+    	return objectId;
+    }
 
     /**
      * Get a proper name for the object. This may return <code>null</code>.
@@ -88,33 +375,6 @@ public abstract class DSpaceObject
      *         one
      */
     public abstract String getName();
-
-    /**
-     * Generic find for when the precise type of a DSO is not known, just the
-     * a pair of type number and database ID.
-     *
-     * @param context - the context
-     * @param type - type number
-     * @param id - id within table of type'd objects
-     * @return the object found, or null if it does not exist.
-     * @throws SQLException only upon failure accessing the database.
-     */
-    public static DSpaceObject find(Context context, int type, int id)
-        throws SQLException
-    {
-        switch (type)
-        {
-            case Constants.BITSTREAM : return Bitstream.find(context, id);
-            case Constants.BUNDLE    : return Bundle.find(context, id);
-            case Constants.ITEM      : return Item.find(context, id);
-            case Constants.COLLECTION: return Collection.find(context, id);
-            case Constants.COMMUNITY : return Community.find(context, id);
-            case Constants.GROUP     : return Group.find(context, id);
-            case Constants.EPERSON   : return EPerson.find(context, id);
-            case Constants.SITE      : return Site.find(context, id);
-        }
-        return null;
-    }
 
     /**
      * Return the dspace object where an ADMIN action right is sufficient to
@@ -136,10 +396,8 @@ public abstract class DSpaceObject
      *             if the ADMIN action is supplied as parameter of the method
      *             call
      */
-    public DSpaceObject getAdminObject(int action) throws SQLException
-    {
-        if (action == Constants.ADMIN)
-        {
+    public DSpaceObject getAdminObject(int action) throws SQLException {
+        if (action == Constants.ADMIN) {
             throw new IllegalArgumentException("Illegal call to the DSpaceObject.getAdminObject method");
         }
         return this;
@@ -157,8 +415,75 @@ public abstract class DSpaceObject
      *         the hierarchy
      * @throws SQLException
      */
-    public DSpaceObject getParentObject() throws SQLException
-    {
+    public DSpaceObject getParentObject() throws SQLException {
         return null;
+    }
+    
+    // lazy load of metadata
+    private List<MDValue> getMetadata() {
+    	if (metadata == null) {
+    		metadata = new ArrayList<MDValue>();
+    		loadMetadata(metadata);
+    	}
+    	return metadata;
+    }
+    
+    private void loadMetadata(List<MDValue> mdList) {
+    	TableRowIterator tri = null;
+        try {
+    		tri = retrieveMetadata();
+            if (tri != null) {
+                while (tri.hasNext()) {
+                    TableRow resultRow = tri.next();
+                    // Get the associated metadata field and schema information
+                    int fieldID = resultRow.getIntColumn("metadata_field_id");
+                    MetadataField field = MetadataField.find(context, fieldID);
+                    if (field == null) {
+                        log.error("Loading object - cannot find metadata field " + fieldID);
+                    } else {
+                        MetadataSchema schema = MetadataSchema.find(context, field.getSchemaID());
+                        if (schema == null) {
+                            log.error("Loading object - cannot find metadata schema " + field.getSchemaID() + ", field " + fieldID);
+                        } else {
+                            // Add MDValue object to list
+                            mdList.add(new MDValue(schema.getName(),
+                            					   field.getElement(),
+                                                   field.getQualifier(),
+                                                   resultRow.getStringColumn("text_lang"),
+                                                   resultRow.getStringColumn("text_value")));
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e)   {
+            log.error("Error loading object metadata");
+        } finally {
+            // close the TableRowIterator to free up resources
+            if (tri != null) {
+                tri.close();
+            }
+        }
+    }
+       
+    private TableRowIterator retrieveMetadata() throws SQLException {
+    	return DatabaseManager.queryTable(context, "MetadataValue",
+                "SELECT * FROM MetadataValue WHERE dso_id= ? ORDER BY metadata_field_id, place",
+                getDSOiD());
+    }
+    
+    private TableRow createMetadataRow(MDValue value) throws SQLException, AuthorizeException {
+    	
+    	MetadataSchema schema = MetadataSchema.findByNamespace(context, value.getSchema());
+    	MetadataField field = MetadataField.findByElement(context, schema.getSchemaID(),
+    			                                          value.getElement(), value.getQualifier());
+    	
+        // Create a table row and update it with the values
+        TableRow row = DatabaseManager.row("MetadataValue");
+        row.setColumn("dso_id", getDSOiD());
+        row.setColumn("metadata_field_id", field.getFieldID());
+        row.setColumn("text_value", value.getValue());
+        row.setColumn("text_lang", value.getLanguage());
+        row.setColumn("place", "TODO");
+        return row;
     }
 }

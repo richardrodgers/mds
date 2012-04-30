@@ -7,46 +7,78 @@
  */
 package org.dspace.search;
 
-import org.apache.lucene.document.Document;
-import org.apache.lucene.index.Term;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.io.InputStream;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-class IndexingTask
-{
-    enum Action { ADD, UPDATE, DELETE };
+class IndexingTask {
+	
+    enum Action { ADD, UPDATE, DELETE, TX_BEGIN, TX_END, PURGE };
 
-    private Action   action;
-    private Term     term;
-    private Document doc;
+    private Action action;
+    private Map<String, List<String>> fields;
+    private Map<String, List<InputStream>> streams;
 
-    IndexingTask(Action pAction, Term pTerm, Document pDoc)
-    {
+    IndexingTask(Action pAction) {
         action = pAction;
-        term = pTerm;
-        doc = pDoc;
+        fields = new HashMap<String, List<String>>();
     }
-
-    boolean isAdd()
-    {
-        return action == Action.ADD;
+    
+    void addField(String name, String value) {
+    	List<String> values = fields.get(name);
+    	if (values == null) {
+    		values = new ArrayList<String>();
+    		fields.put(name, values);
+    	}
+    	values.add(value);
     }
-
-    boolean isDelete()
-    {
-        return action == Action.DELETE;
+    
+    void addFieldSet(Map<String, String> fieldSet) {
+    	for (String key : fieldSet.keySet()) {
+    		addField(key, fieldSet.get(key));
+    	}
     }
-
-    boolean isUpdate()
-    {
-        return action == Action.UPDATE;
+    
+    void addStream(String name, InputStream stream) {
+    	if (streams == null) {
+    		streams = new HashMap<String, List<InputStream>>();
+    	}
+    	List<InputStream> values = streams.get(name);
+    	if (values == null) {
+    		values = new ArrayList<InputStream>();
+    		streams.put(name, values);
+    	}
+    	values.add(stream);
     }
-
-    Term getTerm()
-    {
-        return term;
+    
+    public Action getAction() {
+    	return action;
     }
-
-    Document getDocument()
-    {
-        return doc;
+    
+    public Set<String> getFieldKeys() {
+    	return fields.keySet();
+    }
+    
+    public List<String> getFieldValues(String key) {
+    	List<String> ret = fields.get(key);
+    	return (ret != null) ? ret : new ArrayList<String>();
+    }
+    
+    public String getFieldValue(String key) {
+    	List<String> ret = getFieldValues(key);
+    	return (ret.size() > 0) ? ret.get(0) : null;
+    }
+    
+    public Set<String> getStreamKeys() {
+    	return (streams != null) ? streams.keySet() : new HashSet<String>();
+    }
+    
+    public List<InputStream> getStreamValues(String key) {
+    	List<InputStream> ret = streams.get(key);
+    	return (ret != null) ? ret : new ArrayList<InputStream>();
     }
 }

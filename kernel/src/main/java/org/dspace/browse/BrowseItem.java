@@ -9,6 +9,7 @@ package org.dspace.browse;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.content.*;
 import org.dspace.core.Constants;
@@ -35,7 +36,7 @@ import java.util.List;
  * @author Richard Jones
  *
  */
-public class BrowseItem extends DSpaceObject
+public class BrowseItem //extends DSpaceObject
 {
 	/** Logger */
     private static Logger log = LoggerFactory.getLogger(BrowseItem.class);
@@ -199,7 +200,7 @@ public class BrowseItem extends DSpaceObject
 		{
 			try
 			{
-				this.handle = HandleManager.findHandle(context, this);
+				this.handle = HandleManager.findHandle(context, Constants.ITEM, id);
 			}
 			catch (SQLException e)
 			{
@@ -234,46 +235,46 @@ public class BrowseItem extends DSpaceObject
     	// now go sort out the thumbnail
     	
     	// if there's no original, there is no thumbnail
-    	Bundle[] original = item.getBundles("ORIGINAL");
-        if (original.length == 0)
+    	List<Bundle> original = item.getBundles("ORIGINAL");
+        if (original.size() == 0)
         {
         	return null;
         }
         
         // if multiple bitstreams, check if the primary one is HTML
         boolean html = false;
-        if (original[0].getBitstreams().length > 1)
+        if (original.get(0).getBitstreams().size() > 1)
         {
-            Bitstream[] bitstreams = original[0].getBitstreams();
+            List<Bitstream> bitstreams = original.get(0).getBitstreams();
 
-            for (int i = 0; (i < bitstreams.length) && !html; i++)
+            for (int i = 0; (i < bitstreams.size()) && !html; i++)
             {
-                if (bitstreams[i].getID() == original[0].getPrimaryBitstreamID())
+                if (bitstreams.get(i).getID() == original.get(0).getPrimaryBitstreamID())
                 {
-                    html = bitstreams[i].getFormat().getMIMEType().equals("text/html");
+                    html = bitstreams.get(i).getFormat().getMIMEType().equals("text/html");
                 }
             }
         }
 
         // now actually pull out the thumbnail (ouch!)
-        Bundle[] thumbs = item.getBundles("THUMBNAIL");
+        List<Bundle> thumbs = item.getBundles("THUMBNAIL");
         
         // if there are thumbs and we're not dealing with an HTML item
         // then show the thumbnail
-        if ((thumbs.length > 0) && !html)
+        if ((thumbs.size() > 0) && !html)
         {
         	Bitstream thumbnailBitstream;
         	Bitstream originalBitstream;
         	
-        	if ((original[0].getBitstreams().length > 1) && (original[0].getPrimaryBitstreamID() > -1))
+        	if ((original.get(0).getBitstreams().size() > 1) && (original.get(0).getPrimaryBitstreamID() > -1))
         	{
-        		originalBitstream = Bitstream.find(context, original[0].getPrimaryBitstreamID());
-        		thumbnailBitstream = thumbs[0].getBitstreamByName(originalBitstream.getName() + ".jpg");
+        		originalBitstream = Bitstream.find(context, original.get(0).getPrimaryBitstreamID());
+        		thumbnailBitstream = thumbs.get(0).getBitstreamByName(originalBitstream.getName() + ".jpg");
         	}
         	else
         	{
-        		originalBitstream = original[0].getBitstreams()[0];
-        		thumbnailBitstream = thumbs[0].getBitstreams()[0];
+        		originalBitstream = original.get(0).getBitstreams().get(0);
+        		thumbnailBitstream = thumbs.get(0).getBitstreams().get(0);
         	}
         	
         	if ((thumbnailBitstream != null)

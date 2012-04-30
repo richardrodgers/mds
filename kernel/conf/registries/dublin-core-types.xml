@@ -583,5 +583,71 @@
     <!-- unqualified -->
     <scope_note>Nature or genre of content.</scope_note>
   </dc-type>
+  
+  <!-- metadata types used in Community and Collections, etc - placed in a 'legacy' schema 'dsl' -->
+  
+  <!-- Used by system: do not remove -->
+  <dc-type>
+	<schema>dsl</schema>
+    <element>short_description</element>
+    <!-- unqualified -->
+    <scope_note>Short description of container (legacy).</scope_note>
+  </dc-type>
+  
+  <!-- Used by system: do not remove -->
+  <dc-type>
+	<schema>dsl</schema>
+    <element>introductory_text</element>
+    <!-- unqualified -->
+    <scope_note>Introduction to container (legacy).</scope_note>
+  </dc-type>
+  
+  <!-- Used by system: do not remove -->
+  <dc-type>
+	<schema>dsl</schema>
+    <element>copyright_text</element>
+    <!-- unqualified -->
+    <scope_note>Copyright statement for container (legacy).</scope_note>
+  </dc-type>
+  
+  <!-- Used by system: do not remove -->
+  <dc-type>
+	<schema>dsl</schema>
+    <element>side_bar_text</element>
+    <!-- unqualified -->
+    <scope_note>Introduction of container (legacy).</scope_note>
+  </dc-type>
+  
+  <!-- Used by system: do not remove -->
+  <dc-type>
+	<schema>dsl</schema>
+    <element>provenance_description</element>
+    <!-- unqualified -->
+    <scope_note>Provenance information of container contents (legacy).</scope_note>
+  </dc-type>
+  
+  <!-- Used by system: do not remove -->
+  <dc-type>
+	<schema>dsl</schema>
+    <element>license</element>
+    <!-- unqualified -->
+    <scope_note>License information for container contents (legacy).</scope_note>
+  </dc-type>
+
+  <!-- Used by system: do not remove -->
+  <dc-type>
+	<schema>dsl</schema>
+    <element>description</element>
+    <!-- unqualified -->
+    <scope_note>Description for Bitstreams (legacy).</scope_note>
+  </dc-type>
+
+  <!-- Used by system: do not remove -->
+  <dc-type>
+	<schema>dsl</schema>
+    <element>user_format_description</element>
+    <!-- unqualified -->
+    <scope_note>Format information for Bitstreams (legacy).</scope_note>
+  </dc-type>
 
 </dspace-dc-types>

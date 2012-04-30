@@ -103,12 +103,25 @@ CREATE SEQUENCE epersongroup2workspaceitem_seq;
 CREATE SEQUENCE metadataschemaregistry_seq;
 CREATE SEQUENCE metadatafieldregistry_seq;
 CREATE SEQUENCE metadatavalue_seq;
-CREATE SEQUENCE bitstreammdv_seq;
+CREATE SEQUENCE dspaceobject_seq;
 CREATE SEQUENCE group2group_seq;
 CREATE SEQUENCE group2groupcache_seq;
 CREATE SEQUENCE harvested_collection_seq;
 CREATE SEQUENCE harvested_item_seq;
 CREATE SEQUENCE command_seq;
+
+-------------------------------------------------------
+-- DSpaceObject table
+-------------------------------------------------------
+CREATE TABLE DSpaceObject
+(
+  dso_id               INTEGER PRIMARY KEY DEFAULT NEXTVAL('dspaceobject_seq'),
+  dso_type_id          INTEGER,
+  -- UUID as string
+  object_id            VARCHAR(36) UNIQUE
+);
+
+-- indexing TODO
 
 -------------------------------------------------------
 -- BitstreamFormatRegistry table
@@ -142,13 +155,12 @@ CREATE INDEX fe_bitstream_fk_idx ON FileExtension(bitstream_format_id);
 CREATE TABLE Bitstream
 (
    bitstream_id            INTEGER PRIMARY KEY,
+   dso_id                  INTEGER REFERENCES DSpaceObject(dso_id),
    bitstream_format_id     INTEGER REFERENCES BitstreamFormatRegistry(bitstream_format_id),
    name                    VARCHAR(256),
    size_bytes              BIGINT,
    checksum                VARCHAR(64),
    checksum_algorithm      VARCHAR(32),
-   description             TEXT,
-   user_format_description TEXT,
    source                  VARCHAR(256),
    internal_id             VARCHAR(256),
    deleted                 BOOL,
@@ -156,6 +168,7 @@ CREATE TABLE Bitstream
    sequence_id             INTEGER
 );
 
+CREATE INDEX bitstream_dso_fk_idx ON Bitstream(dso_id);
 CREATE INDEX bit_bitstream_fk_idx ON Bitstream(bitstream_format_id);
 
 -------------------------------------------------------
@@ -164,6 +177,7 @@ CREATE INDEX bit_bitstream_fk_idx ON Bitstream(bitstream_format_id);
 CREATE TABLE EPerson
 (
   eperson_id          INTEGER PRIMARY KEY,
+  dso_id              INTEGER REFERENCES DSpaceObject(dso_id),
   email               VARCHAR(64) UNIQUE,
   password            VARCHAR(64),
   firstname           VARCHAR(64),
@@ -178,6 +192,7 @@ CREATE TABLE EPerson
   language            VARCHAR(64)
 );
 
+CREATE INDEX eperson_dso_fk_idx ON EPerson(dso_id);
 -- index by email
 CREATE INDEX eperson_email_idx ON EPerson(email);
 
@@ -190,9 +205,11 @@ CREATE INDEX eperson_netid_idx ON EPerson(netid);
 CREATE TABLE EPersonGroup
 (
   eperson_group_id INTEGER PRIMARY KEY,
+  dso_id           INTEGER REFERENCES DSpaceObject(dso_id),
   name             VARCHAR(256) UNIQUE
 );
 
+CREATE INDEX group_dso_fk_idx ON EPersonGroup(dso_id);
 ------------------------------------------------------
 -- Group2Group table, records group membership in other groups
 ------------------------------------------------------
@@ -231,6 +248,7 @@ CREATE INDEX g2gc_child_fk_idx ON Group2Group(child_id);
 CREATE TABLE Item
 (
   item_id         INTEGER PRIMARY KEY,
+  dso_id          INTEGER REFERENCES DSpaceObject(dso_id),
   submitter_id    INTEGER REFERENCES EPerson(eperson_id),
   in_archive      BOOL,
   withdrawn       BOOL,
@@ -238,6 +256,7 @@ CREATE TABLE Item
   owning_collection INTEGER
 );
 
+CREATE INDEX item_dso_fk_idx ON Item(dso_id);
 CREATE INDEX item_submitter_fk_idx ON Item(submitter_id);
 
 -------------------------------------------------------
@@ -246,10 +265,12 @@ CREATE INDEX item_submitter_fk_idx ON Item(submitter_id);
 CREATE TABLE Bundle
 (
   bundle_id          INTEGER PRIMARY KEY,
+  dso_id             INTEGER REFERENCES DSpaceObject(dso_id),
   name               VARCHAR(16),  -- ORIGINAL | THUMBNAIL | TEXT
   primary_bitstream_id  INTEGER REFERENCES Bitstream(bitstream_id)
 );
 
+CREATE INDEX bundle_dso_fk_idx ON Bundle(dso_id);
 CREATE INDEX bundle_primary_fk_idx ON Bundle(primary_bitstream_id);
 
 -------------------------------------------------------
@@ -305,7 +326,7 @@ CREATE TABLE MetadataFieldRegistry
 CREATE TABLE MetadataValue
 (
   metadata_value_id  INTEGER PRIMARY KEY DEFAULT NEXTVAL('metadatavalue_seq'),
-  item_id            INTEGER REFERENCES Item(item_id),
+  dso_id             INTEGER REFERENCES DSpaceObject(dso_id),
   metadata_field_id  INTEGER REFERENCES MetadataFieldRegistry(metadata_field_id),
   text_value         TEXT,
   text_lang          VARCHAR(24),
@@ -316,47 +337,34 @@ CREATE TABLE MetadataValue
 
 -- Create a dcvalue view for backwards compatibilty
 CREATE VIEW dcvalue AS
-  SELECT MetadataValue.metadata_value_id AS "dc_value_id", MetadataValue.item_id,
+  SELECT MetadataValue.metadata_value_id AS "dc_value_id", MetadataValue.dso_id,
     MetadataValue.metadata_field_id AS "dc_type_id", MetadataValue.text_value,
     MetadataValue.text_lang, MetadataValue.place
   FROM MetadataValue, MetadataFieldRegistry
   WHERE MetadataValue.metadata_field_id = MetadataFieldRegistry.metadata_field_id
   AND MetadataFieldRegistry.metadata_schema_id = 1;
 
--- An index for item_id - almost all access is based on
--- instantiating the item object, which grabs all values
--- related to that item
-CREATE INDEX metadatavalue_item_idx ON MetadataValue(item_id);
-CREATE INDEX metadatavalue_item_idx2 ON MetadataValue(item_id,metadata_field_id);
+-- An index for dso_id - almost all access is based on
+-- instantiating the dso object, which grabs all values
+-- related to that dso
+CREATE INDEX metadatavalue_dso_idx ON MetadataValue(dso_id);
+CREATE INDEX metadatavalue_dso_idx2 ON MetadataValue(dso_id,metadata_field_id);
 CREATE INDEX metadatavalue_field_fk_idx ON MetadataValue(metadata_field_id);
 CREATE INDEX metadatafield_schema_idx ON MetadataFieldRegistry(metadata_schema_id);
 
-CREATE TABLE BitstreamMDValue
-(
-  bsmetadata_value_id  INTEGER PRIMARY KEY DEFAULT NEXTVAL('bitstreammdv_seq'),
-  bitstream_id         INTEGER REFERENCES Bitstream(bitstream_id),
-  metadata_field_id    INTEGER REFERENCES MetadataFieldRegistry(metadata_field_id),
-  text_value           TEXT,
-  text_lang            VARCHAR(24),
-  place                INTEGER
-);
-
--- indexing TODO
 -------------------------------------------------------
 -- Community table
 -------------------------------------------------------
 CREATE TABLE Community
 (
   community_id      INTEGER PRIMARY KEY,
+  dso_id            INTEGER REFERENCES DSpaceObject(dso_id),
   name              VARCHAR(128),
-  short_description VARCHAR(512),
-  introductory_text TEXT,
   logo_bitstream_id INTEGER REFERENCES Bitstream(bitstream_id),
-  copyright_text    TEXT,
-  side_bar_text     TEXT,
-  admin             INTEGER REFERENCES EPersonGroup( eperson_group_id )
+  admin             INTEGER REFERENCES EPersonGroup(eperson_group_id)
 );
 
+CREATE INDEX community_dso_fk_idx ON Community(dso_id);
 CREATE INDEX community_logo_fk_idx ON Community(logo_bitstream_id);
 CREATE INDEX community_admin_fk_idx ON Community(admin);
 
@@ -366,15 +374,10 @@ CREATE INDEX community_admin_fk_idx ON Community(admin);
 CREATE TABLE Collection
 (
   collection_id     INTEGER PRIMARY KEY,
+  dso_id            INTEGER REFERENCES DSpaceObject(dso_id),
   name              VARCHAR(128),
-  short_description VARCHAR(512),
-  introductory_text TEXT,
   logo_bitstream_id INTEGER REFERENCES Bitstream(bitstream_id),
   template_item_id  INTEGER REFERENCES Item(item_id),
-  provenance_description  TEXT,
-  license           TEXT,
-  copyright_text    TEXT,
-  side_bar_text     TEXT,
   workflow_step_1   INTEGER REFERENCES EPersonGroup( eperson_group_id ),
   workflow_step_2   INTEGER REFERENCES EPersonGroup( eperson_group_id ),
   workflow_step_3   INTEGER REFERENCES EPersonGroup( eperson_group_id ),
@@ -382,6 +385,7 @@ CREATE TABLE Collection
   admin             INTEGER REFERENCES EPersonGroup( eperson_group_id )
 );
 
+CREATE INDEX collection_dso_fk_idx ON Collection(dso_id);
 CREATE INDEX collection_logo_fk_idx ON Collection(logo_bitstream_id);
 CREATE INDEX collection_template_fk_idx ON Collection(template_item_id);
 CREATE INDEX collection_workflow1_fk_idx ON Collection(workflow_step_1);

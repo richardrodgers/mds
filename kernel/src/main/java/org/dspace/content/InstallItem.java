@@ -258,19 +258,19 @@ public class InstallItem
     						throws SQLException
     {
         // Get non-internal format bitstreams
-        Bitstream[] bitstreams = myitem.getNonInternalBitstreams();
+        List<Bitstream> bitstreams = myitem.getNonInternalBitstreams();
 
         // Create provenance description
         StringBuilder myMessage = new StringBuilder();
-        myMessage.append("No. of bitstreams: ").append(bitstreams.length).append("\n");
+        myMessage.append("No. of bitstreams: ").append(bitstreams.size()).append("\n");
 
         // Add sizes and checksums of bitstreams
-        for (int j = 0; j < bitstreams.length; j++)
+        for (Bitstream bitstream : bitstreams)
         {
-            myMessage.append(bitstreams[j].getName()).append(": ")
-                    .append(bitstreams[j].getSize()).append(" bytes, checksum: ")
-                    .append(bitstreams[j].getChecksum()).append(" (")
-                    .append(bitstreams[j].getChecksumAlgorithm()).append(")\n");
+            myMessage.append(bitstream.getName()).append(": ")
+                    .append(bitstream.getSize()).append(" bytes, checksum: ")
+                    .append(bitstream.getChecksum()).append(" (")
+                    .append(bitstream.getChecksumAlgorithm()).append(")\n");
         }
 
         return myMessage.toString();
