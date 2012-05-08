@@ -1,0 +1,44 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.dspace</groupId>
+    <artifactId>oai-pmh</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>war</packaging>
+    <name>DSpace OAI :: API and Implementation</name>
+    <description>DSpace OAI Service Provider Web application</description>
+    <url>http://projects.dspace.org/dspace-api</url>
+
+    <!--
+       A Parent POM that Maven inherits DSpace Defaults
+       POM attributes from. -->
+    <parent>
+        <artifactId>dspace-pom</artifactId>
+        <groupId>org.dspace</groupId>
+        <version>12</version>
+    </parent>
+
+    <dependencies>
+       <dependency>
+          <groupId>org.dspace</groupId>
+          <artifactId>kernel</artifactId>
+          <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+           <groupId>org.dspace</groupId>
+           <artifactId>oaicat</artifactId>
+           <version>1.5.48</version>
+        </dependency>
+  		<dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+          <version>1.6.4</version>
+        </dependency>
+  		<dependency>
+          <groupId>javax.servlet</groupId>
+          <artifactId>servlet-api</artifactId>
+          <version>2.3</version>
+          <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+</project>

@@ -52,6 +52,28 @@ public abstract class DSpaceObject
     protected boolean modified;
     
     /**
+     * Returns a DSpaceObject for given objectID, or null
+     * if no object can be found
+     */
+    public static DSpaceObject findByObjectID(Context context, String objectID) throws SQLException {
+    	/*
+    	TableRow row = DatabaseManager.find(context, "dspaceobject", objectID);
+		if (row != null) {
+			// determine the type and query appropriate table
+			String tableName = null;
+			switch (row.getIntColumn("dso_type_id")) {
+				case Constants.ITEM: tableName = "item"; break;
+				default: break;
+			}
+			String query = "SELECT * FROM " + tableName + " WHERE item.dso_id = dspaceobject.dso_id";
+			int dbId = 0;
+			//return Item.find(context, dbId);
+		}
+		*/
+    	return null;
+    }
+    
+    /**
      * Creates the DSpaceObject. This includes assigning
      * a unique object ID (a UUID).
      */

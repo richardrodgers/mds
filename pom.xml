@@ -10,6 +10,7 @@
       <module>kernel</module>
       <module>admin</module>
       <module>rest</module>
+      <module>oai-pmh</module>
     </modules>
 
 </project>

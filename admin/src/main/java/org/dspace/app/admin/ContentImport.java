@@ -83,20 +83,37 @@ import org.dspace.search.DSIndexer;
 import org.dspace.workflow.WorkflowManager;
 
 /**
- * Import communities, collections, and items into DSpace from directories
- * in slightly reformed 'Simple Archive Format', or zip archives thereof.
- * Based on ItemImport.
- * SAF 2.0 description: an archive directory contains a set of directories.
- *  directory names = 'destcoll' 'community[*]' or 'item_nnn'
- *  When sub-communities included, directory names *must* lexically sort parent to child:
- *  communityA parent (or community1, etc)
- *  communityB child
+ * Import content - communities, collections, items, etc into DSpace from
+ * directories in slightly reformed 'Simple Archive Format', or zip archives thereof.
+ * Based on ItemImport in DSpace 1.X
+ * SAF 2.0 description: an archive directory contains one or more directories,
+ * which represent sub-tree(s) to be attached to a 'root' in the content hierarchy
+ * of the existing repository. The root is specified when ContentImport is run,
+ * with the special case of no root meaning that the top directories are construed
+ * to represent 'top-level' communities. Otherwise roots may be any point in
+ * the repository, down to individual items or bundles. The required directory
+ * names, and hierarchy are:
+ * 
+ *  community*
+ *    community* <- subcommunity
+ *    collection*
+ *       item*
+ *         bundle*
+ *           bitstream*
+ *             data or 'fetch.txt'
+ *               <bitstream file>
+ *                  
+ *  when multiple directories exist at the same depth - as is the common case of
+ *  multiple items in a collection, e.g - they must of course be distingushed by
+ *  some suffixing scheme such as 'item_001' 'item_002', although the importer
+ *  assigns no meaning to these directory names (like order). 
  *  
- *  Each directory contains a file called 'metadata.xml'. Community and Collection
+ *  Each directory may contain a file called 'metadata.xml'. Community and Collection
  *  directories may optionally contain a file named 'logo' which is the container
- *  logo bitstream. Item directories contain a mapping file called 'contents', and
- *  any other files referenced by this mapping file.
+ *  logo bitstream.
+ *  
  *  'metadata.xml' file has following structure:
+ *  
  *    <?xml version="1.0" encoding="UTF-8" ?>
  *    <metadata>
  *      <mdvalues schema="dc">
@@ -107,32 +124,31 @@ import org.dspace.workflow.WorkflowManager;
  *         ....
  *      </mdvalues>
  *    </metadata>
+ *    
  *  If the 'schema' attribute is not set, it is assumed to be an internal schema
- *  (e.g. as would be the case for community or collection metadata). 'element' is
- *  the only required attribute of the 'mdvalue' element.
+ *  (e.g. as would be the case for some community or collection metadata). 
+ *  'element' is the only required attribute of the 'mdvalue' element.
  *  
- * The 'contents' file is a simple text file map of item bitstreams, one per line, 
- * with the following optional notations (tab-separated, order-insensitive, on same line):
- * 
- *  filename.pdf  bundle:<bundleName> permissions:<permissions> description:<description>\
- *                primary:true source:<sourceInfo> metadata:<fileName>
- *                
- * where metadata files have the same format as item metadata, but pertain to the bitstreams.
- * If bundle is not specified, configuration default used.
- * 
+ *  Features removed from ItemImport (maybe restore at some point):
+ *  -> passing permission data for bitstreams
+ *  -> linking items to non-owning collections
+ *  -> registered bitstreams
+ *  
  * @author richardrodgers
  */
 public class ContentImport {
 	
 	// name of metdata file
 	private static final String METADATAFILE = "metadata.xml";
-	// name of contents map file
-	private static final String CONTENTSFILE = "contents";
+	// name of bitstream data directory
+	private static final String DATADIR = "data";
+	// name of remote data description file
+	private static final String FETCHFILE = "fetch.txt";
     private static final Logger log = LoggerFactory.getLogger(ContentImport.class);
     enum Action {add, replace, delete}
     @Option(name="-a", usage="action to take: add, replace, or delete", required=true)
     private Action action;
-    @Option(name="-w", usage="send submission through collection's workflow")
+    @Option(name="-w", usage="send submission(s) through collection's workflow")
     private boolean useWorkflow;
     @Option(name="-n", usage="if sending submissions through the workflow, send notification emails")
     private boolean useWorkflowSendEmail;
@@ -146,10 +162,8 @@ public class ContentImport {
     private String mapFileName;
     @Option(name="-s", usage="source of content (directory)")   
     private String sourceDirName;
-    @Option(name="-r", usage="root container - community or collection Handle or database ID")
-    private String rootContainer;
-    @Option(name="-l", usage="item linked collection(s) Handle or database ID")
-    private List<String> collectionIds; // db ID or handles
+    @Option(name="-r", usage="import root - object Handle or ID")
+    private String importRoot;
     @Option(name="-z", usage="name or URL of zip file - name relative to source directory")    
     private String zipFileName;
     @Option(name="-h", usage="help")
@@ -231,23 +245,13 @@ public class ContentImport {
             	return errmsg;
             }
 
-            if (rootContainer != null) {
+            if (importRoot != null) {
             	// ensure it is a valid reference
-            	root = resolveContainer(context, rootContainer);
+            	root = resolveRoot(context, importRoot);
             	if (root == null) {
-            		return "Error - cannot resolve root container: " + rootContainer;
+            		return "Error - cannot resolve import root: " + importRoot;
             	}
-            	// OK if its a collection we are done, otherwise traverse sourcedir
-            	if (root.getType() == Constants.COMMUNITY) {
-            		if (! verifyContainerPath()) {
-            			return "Error - invalid container path";
-            		}
-            	}
-            } else {
-            	if (! verifyContainerPath()) {
-            		return "Error - invalid container path";
-            	}
-            }
+            } 
         } 
         
         if (mapFileName == null) {
@@ -303,10 +307,6 @@ public class ContentImport {
         if (action.equals(Action.delete)) {
         	return deleteObjects(context, mapFileName);
         }
-        
-        // resolve collections
-        List<Collection> collections = (collectionIds != null) ? 
-        		resolveCollections(context, collectionIds) : new ArrayList<Collection>();
 
         try {
         	
@@ -314,9 +314,9 @@ public class ContentImport {
             context.turnOffAuthorisationSystem();
 
             if (action.equals(Action.add))  {
-            	addObjects(context, collections, mapFileName);
+            	addObjects(context, mapFileName);
             } else if (action.equals(Action.replace)) {
-            	replaceObjects(context, collections, mapFileName);
+            	replaceObjects(context, mapFileName);
             } else {
             	if (verbose) {
             		System.out.println("No action to take");
@@ -407,44 +407,15 @@ public class ContentImport {
     	in.close();
     }
     
-    private DSpaceObject resolveContainer(Context context, String objectId) throws SQLException {
+    private DSpaceObject resolveRoot(Context context, String objectId) throws SQLException {
     	
         if (objectId.indexOf('/') != -1) {
             // string has a / so it must be a handle - try and resolve it
          	return HandleManager.resolveToObject(context, objectId);
         } else {
-            // not a handle, try and treat it as an integer database ID
-        	int dbId = Integer.parseInt(objectId);
-         	Collection coll = Collection.find(context, dbId);
-         	if (coll != null) {
-         		return coll;
-         	} else {
-         		return Community.find(context, dbId);
-         	}
+            // not a handle, try to treat it as a UUID
+        	return DSpaceObject.findByObjectID(context, objectId);
         }
-    }
-    
-    private boolean verifyContainerPath() {
-    	
-        // open and process the source directory
-    	String[] dircontents = new File(sourceDirName).list();
-        if (dircontents.length < 1) {
-        	return false;
-        }
-        // should be lexical sort
-        Arrays.sort(dircontents);       
-        if (dircontents[dircontents.length-1].startsWith("item_")) {
-        	// if items are included, then there must be a path of 0 or more communities,
-        	// and exactly one collection
-        	int count = 0;
-        	for (String dirName: dircontents) {
-        		if (dirName.startsWith("destcoll")) {
-        			++count;
-        		}
-        	}
-        	return count == 1;
-        }      
-        return true;
     }
     
     private List<Collection> resolveCollections(Context context, List<String> collIds) throws Exception {
@@ -487,7 +458,7 @@ public class ContentImport {
         return collections;
     }
 
-    private void addObjects(Context c, List<Collection> collections, String mapFile) throws Exception {
+    private void addObjects(Context c, String mapFile) throws Exception {
     	
     	// set of items to skip if in 'resume' mode
         Map<String, String> skipItems = new HashMap<String, String>(); 
@@ -519,21 +490,22 @@ public class ContentImport {
         // open and process the source directory
         String[] dircontents = sourceDir.list(directoryFilter);
         
-        Arrays.sort(dircontents);
-        Community community = (root != null && root.getType() == Constants.COMMUNITY) ? (Community)root : null;
-        Collection collection = (root != null && root.getType() == Constants.COLLECTION) ? (Collection)root : null;
+        Community rootCommunity = (root != null && root.getType() == Constants.COMMUNITY) ? (Community)root : null;
+        Collection rootCollection = (root != null && root.getType() == Constants.COLLECTION) ? (Collection)root : null;
+        Item rootItem = (root != null && root.getType() == Constants.ITEM) ? (Item)root : null;
         for (int i = 0; i < dircontents.length; i++) {
             if (skipItems.containsKey(dircontents[i])) {
             	if (verbose) {
             		System.out.println("Skipping import of " + dircontents[i]);
             	}
             } else {
+            	File workingDir = new File(sourceDir, dircontents[i]);
             	if (dircontents[i].startsWith("community")) {
-            	    community = addCommunity(c, community, dircontents[i], mapOut);	
-            	} else if (dircontents[i].startsWith("destcoll")) {
-            		collection = addCollection(c, community, dircontents[i], mapOut);
+            	    addCommunityTree(c, rootCommunity, workingDir, mapOut);	
+            	} else if (dircontents[i].startsWith("collection")) {
+            		addCollectionTree(c, rootCommunity, workingDir, mapOut);
             	} else {
-            		addItem(c, collection, collections, dircontents[i], mapOut);
+            		addItemTree(c, rootCollection, workingDir, mapOut);
             	}
             	if (verbose) {
             		System.out.println(i + " " + dircontents[i]);
@@ -543,16 +515,14 @@ public class ContentImport {
         }
     }
 
-    private void replaceObjects(Context c, List<Collection> collections,
-    							String mapFile) throws Exception {
+    private void replaceObjects(Context c, String mapFile) throws Exception {
 
         // read in HashMap first, to get list of handles & source dirs
         Map<String, String> myHash = readMapFile(mapFile);
 
         // for each handle, re-import the item, discard the new handle
         // and re-assign the old handle
-        for (Map.Entry<String, String> mapEntry : myHash.entrySet())
-        {
+        for (Map.Entry<String, String> mapEntry : myHash.entrySet()) {
             // get the old handle
             String newItemName = mapEntry.getKey();
             String oldHandle = mapEntry.getValue();
@@ -589,7 +559,7 @@ public class ContentImport {
             handleOut.close();
 
             deleteItem(c, oldItem);
-            addItem(c, (Collection)root, collections, newItemName, null);
+            addItemTree(c, (Collection)root, new File(sourceDir, newItemName), null);
             c.clearCache();
         }
     }
@@ -623,31 +593,14 @@ public class ContentImport {
         return 0;
     }
     
-    private Community addCommunity(Context c, Community parent, String location,
-    							   PrintWriter mapOut) throws Exception {
-    	
+    private void addCommunityTree(Context c, Community parent, File workingDir,
+    							  PrintWriter mapOut) throws Exception {
     	Community community = (parent != null) ? parent.createSubcommunity() :
-            									 Community.create(null, c);
-        
+            									 Community.create(null, c);     
         // now load metadata, etc
-        String mdFilename = sourceDirName + File.separator + location + File.separator + METADATAFILE;
-        Document document = RegistryLoader.loadXML(mdFilename);
-        
-        // Get the nodes corresponding to metadata values
-        NodeList mdNodes = XPathAPI.selectNodeList(document, "/metadata/mdvalues/mdvalue");
-
-        if (verbose) {
-            System.out.println("\tLoading community metadata from " + mdFilename);
-        }
-
-        for (int i = 0; i < mdNodes.getLength(); i++) {
-            Node n = mdNodes.item(i);
-            community.setMetadataValue(getAttributeValue(n, "element"), getStringValue(n));
-        }
-        
-        // add logo file if present
-        String logoFilename = sourceDirName + File.separator + location + File.separator + "logo";
-        File logoFile = new File(logoFilename);
+    	loadMetadata(c, community, workingDir);
+        // add logo file if presents
+        File logoFile = new File(workingDir, "logo");
         if (logoFile.exists()) {
         	FileInputStream in = new FileInputStream(logoFile);
         	community.setLogo(in);
@@ -657,42 +610,27 @@ public class ContentImport {
         community.update();
         
         if (mapOut != null) {
-            mapOut.println(location + " " + community.getHandle());
+            mapOut.println(workingDir.getName() + " " + community.getHandle());
         }
-        return community;
+        // now descend into any sub-structure
+        for (String dirName : workingDir.list(directoryFilter)) {
+        	if (dirName.startsWith("community")) {
+        		addCommunityTree(c, community, new File(workingDir, dirName), mapOut);
+        	} else if (dirName.startsWith("collection")) {
+        		addCollectionTree(c, community, new File(workingDir, dirName), mapOut);
+        	}
+        }
     }
     
-    private Collection addCollection(Context c, Community parent, String location,
-    								 PrintWriter mapOut) throws Exception {
+    private void addCollectionTree(Context c, Community parent, File workingDir,
+    						       PrintWriter mapOut) throws Exception {
     	
     	Collection collection =  parent.createCollection();
     	
         // now load metadata, etc
-        String mdFilename = sourceDirName + File.separator + location + File.separator + METADATAFILE;
-        
-        if (verbose) {
-        	File mdFile = new File(mdFilename);
-        	if (! mdFile.exists()) {
-        		System.out.println("No such mdfile: " + mdFilename);
-        	}
-        }
-        Document document = RegistryLoader.loadXML(mdFilename);
-        
-        // Get the nodes corresponding to metadata values
-        NodeList mdNodes = XPathAPI.selectNodeList(document, "/metadata/mdvalues/mdvalue");
-
-        if (verbose) {
-            System.out.println("\tLoading collection metadata from " + mdFilename);
-        }
-
-        for (int i = 0; i < mdNodes.getLength(); i++) {
-            Node n = mdNodes.item(i);
-            collection.setMetadataValue(getAttributeValue(n, "element"), getStringValue(n));
-        }
-        
+    	loadMetadata(c, collection, workingDir);
         // add logo file if present
-        String logoFilename = sourceDirName + File.separator + location + File.separator + "logo";
-        File logoFile = new File(logoFilename);
+        File logoFile = new File(workingDir, "logo");
         if (logoFile.exists()) {
         	FileInputStream in = new FileInputStream(logoFile);
         	collection.setLogo(in);
@@ -702,9 +640,15 @@ public class ContentImport {
         collection.update();
         
         if (mapOut != null) {
-            mapOut.println(location + " " + collection.getHandle());
+            mapOut.println(workingDir.getName() + " " + collection.getHandle());
         }
-        return collection;
+        
+        // now descend into any sub-structure
+        for (String dirName : workingDir.list(directoryFilter)) {
+        	if (dirName.startsWith("item")) {
+        		addItemTree(c, collection, new File(workingDir, dirName), mapOut);
+        	}
+        }
     }
     
     /**
@@ -714,13 +658,13 @@ public class ContentImport {
      * @param itemname handle - non-null means we have a pre-defined handle already 
      * @param mapOut - mapfile we're writing
      */
-    private Item addItem(Context c, Collection home, List<Collection> collections,
-            			 String itemname, PrintWriter mapOut) throws Exception
+    private void addItemTree(Context c, Collection home,
+            			 	File workingDir, PrintWriter mapOut) throws Exception
     {
         String mapOutput = null;
 
         if (verbose) {
-        	System.out.println("Adding item from directory " + itemname);
+        	System.out.println("Adding item from directory " + workingDir.getName());
         }
 
         // create workspace item
@@ -731,14 +675,16 @@ public class ContentImport {
             wi = WorkspaceItem.create(c, home, false);
             item = wi.getItem();
         }
-
-        // now fill out metadata for item
-        loadMetadata(c, item, sourceDirName + File.separator + itemname + File.separator + METADATAFILE);
-
-        // and the bitstreams from the contents file
-        // process contents file, add bistreams and bundles, return any
-        // non-standard permissions
-        Map<Integer, String> bsPerms = processContentsFile(c, item, sourceDirName + File.separator + itemname);
+        
+        // now load metadata, etc
+        loadMetadata(c, item, workingDir);
+        
+        // now descend into any sub-structure
+        for (String dirName : workingDir.list(directoryFilter)) {
+        	if (dirName.startsWith("bundle")) {
+        		addBundleTree(c, item, new File(workingDir, dirName), mapOut);
+        	}
+        }
 
         if (useWorkflow) {
             // don't process handle file
@@ -762,38 +708,19 @@ public class ContentImport {
                 //}
 
                 // send ID to the mapfile
-                mapOutput = itemname + " " + item.getID();
+                //mapOutput = itemname + " " + item.getID();
             }
         } else {
             // only process handle file if not using workflow system
-            String handle = processHandleFile(sourceDirName + File.separator + itemname, "handle");
+            String handle = null; //processHandleFile(sourceDirName + File.separator + itemname, "handle");
 
             // put item in system
             if (!isTest) {
                 InstallItem.installItem(c, wi, handle);
-                
-                // apply any bitstream permissions - must be done post-install
-                if (bsPerms.size() > 0) {
-                	 List<Bitstream> bitstreams = item.getNonInternalBitstreams();
-                	 for (Map.Entry<Integer, String> entry : bsPerms.entrySet()) {
-                		 for (Bitstream bs : bitstreams) {
-                			 if (entry.getKey() == bs.getID()) {
-                				 setPermissions(c, entry.getValue(), bs);
-                			 }
-                		 }
-                	 }
-                }
 
                 // find the handle, and output to map file
                 handle = HandleManager.findHandle(c, item);
-                mapOutput = itemname + " " + handle;
-            }
-        }
-
-        // now add to multiple collections if specified
-        if (!isTest) {
-        	for (Collection coll : collections) {
-                coll.addItem(item);
+                mapOutput = workingDir.getName() + " " + handle;
             }
         }
 
@@ -803,7 +730,61 @@ public class ContentImport {
         }
 
         c.commit();
-        return item;
+    }
+    
+    private void addBundleTree(Context c, Item parent, File workingDir,
+		       PrintWriter mapOut) throws Exception {
+    	// temp name will be reset in metadata assignments
+    	Bundle bundle =  parent.createBundle("temp");
+
+    	// now load metadata, etc
+    	loadMetadata(c, bundle, workingDir);
+
+    	bundle.update();
+
+    	// now descend into any sub-structure
+    	for (String dirName : workingDir.list(directoryFilter)) {
+    		if (dirName.startsWith("bitstream")) {
+    			addBitstream(c, bundle, new File(workingDir, dirName), mapOut);
+    		}
+    	}
+    }
+    
+    private void addBitstream(Context c, Bundle parent, File workingDir,
+		       				   PrintWriter mapOut) throws Exception {
+    	// get the bitstream data, which is either in the 'data' directory,
+    	// or at the end of the URL in 'fetch.txt' file
+    	Bitstream bitstream =  null;
+    	File dataDir = new File(workingDir, DATADIR);
+    	if (dataDir.exists()) {
+    		File[] dataFiles = dataDir.listFiles();
+            // get an input stream
+            BufferedInputStream bis = new BufferedInputStream(new FileInputStream(dataFiles[0]));
+            bitstream = parent.createBitstream(bis);
+            bis.close();
+            bitstream.setName(dataFiles[0].getName());
+    	} else {
+    		File fetchFile = new File(workingDir, FETCHFILE);
+    		if (fetchFile.exists()) {
+    			BufferedReader reader = new BufferedReader(new FileReader(fetchFile));
+    			URL fetchUrl = new URL(reader.readLine().trim());
+    			reader.close();
+    			InputStream in = fetchUrl.openStream();
+    			bitstream = parent.createBitstream(in);
+    			in.close();
+    		} else {
+    			// log error - can we allow bistreams with only MD?
+    			return;
+    		}
+    	}
+
+    	// now load metadata, etc
+    	loadMetadata(c, bitstream, workingDir);
+    	
+        BitstreamFormat bf = FormatIdentifier.guessFormat(c, bitstream);
+        bitstream.setFormat(bf);
+
+    	bitstream.update();
     }
 
     // remove, given the actual item
@@ -881,36 +862,39 @@ public class ContentImport {
         }
         return myHash;
     }
-
-    // Load all metadata schemas into the item.
-    private void loadMetadata(Context c, DSpaceObject dso, String location)
+    
+    // load basic metadata
+    private void loadMetadata(Context c, DSpaceObject dso, File workingDir)
             throws SQLException, IOException, ParserConfigurationException,
             SAXException, TransformerException, AuthorizeException {
-    	
-        if (verbose) {
-            System.out.println("\tLoading metadata from " + location);
-        }
-        Document document = RegistryLoader.loadXML(location);
-
-        NodeList mdSets = XPathAPI.selectNodeList(document, "/metadata/mdvalues");
-        for (int i = 0; i < mdSets.getLength(); i++) {
-        	Node mdSet = mdSets.item(i);
-        	String schema;
-        	Node schemaAttr = mdSet.getAttributes().getNamedItem("schema");
-        	if (schemaAttr == null) {
-        		schema = MetadataSchema.DC_SCHEMA;
-        	} else {
-        		schema = schemaAttr.getNodeValue();
+    	File mdFile = new File(workingDir, METADATAFILE);
+        if (mdFile.exists()) {
+        	if (verbose) {
+        		System.out.println("\tLoading community metadata from " + mdFile.getName());
         	}
-         
-        	// Get the nodes corresponding to metadata values
-        	NodeList mvNodes = XPathAPI.selectNodeList(mdSet, "mdvalue");
+        	Document document = RegistryLoader.loadXML(mdFile.getPath());
+        	
+            NodeList mdSets = XPathAPI.selectNodeList(document, "/metadata/mdvalues");
+            for (int i = 0; i < mdSets.getLength(); i++) {
+            	Node mdSet = mdSets.item(i);
+            	String schema = null;
+            	Node schemaAttr = mdSet.getAttributes().getNamedItem("schema");
+            	if (schemaAttr != null) {
+            		schema = schemaAttr.getNodeValue();
+            	} 
+             
+            	// Get the nodes corresponding to metadata values
+            	NodeList mvNodes = XPathAPI.selectNodeList(mdSet, "mdvalue");
 
-        	// Add each one as a new format to the registry
-        	for (int j = 0; j < mvNodes.getLength(); j++) {
-        		Node n = mvNodes.item(j);
-        		addMDValue(c, dso, schema, n);
-        	}
+            	for (int j = 0; j < mvNodes.getLength(); j++) {
+            		Node n = mvNodes.item(j);
+            		if (schema != null) {
+            			addMDValue(c, dso, schema, n);
+            		} else {
+            			dso.setMetadataValue(getAttributeValue(n, "element"), getStringValue(n));
+            		}
+            	}
+            }
         }
     }
 
@@ -1020,297 +1004,6 @@ public class ContentImport {
         	}
         }
         return result;
-    }
-
-    /**
-     * Given a contents file and an item, stuffing it with bitstreams from the
-     * contents file Returns a List of Strings with lines from the contents
-     * file that request non-default bitstream permission
-     */
-    private Map<Integer, String> processContentsFile(Context c, Item item, String path)
-    		throws SAXException, SQLException, IOException,
-    		AuthorizeException, ParserConfigurationException, TransformerException {
-    	
-        File contentsFile = new File(path + File.separator + CONTENTSFILE);
-        String line = "";
-        Map<Integer, String>bsPerms = new HashMap<Integer, String>();
-
-        if (verbose) {
-        	System.out.println("\tProcessing contents file: " + contentsFile);
-        }
-
-        if (contentsFile.exists()) {
-            BufferedReader is = null;
-            try {
-                is = new BufferedReader(new FileReader(contentsFile));
-
-                while ((line = is.readLine()) != null) {
-                    if ("".equals(line.trim())) {
-                        continue;
-                    }
-
-                    //	1) registered into dspace (leading -r)
-                    //  2) imported conventionally into dspace (no -r)
-                    if (line.trim().startsWith("-r ")) {
-                        // line should be one of these two:
-                        // -r -s n -f filepath
-                        // -r -s n -f filepath\tbundle:bundlename
-                        // where
-                        //		n is the assetstore number
-                        //  	filepath is the path of the file to be registered
-                        //  	bundlename is an optional bundle name
-                        String sRegistrationLine = line.trim();
-                        int iAssetstore = -1;
-                        String sFilePath = null;
-                        String sBundle = null;
-                        StringTokenizer tokenizer = new StringTokenizer(sRegistrationLine);
-                        while (tokenizer.hasMoreTokens()) {
-                            String sToken = tokenizer.nextToken();
-                            if ("-r".equals(sToken)) {
-                                continue;
-                            } else if ("-s".equals(sToken) && tokenizer.hasMoreTokens()) {
-                                try {
-                                    iAssetstore = Integer.parseInt(tokenizer.nextToken());
-                                } catch (NumberFormatException e) {
-                                    // ignore - iAssetstore remains -1
-                                }
-                            } else if ("-f".equals(sToken) && tokenizer.hasMoreTokens()) {
-                                sFilePath = tokenizer.nextToken();
-                            } else if (sToken.startsWith("bundle:")) {
-                                sBundle = sToken.substring(7);
-                            } else {
-                                // unrecognized token - should be no problem
-                            }
-                        } // while
-                        if (iAssetstore == -1 || sFilePath == null) {
-                            System.out.println("\tERROR: invalid contents file line");
-                            System.out.println("\t\tSkipping line: "
-                                    + sRegistrationLine);
-                            continue;
-                        }
-                        registerBitstream(c, item, iAssetstore, sFilePath, sBundle);
-                        System.out.println("\tRegistering Bitstream: " + sFilePath
-                                + "\tAssetstore: " + iAssetstore
-                                + "\tBundle: " + sBundle
-                                + "\tDescription: " + sBundle);
-                        continue;				// process next line in contents file
-                    }
-                    
-                    // parse the line
-                    Map<String, String> options = new HashMap<String, String>();
-                    String[] tokens = line.split("\t");
-                    for (int k = 1; k < tokens.length; k++) {
-                    	int sidx = tokens[k].indexOf(":");
-                    	if (sidx > 0) {
-                    		options.put(tokens[k].substring(0, sidx), tokens[k].substring(sidx + 1));
-                    	}
-                    }
-                    processContentFileEntry(c, item, path, tokens[0], options, bsPerms);
-                }
-            } finally {
-                if (is != null) {
-                    is.close();
-                }
-            }
-        } else if (verbose) {
-            System.out.println("No contents file found - but only metadata files found. Assuming metadata only.");
-        }
-        return bsPerms;
-    }
-
-    /*
-     * each entry represents a bitstream....
-     */
-    private void processContentFileEntry(Context c, Item item, String path,
-    									String fileName, Map<String, String> options, Map<Integer, String> bsPerms)
-    		              throws SAXException, SQLException, IOException,
-    		                     AuthorizeException, ParserConfigurationException, TransformerException {
-    	
-        String fullpath = path + File.separator + fileName;
-
-        // get an input stream
-        BufferedInputStream bis = new BufferedInputStream(new FileInputStream(fullpath));
-
-        Bitstream bs = null;
-        String newBundleName = options.get("bundle");
-
-        if (newBundleName == null) {
-            // is it license.txt?
-            if ("license.txt".equals(fileName)) {
-                newBundleName = ConfigurationManager.getProperty("admin", "default.license.bundle");
-            } else  {
-                newBundleName = ConfigurationManager.getProperty("admin", "default.content.bundle");
-            }
-        }
-        
-        if (!isTest) {
-            // find the bundle
-            List<Bundle> bundles = item.getBundles(newBundleName);
-            Bundle targetBundle = null;
-
-            if (bundles.size() < 1) {
-                // not found, create a new one
-                targetBundle = item.createBundle(newBundleName);
-            } else {
-                // put bitstreams into first bundle
-                targetBundle = bundles.get(0);
-            }
-
-            // now add the bitstream
-            bs = targetBundle.createBitstream(bis);
-
-            bs.setName(fileName);
-            
-            if (options.containsKey("description")) {
-            	bs.setMetadataValue("dsl.description", options.get("description"));
-            }
-            
-            if (options.containsKey("source")) {
-            	bs.setSource(options.get("source"));
-            }
-            
-            if (options.containsKey("metadata")) {
-            	loadMetadata(c, bs, path + File.separator + options.get("metadata"));
-            }
-            
-            if (options.containsKey("permissions")) {
-            	bsPerms.put(bs.getID(), options.get("permissions"));
-            }
-
-            // Identify the format
-            // FIXME - guessing format guesses license.txt incorrectly as a text
-            // file format!
-            BitstreamFormat bf = FormatIdentifier.guessFormat(c, bs);
-            bs.setFormat(bf);
-
-            // Is this a the primary bitstream?
-            if ("true".equals(options.get("primary"))) {
-                targetBundle.setPrimaryBitstreamID(bs.getID());
-                targetBundle.update();
-            }
-            bs.update();
-        }
-
-        bis.close();
-    }
-
-    /**
-     * Register the bitstream file into DSpace
-     * 
-     * @param c
-     * @param i
-     * @param assetstore
-     * @param bitstreamPath the full filepath expressed in the contents file
-     * @param bundleName
-     * @throws SQLException
-     * @throws IOException
-     * @throws AuthorizeException
-     */
-    private void registerBitstream(Context c, Item i, int assetstore, 
-            					   String bitstreamPath, String bundleName)
-        	throws SQLException, IOException, AuthorizeException {
-        // TODO validate assetstore number
-        // TODO make sure the bitstream is there
-
-        Bitstream bs = null;
-        String newBundleName = bundleName;
-        
-        if (bundleName == null) {
-            // is it license.txt?
-            if (bitstreamPath.endsWith("license.txt")) {
-                newBundleName = ConfigurationManager.getProperty("admin", "default.license.bundle");
-            } else {
-                newBundleName = ConfigurationManager.getProperty("admin", "default.content.bundle");
-            }
-        }
-
-        if(!isTest) {
-        	// find the bundle
-	        List<Bundle> bundles = i.getBundles(newBundleName);
-	        Bundle targetBundle = null;
-	            
-	        if (bundles.size() < 1 ) {
-	            // not found, create a new one
-	            targetBundle = i.createBundle(newBundleName);
-	        } else {
-	            // put bitstreams into first bundle
-	            targetBundle = bundles.get(0);
-	        }
-	
-	        // now add the bitstream
-	        bs = targetBundle.registerBitstream(assetstore, bitstreamPath);
-	
-	        // set the name to just the filename
-	        int iLastSlash = bitstreamPath.lastIndexOf('/');
-	        bs.setName(bitstreamPath.substring(iLastSlash + 1));
-	
-	        // Identify the format
-	        // FIXME - guessing format guesses license.txt incorrectly as a text file format!
-	        BitstreamFormat bf = FormatIdentifier.guessFormat(c, bs);
-	        bs.setFormat(bf);
-	
-	        bs.update();
-        }
-    }
-
-    /*
-     * Set the Permission on a Bitstream.
-     * 
-     */
-    private void setPermissions(Context c, String permissions, Bitstream bs)
-            throws SQLException, AuthorizeException {
-    	
-        int actionID = -1;
-        String groupName = "";
-        Group group = null;
-        
-        // get permission type ("read" or "write")
-        int pTypeIndex = permissions.indexOf('-');
-
-        // get permission group (should be in single quotes)
-        int groupIndex = permissions.indexOf('\'', pTypeIndex);
-        int groupEndIndex = permissions.indexOf('\'', groupIndex + 1);
-
-        // if not in single quotes, assume everything after type flag is group name
-        if (groupIndex == -1) {
-            groupIndex = permissions.indexOf(' ', pTypeIndex);
-            groupEndIndex = permissions.length();
-        }
-
-        groupName = permissions.substring(groupIndex + 1, groupEndIndex);
-
-        if (permissions.toLowerCase().charAt(pTypeIndex + 1) == 'r') {
-            actionID = Constants.READ;
-        } else if (permissions.toLowerCase().charAt(pTypeIndex + 1) == 'w') {
-            actionID = Constants.WRITE;
-        }
-
-        try {
-        	group = Group.findByName(c, groupName);
-        } catch (SQLException sqle) {
-            System.out.println("SQL Exception finding group name: " + groupName);
-            // do nothing, will check for null group later
-        }
-    	
-        if (!isTest) {
-            // remove the default policy
-            AuthorizeManager.removeAllPolicies(c, bs);
-
-            // add the policy
-            ResourcePolicy rp = ResourcePolicy.create(c);
-
-            rp.setResource(bs);
-            rp.setAction(actionID);
-            rp.setGroup(group);
-
-            rp.update();
-        } else {
-            if (actionID == Constants.READ) {
-                System.out.println("\t\tpermissions: READ for " + group.getName());
-            } else if (actionID == Constants.WRITE) {
-                System.out.println("\t\tpermissions: WRITE for " + group.getName());
-            }
-        }
     }
 
     // XML utility methods
