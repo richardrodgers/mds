@@ -9,7 +9,12 @@ package org.dspace.content;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Date;
 import java.util.List;
+
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
 
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.core.Constants;
@@ -26,6 +31,10 @@ import org.dspace.handle.HandleManager;
  */
 public class InstallItem
 {
+	// ISO8601 date formatters
+	private static final DateTimeFormatter iso8601 = 
+			ISODateTimeFormat.dateTimeNoMillis().withZone(DateTimeZone.UTC);
+	private static final DateTimeFormatter isoDate = ISODateTimeFormat.date();
     /**
      * Take an InProgressSubmission and turn it into a fully-archived Item,
      * creating a new Handle.
@@ -56,8 +65,7 @@ public class InstallItem
      */
     public static Item installItem(Context c, InProgressSubmission is,
             String suppliedHandle) throws SQLException,
-            IOException, AuthorizeException
-    {
+            IOException, AuthorizeException {
         Item item = is.getItem();
         String handle;
         
@@ -77,9 +85,9 @@ public class InstallItem
 
         // this is really just to flush out fatal embargo metadata
         // problems before we set inArchive.
-        DCDate liftDate = EmbargoManager.getEmbargoDate(c, item);
+        Date liftDate = EmbargoManager.getEmbargoDate(c, item);
 
-        populateMetadata(c, item, liftDate);
+        populateMetadata(c, item, liftDate != null);
 
         return finishItem(c, item, is, liftDate);
 
@@ -102,10 +110,8 @@ public class InstallItem
      *
      * @return the fully archived Item
      */
-    public static Item restoreItem(Context c, InProgressSubmission is,
-            String suppliedHandle)
-        throws SQLException, IOException, AuthorizeException
-    {
+    public static Item restoreItem(Context c, InProgressSubmission is, String suppliedHandle)
+        throws SQLException, IOException, AuthorizeException {
         Item item = is.getItem();
         String handle;
 
@@ -127,21 +133,18 @@ public class InstallItem
         // Even though we are restoring an item it may not have a have the proper dates. So lets
         // double check that it has a date accessioned and date issued, and if either of those dates
         // are not set then set them to today.
-        DCDate now = DCDate.getCurrent();
+        long now = System.currentTimeMillis();
         
         // If the item dosn't have a date.accessioned create one.
         List<MDValue> dateAccessioned = item.getMetadata(MetadataSchema.DC_SCHEMA, "date", "accessioned", MDValue.ANY);
-        if (dateAccessioned.size() == 0)
-        {
-	        item.addMetadata("dc", "date", "accessioned", null, now.toString());
+        if (dateAccessioned.size() == 0) {
+	        item.addMetadata("dc", "date", "accessioned", null, iso8601.print(now));
         }
         
         // create issue date if not present
         List<MDValue> currentDateIssued = item.getMetadata(MetadataSchema.DC_SCHEMA, "date", "issued", MDValue.ANY);
-        if (currentDateIssued.size() == 0)
-        {
-            DCDate issued = new DCDate(now.getYear(),now.getMonth(),now.getDay(),-1,-1,-1);
-            item.addMetadata("dc", "date", "issued", null, issued.toString());
+        if (currentDateIssued.size() == 0) {
+            item.addMetadata("dc", "date", "issued", null, isoDate.print(now));
         }
         
         // Record that the item was restored
@@ -152,57 +155,48 @@ public class InstallItem
     }
 
     private static void populateHandleMetadata(Item item, String handle)
-        throws SQLException, IOException, AuthorizeException
-    {
+        throws SQLException, IOException, AuthorizeException {
         String handleref = HandleManager.getCanonicalForm(handle);
 
         // Add handle as identifier.uri DC value.
         // First check that identifier dosn't already exist.
         boolean identifierExists = false;
-        for (MDValue id : item.getMetadata(MetadataSchema.DC_SCHEMA, "identifier", "uri", MDValue.ANY))
-        {
-        	if (handleref.equals(id.getValue()))
-            {
+        for (MDValue id : item.getMetadata(MetadataSchema.DC_SCHEMA, "identifier", "uri", MDValue.ANY))  {
+        	if (handleref.equals(id.getValue())) {
         		identifierExists = true;
             }
         }
-        if (!identifierExists)
-        {
+        if (!identifierExists) {
         	item.addMetadata("dc", "identifier", "uri", null, handleref);
         }
     }
 
 
-    private static void populateMetadata(Context c, Item item, DCDate embargoLiftDate)
-        throws SQLException, IOException, AuthorizeException
-    {
+    private static void populateMetadata(Context c, Item item, boolean embargoed)
+        throws SQLException, IOException, AuthorizeException  {
         // create accession date
-        DCDate now = DCDate.getCurrent();
-        item.addMetadata("dc", "date", "accessioned", null, now.toString());
+    	long now = System.currentTimeMillis();
+        item.addMetadata("dc", "date", "accessioned", null, iso8601.print(now));
 
         // add date available if not under embargo, otherwise it will
         // be set when the embargo is lifted.
-        if (embargoLiftDate == null)
-        {
-            item.addMetadata("dc", "date", "available", null, now.toString());
+        if (! embargoed) {
+            item.addMetadata("dc", "date", "available", null, iso8601.print(now));
         }
 
         // create issue date if not present
         List<MDValue> currentDateIssued = item.getMetadata(MetadataSchema.DC_SCHEMA, "date", "issued", MDValue.ANY);
 
-        if (currentDateIssued.size() == 0)
-        {
-            DCDate issued = new DCDate(now.getYear(),now.getMonth(),now.getDay(),-1,-1,-1);
-            item.addMetadata("dc", "date", "issued", null, issued.toString());
+        if (currentDateIssued.size() == 0) {
+            item.addMetadata("dc", "date", "issued", null, isoDate.print(now));
         }
 
          String provDescription = "Made available in DSpace on " + now
                 + " (GMT). " + getBitstreamProvenanceMessage(item);
 
-        if (currentDateIssued.size() > 0)
-        {
-            DCDate d = new DCDate(currentDateIssued.get(0).getValue());
-            provDescription = provDescription + "  Previous issue date: " + d.toString();
+        if (currentDateIssued.size() > 0) {
+            String pid = currentDateIssued.get(0).getValue();
+            provDescription = provDescription + "  Previous issue date: " + pid;
         }
 
         // Add provenance description
@@ -211,9 +205,8 @@ public class InstallItem
 
     // final housekeeping when adding new Item to archive
     // common between installing and "restoring" items.
-    private static Item finishItem(Context c, Item item, InProgressSubmission is, DCDate embargoLiftDate)
-        throws SQLException, IOException, AuthorizeException
-    {
+    private static Item finishItem(Context c, Item item, InProgressSubmission is, Date embargoLiftDate)
+        throws SQLException, IOException, AuthorizeException  {
         // create collection2item mapping
         is.getCollection().addItem(item);
 
@@ -238,8 +231,7 @@ public class InstallItem
         item.inheritCollectionDefaultPolicies(is.getCollection());
 
         // set embargo lift date and take away read access if indicated.
-        if (embargoLiftDate != null)
-        {
+        if (embargoLiftDate != null) {
             EmbargoManager.setEmbargo(c, item, embargoLiftDate);
         }
 
@@ -265,8 +257,7 @@ public class InstallItem
         myMessage.append("No. of bitstreams: ").append(bitstreams.size()).append("\n");
 
         // Add sizes and checksums of bitstreams
-        for (Bitstream bitstream : bitstreams)
-        {
+        for (Bitstream bitstream : bitstreams) {
             myMessage.append(bitstream.getName()).append(": ")
                     .append(bitstream.getSize()).append(" bytes, checksum: ")
                     .append(bitstream.getChecksum()).append(" (")

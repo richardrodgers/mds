@@ -21,6 +21,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Objects;
 
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.ISODateTimeFormat;
+
 import org.dspace.authorize.AuthorizeConfiguration;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
@@ -856,7 +859,7 @@ public class Item extends DSpaceObject
         // or be COLLECTION_EDITOR of owning collection
         AuthorizeManager.authorizeWithdrawItem(context, this);
 
-        String timestamp = DCDate.getCurrent().toString();
+        String timestamp = ISODateTimeFormat.dateTimeNoMillis().withZone(DateTimeZone.UTC).print(System.currentTimeMillis());
 
         // Add suitable provenance - includes user, date, collections +
         // bitstream checksums
@@ -909,7 +912,7 @@ public class Item extends DSpaceObject
         // check authorization
         AuthorizeManager.authorizeReinstateItem(context, this);
 
-        String timestamp = DCDate.getCurrent().toString();
+        String timestamp = ISODateTimeFormat.dateTimeNoMillis().withZone(DateTimeZone.UTC).print(System.currentTimeMillis());
 
         // Check permission. User must have ADD on all collections.
         // Build some provenance data while we're at it.

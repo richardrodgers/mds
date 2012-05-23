@@ -12,7 +12,6 @@ import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -25,13 +24,16 @@ import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 
+import org.joda.time.DateMidnight;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.content.Collection;
-import org.dspace.content.DCDate;
 import org.dspace.content.MDValue;
 import org.dspace.content.Item;
 import org.dspace.core.ConfigurationManager;
@@ -357,19 +359,9 @@ public class Subscribe
 
         // The date should reflect the timezone as well. Otherwise we stand to lose that information 
         // in truncation and roll to an earlier date than intended.
-        Calendar cal = Calendar.getInstance(TimeZone.getDefault());
-        cal.setTime(new Date());
         
-        // What we actually want to pass to Harvest is "Midnight of yesterday in my current timezone"
-        // Truncation will actually pass in "Midnight of yesterday in UTC", which will be,
-        // at least in CDT, "7pm, the day before yesterday, in my current timezone".
-        cal.add(Calendar.HOUR, -24);
-        Date thisTimeYesterday = cal.getTime();
-        
-        cal.set(Calendar.HOUR_OF_DAY, 0);
-        cal.set(Calendar.MINUTE, 0);
-        cal.set(Calendar.SECOND, 0);
-        Date midnightYesterday = cal.getTime();
+        DateTimeFormatter fmt = ISODateTimeFormat.dateTimeNoMillis();
+        String midnightYesterday = fmt.print(new DateMidnight(System.currentTimeMillis()));
 
 
         // FIXME: text of email should be more configurable from an
@@ -377,15 +369,14 @@ public class Subscribe
         StringBuffer emailText = new StringBuffer();
         boolean isFirst = true;
 
-        for (int i = 0; i < collections.size(); i++)
-        {
+        for (int i = 0; i < collections.size(); i++) {
             Collection c = collections.get(i);
 
             try {
                 boolean includeAll = ConfigurationManager.getBooleanProperty("harvest.includerestricted.subscription", true);
                 
                 // we harvest all the changed item from yesterday until now
-                List<HarvestedItemInfo> itemInfos = Harvest.harvest(context, c, new DCDate(midnightYesterday).toString(), null, 0, // Limit
+                List<HarvestedItemInfo> itemInfos = Harvest.harvest(context, c, midnightYesterday, null, 0, // Limit
                                                                                     // and
                                                                                     // offset
                                                                                     // zero,
@@ -409,15 +400,11 @@ public class Subscribe
                 }
 
                 // Only add to buffer if there are new items
-                if (itemInfos.size() > 0)
-                {
-                    if (!isFirst)
-                    {
+                if (itemInfos.size() > 0) {
+                    if (!isFirst) {
                         emailText
                                 .append("\n---------------------------------------\n");
-                    }
-                    else
-                    {
+                    } else {
                         isFirst = false;
                     }
     
@@ -425,8 +412,7 @@ public class Subscribe
                             c.getMetadata("name")).append(": ").append(
                             itemInfos.size()).append("\n\n");
     
-                    for (int j = 0; j < itemInfos.size(); j++)
-                    {
+                    for (int j = 0; j < itemInfos.size(); j++) {
                         HarvestedItemInfo hii = (HarvestedItemInfo) itemInfos.get(j);
     
                         List<MDValue> titles = hii.item.getMetadata("dc", "title", null, MDValue.ANY);
@@ -464,11 +450,9 @@ public class Subscribe
         }
 
         // Send an e-mail if there were any new items
-        if (emailText.length() > 0)
-        {
+        if (emailText.length() > 0) {
             
-            if(test)
-            {
+            if (test) {
                 log.info(LogManager.getHeader(context, "subscription:", "eperson=" + eperson.getEmail() ));
                 log.info(LogManager.getHeader(context, "subscription:", "text=" + emailText.toString() ));
 

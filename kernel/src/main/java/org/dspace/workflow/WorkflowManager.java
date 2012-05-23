@@ -22,10 +22,13 @@ import javax.mail.MessagingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
+
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.content.Collection;
-import org.dspace.content.DCDate;
 import org.dspace.content.MDValue;
 import org.dspace.content.InstallItem;
 import org.dspace.content.Item;
@@ -72,6 +75,10 @@ import org.dspace.storage.rdbms.TableRowIterator;
  */
 public class WorkflowManager
 {
+	// ISO8601 date formatter
+	private static final DateTimeFormatter iso8601 = 
+			ISODateTimeFormat.dateTimeNoMillis().withZone(DateTimeZone.UTC);
+	
     // states to store in WorkflowItem for the GUI to report on
     // fits our current set of workflow states (stored in WorkflowItem.state)
     public static final int WFSTATE_SUBMIT = 0; // hmm, probably don't need
@@ -825,7 +832,7 @@ public class WorkflowManager
         Item myitem = wi.getItem();
 
         // Get current date
-        String now = DCDate.getCurrent().toString();
+        String now = iso8601.print(System.currentTimeMillis());
 
         // Get user's name + email address
         String usersName = getEPersonName(e);
@@ -1096,7 +1103,7 @@ public class WorkflowManager
         String usersName = getEPersonName(e);
 
         // Get current date
-        String now = DCDate.getCurrent().toString();
+        String now = iso8601.print(System.currentTimeMillis());
 
         // Here's what happened
         String provDescription = "Approved for entry into archive by "
@@ -1115,7 +1122,7 @@ public class WorkflowManager
             throws SQLException, IOException, AuthorizeException
     {
         // get date
-        DCDate now = DCDate.getCurrent();
+    	String now = iso8601.print(System.currentTimeMillis());
 
         // Create provenance description
         String provmessage = "";
@@ -1124,13 +1131,12 @@ public class WorkflowManager
         {
             provmessage = "Submitted by " + myitem.getSubmitter().getFullName()
                     + " (" + myitem.getSubmitter().getEmail() + ") on "
-                    + now.toString() + "\n";
+                    + now + "\n";
         }
         else
         // null submitter
         {
-            provmessage = "Submitted by unknown (probably automated) on"
-                    + now.toString() + "\n";
+            provmessage = "Submitted by unknown (probably automated) on" + now + "\n";
         }
 
         // add sizes and checksums of bitstreams

@@ -12,6 +12,11 @@ import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
 
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.ISODateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -20,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.dspace.authorize.AuthorizeException;
-import org.dspace.content.DCDate;
 import org.dspace.content.MDValue;
 import org.dspace.content.DSpaceObject;
 import org.dspace.content.Item;
@@ -52,9 +56,8 @@ import org.dspace.handle.HandleManager;
 public class EmbargoManager
 {
     /** Special date signalling an Item is to be embargoed forever.
-     ** The actual date is the first day of the year 10,000 UTC.
      **/
-    public static final DCDate FOREVER = new DCDate("10000-01-01");
+    public static final Date FOREVER = new Date(Long.MAX_VALUE);
 
     /** log4j category */
     private static Logger log = LoggerFactory.getLogger(EmbargoManager.class);
@@ -65,7 +68,6 @@ public class EmbargoManager
     private static String terms_element = null;
     private static String terms_qualifier = null;
 
-    // Metadata field components for lift date, encoded as a DCDate
     // set from the DSpace configuration by init()
     private static String lift_schema = null;
     private static String lift_element = null;
@@ -75,6 +77,12 @@ public class EmbargoManager
     // set from the DSpace configuration by init()
     private static EmbargoSetter setter = null;
     private static EmbargoLifter lifter = null;
+    
+    // embargo date formatter and parser (ISO-8601 "yyyy-MM-dd")
+	private static final DateTimeFormatter isoDate = ISODateTimeFormat.date();
+	// long format of same
+	private static final DateTimeFormatter iso8601 = 
+			ISODateTimeFormat.dateTimeNoMillis().withZone(DateTimeZone.UTC);
     
     // command-line options
     @Option(name="-q", usage="Do not print anything except for errors")
@@ -108,12 +116,12 @@ public class EmbargoManager
      * @param item the item to embargo
      * @param lift date on which the embargo is to be lifted.
      */
-    public static void setEmbargo(Context context, Item item, DCDate lift)
+    public static void setEmbargo(Context context, Item item, Date lift)
         throws SQLException, AuthorizeException, IOException
     {
         init();
         // if lift is null, we might be restoring an item from an AIP
-        DCDate myLift = lift;
+        Date myLift = lift;
         if (myLift == null)
         {
              if ((myLift = recoverEmbargoDate(item)) == null)
@@ -121,7 +129,7 @@ public class EmbargoManager
                  return;
              }
         }
-        String slift = myLift.toString();
+        String slift = isoDate.print(myLift.getTime());
         try
         {
             context.turnOffAuthorisationSystem();
@@ -152,41 +160,29 @@ public class EmbargoManager
      * @param item the item to embargo
      * @return lift date on which the embargo is to be lifted, or null if none
      */
-    public static DCDate getEmbargoDate(Context context, Item item)
+    public static Date getEmbargoDate(Context context, Item item)
         throws SQLException, AuthorizeException, IOException
     {
         init();
         List<MDValue> terms = item.getMetadata(terms_schema, terms_element,
                 							   terms_qualifier, MDValue.ANY);
 
-        DCDate result = null;
-
         if (terms == null)
             return null;
 
-        result = setter.parseTerms(context, item,
-                				   terms.size() > 0 ? terms.get(0).getValue() : null);
+        Date liftDate = setter.parseTerms(context, item,
+                				   		 terms.size() > 0 ? terms.get(0).getValue() : null);
 
-        if (result == null)
+        if (liftDate == null)
             return null;
 
-        // new DCDate(non-date String) means toDate() will return null
-        Date liftDate = result.toDate();
-        if (liftDate == null)
-        {
-            throw new IllegalArgumentException(
-                    "Embargo lift date is uninterpretable:  "
-                            + result.toString());
-        }
-
         // sanity check: do not allow an embargo lift date in the past.
-        if (liftDate.before(new Date()))
-        {
+        if (liftDate.before(new Date()))  {
             throw new IllegalArgumentException(
                     "Embargo lift date must be in the future, but this is in the past: "
-                            + result.toString());
+                            + liftDate.toString());
         }
-        return result;
+        return liftDate;
     }
 
     /**
@@ -205,8 +201,9 @@ public class EmbargoManager
         item.clearMetadata(lift_schema, lift_element, lift_qualifier, MDValue.ANY);
 
         // set the dc.date.available value to right now
+        String now = iso8601.print(System.currentTimeMillis());
         item.clearMetadata(MetadataSchema.DC_SCHEMA, "date", "available", MDValue.ANY);
-        item.addMetadata(MetadataSchema.DC_SCHEMA, "date", "available", null, DCDate.getCurrent().toString());
+        item.addMetadata(MetadataSchema.DC_SCHEMA, "date", "available", null, now);
 
         log.info("Lifting embargo on Item "+item.getHandle());
         item.update();
@@ -341,24 +338,19 @@ public class EmbargoManager
         boolean status = false;
         List<MDValue> lifts = item.getMetadata(lift_schema, lift_element, lift_qualifier, MDValue.ANY);
 
-        if (lifts.size() > 0)
-        {
+        if (lifts.size() > 0) {
             // need to survive any failure on a single item, go on to process the rest.
-            try
-            {
-                DCDate liftDate = new DCDate(lifts.get(0).getValue());
-                log.debug("Testing embargo on item="+item.getHandle()+", date="+liftDate.toString());
-                if (liftDate.toDate().before(now))
-                {
-                    if (verbose)
-                    {
-                        System.err.println("Lifting embargo from Item handle=" + item.getHandle() + ", lift date=" + lifts.get(0).getValue());
+            try {
+            	String liftStr = lifts.get(0).getValue();
+                Date liftDate = isoDate.parseDateTime(liftStr).toDate();
+                log.debug("Testing embargo on item="+item.getHandle()+", date="+liftStr);
+                if (liftDate.before(now)) {
+                    if (verbose) {
+                        System.err.println("Lifting embargo from Item handle=" + item.getHandle() + ", lift date=" + liftStr);
                     }
-                    if (noOp)
-                    {
-                        if (! quiet)
-                        {
-                            System.err.println("DRY RUN: would have lifted embargo from Item handle=" + item.getHandle() + ", lift date=" + lifts.get(0).getValue());
+                    if (noOp) {
+                        if (! quiet) {
+                            System.err.println("DRY RUN: would have lifted embargo from Item handle=" + item.getHandle() + ", lift date=" + liftStr);
                         }
                     }
                     else if (! checkOnly)
@@ -370,7 +362,7 @@ public class EmbargoManager
                 {
                     if (verbose)
                     {
-                        System.err.println("Checking current embargo on Item handle=" + item.getHandle() + ", lift date=" + lifts.get(0).getValue());
+                        System.err.println("Checking current embargo on Item handle=" + item.getHandle() + ", lift date=" + liftStr);
                     }
                     setter.checkEmbargo(context, item);
                 }
@@ -448,14 +440,14 @@ public class EmbargoManager
     
     // return the lift date assigned when embargo was set, or null, if either:
     // it was never under embargo, or the lift date has passed.
-    private static DCDate recoverEmbargoDate(Item item) {
-        DCDate liftDate = null;
+    private static Date recoverEmbargoDate(Item item) {
+        Date liftDate = null;
         List<MDValue> lifts = item.getMetadata(lift_schema, lift_element, lift_qualifier, MDValue.ANY);
-        if (lifts.size() > 0)
-        {
-            liftDate = new DCDate(lifts.get(0).getValue());
+        if (lifts.size() > 0) {
+            DateTime dt = isoDate.parseDateTime(lifts.get(0).getValue());
+            liftDate = dt.toDate();
             // sanity check: do not allow an embargo lift date in the past.
-            if (liftDate.toDate().before(new Date()))
+            if (liftDate.before(new Date()))
             {
                 liftDate = null;
             }

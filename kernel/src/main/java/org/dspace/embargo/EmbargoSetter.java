@@ -9,9 +9,9 @@ package org.dspace.embargo;
 
 import java.sql.SQLException;
 import java.io.IOException;
+import java.util.Date;
 
 import org.dspace.authorize.AuthorizeException;
-import org.dspace.content.DCDate;
 import org.dspace.content.Item;
 import org.dspace.core.Context;
 
@@ -43,7 +43,7 @@ public interface EmbargoSetter
      * @param terms value of the metadata field configured as embargo terms, if any.
      * @return absolute date on which the embargo is to be lifted, or null if none
      */
-    public DCDate parseTerms(Context context, Item item, String terms)
+    public Date parseTerms(Context context, Item item, String terms)
         throws SQLException, AuthorizeException, IOException;
 
     /**

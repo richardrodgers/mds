@@ -13,7 +13,6 @@ import java.util.Date;
 import java.util.Properties;
 
 import org.dspace.authorize.AuthorizeException;
-import org.dspace.content.DCDate;
 import org.dspace.content.Item;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Context;
@@ -57,9 +56,10 @@ public class DayTableEmbargoSetter extends DefaultEmbargoSetter
      * @param context the DSpace context
      * @param item the item to embargo
      * @param terms the embargo terms
-     * @return parsed date in DCDate format
+     * @return parsed date in Date format
      */
-    public DCDate parseTerms(Context context, Item item, String terms)
+    @Override
+    public Date parseTerms(Context context, Item item, String terms)
         throws SQLException, AuthorizeException, IOException {
     	if (terms != null) {
             if (termsOpen.equals(terms)) {
@@ -69,7 +69,7 @@ public class DayTableEmbargoSetter extends DefaultEmbargoSetter
             if (days != null && days.length() > 0) {
                 long lift = System.currentTimeMillis() + 
                            (Long.parseLong(days) * 24 * 60 * 60 * 1000);
-                return new DCDate(new Date(lift));
+                return new Date(lift);
             }
         }
         return null;
