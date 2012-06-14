@@ -79,7 +79,7 @@ CREATE SEQUENCE bitstreamformatregistry_seq;
 CREATE SEQUENCE fileextension_seq;
 CREATE SEQUENCE bitstream_seq;
 CREATE SEQUENCE eperson_seq;
-CREATE SEQUENCE epersongroup_seq;
+CREATE SEQUENCE epersongroup_seq MINVALUE 0;
 CREATE SEQUENCE item_seq;
 CREATE SEQUENCE bundle_seq;
 CREATE SEQUENCE item2bundle_seq;
@@ -634,8 +634,8 @@ CREATE TABLE community_item_count (
 --  and administrators
 -------------------------------------------------------
 -- We don't use getnextid() for 'anonymous' since the sequences start at '1'
-INSERT INTO epersongroup VALUES(0, 'Anonymous');
-INSERT INTO epersongroup VALUES(getnextid('epersongroup'), 'Administrator');
+--INSERT INTO epersongroup VALUES(0, 'Anonymous');
+--INSERT INTO epersongroup VALUES(nextval('epersongroup_seq'), 'Administrator');
 
 -------------------------------------------------------
 -- Create the harvest settings table
@@ -673,22 +673,22 @@ CREATE INDEX harvested_item_fk_idx ON harvested_item(item_id);
 CREATE TABLE ctask_data
 (
     ctask_id 		INTEGER PRIMARY KEY,
-    name		VARCHAR,
+    name		    VARCHAR,
     description		VARCHAR,
-    type                INTEGER,
-    install_date        TIMESTAMP,
-    version		VARCHAR,
+    type            INTEGER,
+    install_date    TIMESTAMP,
+    version_str		VARCHAR,
     load_addr		VARCHAR,
-    config		VARCHAR,
+    config		    VARCHAR,
     info_url		VARCHAR,
-    visible_ui          BOOL,
-    visible_api         BOOL
+    visible_ui      BOOL,
+    visible_api     BOOL
 );
 
 -------------------------------------------------------
 -- Command table
 -------------------------------------------------------
-CREATE TABLE Command
+CREATE TABLE command
 (
   command_id           INTEGER PRIMARY KEY,
   name                 VARCHAR UNIQUE,
@@ -699,9 +699,3 @@ CREATE TABLE Command
   fwd_user_args        BOOL,
   successor            INTEGER 
 );
-
-
-
-
-
-

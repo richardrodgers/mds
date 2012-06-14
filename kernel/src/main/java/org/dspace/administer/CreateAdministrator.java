@@ -17,6 +17,7 @@ import org.kohsuke.args4j.Option;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
+import static com.google.common.base.Preconditions.checkState;
 
 import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Context;
@@ -33,7 +34,7 @@ import org.dspace.eperson.Group;
  * Alternatively, it can be used to take the email, first name, last name and
  * desired password as arguments thus:
  * 
- * CreateAdministrator -e [email] -f [first name] -l [last name] -p [password]
+ * CreateAdministrator -e [email] -f [first name] -l [last name] -c [language] -p [password]
  * 
  * This is particularly convenient for automated deploy scripts that require an 
  * initial administrator, for example, before deployment can be completed
@@ -48,57 +49,48 @@ public final class CreateAdministrator
 	private Context context;
 	
 	// email address
-	@Option(name="-e", usage="administrator email address", required=true)
+	@Option(name="-e", usage="administrator email address")
 	private String email;
 	
 	// first name 
-	@Option(name="-f", usage="administrator first name", required=true)
+	@Option(name="-f", usage="administrator first name")
 	private String firstName;
 	
 	// last name 
-	@Option(name="-l", usage="administrator last name", required=true)
+	@Option(name="-l", usage="administrator last name")
 	private String lastName;
 	
 	// language
-	@Option(name="-c", usage="administrator language", required=true)
+	@Option(name="-c", usage="administrator language")
 	private String language;
 	
 	// language
-	@Option(name="-p", usage="administrator password", required=true)
+	@Option(name="-p", usage="administrator password")
 	private String password;
 	
     /**
-     * For invoking via the command line.  If called with no command line arguments,
-     * it will negotiate with the user for the administrator details
+     * For invoking via the command line.  If called with fewer than
+     * the full set of command line arguments, it will
+     * prompt the user for the missing administrator details
      * 
      * @param argv
      *            command-line arguments
      */
-    public static void main(String[] args) throws Exception
-    {
+    public static void main(String[] args) throws Exception {
     	CreateAdministrator ca = new CreateAdministrator();
     	CmdLineParser parser = new CmdLineParser(ca);
         try {
         	parser.parseArgument(args);
-        	ca.createAdministrator();
+        	if (ca.email != null && ca.firstName != null && ca.lastName != null &&
+            	ca.language != null && ca.password != null) {
+            	ca.createAdministrator();
+            } else	{
+            	ca.negotiateAdministratorDetails();
+            }
         }  catch (CmdLineException clE) {
         	System.err.println(clE.getMessage());
         	parser.printUsage(System.err);
         }
-    	
-    	/*
-    	if (line.hasOption("e") && line.hasOption("f") && line.hasOption("l") &&
-    			line.hasOption("c") && line.hasOption("p"))
-    	{
-    		ca.createAdministrator(line.getOptionValue("e"),
-    				line.getOptionValue("f"), line.getOptionValue("l"),
-    				line.getOptionValue("c"), line.getOptionValue("p"));
-    	}
-    	else
-    	{
-    		ca.negotiateAdministratorDetails();
-    	}
-    	*/
     }
     
     /** 
@@ -106,8 +98,7 @@ public final class CreateAdministrator
      * 
      * @throws Exception
      */
-    private CreateAdministrator() throws Exception
-    {
+    private CreateAdministrator() throws Exception {
     	context = new Context();
     }
     
@@ -211,8 +202,7 @@ public final class CreateAdministrator
      * 
      * @throws Exception
      */
-    private void createAdministrator() throws Exception
-    {
+    private void createAdministrator() throws Exception {
     	// Of course we aren't an administrator yet so we need to
     	// circumvent authorisation
     	context.turnOffAuthorisationSystem();
@@ -220,9 +210,7 @@ public final class CreateAdministrator
     	// Find administrator group
     	Group admins = Group.find(context, 1);
     	
-    	if (admins == null) {
-    		throw new IllegalStateException("Error, no admin group (group 1) found");
-    	}
+    	checkState(admins != null, "Error, no admin group (group 1) found");
     	
     	// Create the administrator e-person
         EPerson eperson = EPerson.findByEmail(context, email);

@@ -484,7 +484,17 @@ public class DSIndexer {
             		addMetadata(bitstream, task, config.bitstreamRules);
                 	String[] fields = firstMatch(bundle.getName() + "." + bitstream.getName(), config.fileRules);
                 	for (String field : fields) {
-                		task.addStream(field, bitstream.retrieve());
+                		if (field.startsWith("@")) {
+                			StreamParser sp = getParser(field.substring(1));
+                			if (sp != null) {
+                				sp.parse(bitstream.retrieve(), task);
+                			} else {
+                				log.error("Invalid StreamParser: " + field.substring(1));
+                			}
+                		} else {
+                			// no parsing required - presumed to be simple text
+                			task.addStream(field, bitstream.retrieve());
+                		}
                 	}
                 }
             }
@@ -550,6 +560,21 @@ public class DSIndexer {
     		fieldMap.put("default", location);
     	}
     	return fieldMap;
+    }
+    
+    private StreamParser getParser(String name) {
+    	StreamParser parser = null;
+    	String pdata = ConfigurationManager.getProperty("search", "parser." + name);
+    	if (pdata != null) {
+    		String[] parts = pdata.split(":");
+    		try {
+    			parser = (StreamParser)Class.forName(parts[0]).newInstance();
+    			if (parts.length > 1) {
+        			parser.init(parts[1]);
+        		}
+    		} catch (Exception e) {}
+    	}
+    	return parser;
     }
     
     private static Pattern glob2regex(String theGlob) {

@@ -235,7 +235,7 @@ public class Group extends DSpaceObject
     public void setName(String name)
     {
         tableRow.setColumn("name", name);
-        modifiedMetadata = true;
+        // RLR test modifiedMetadata = true;
     }
 
     /**
