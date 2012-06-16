@@ -181,10 +181,9 @@ public class EventManager
 
         public Object makeObject(Object dispatcherName) throws Exception
         {
-
             Dispatcher dispatcher = null;
             String dispClass = dispatchers.get(dispatcherName);
-
+            log.info("DispatcherPool makeObject: " + dispatcherName + " class: " + dispClass);
             if (dispClass != null)
             {
                 try
@@ -341,10 +340,8 @@ public class EventManager
 
                 if (ckey.startsWith(PROP_PFX) && ckey.endsWith(".class"))
                 {
-                    String name = ckey.substring(PROP_PFX.length(), ckey
-                            .length() - 6);
-                    String dispatcherClass = ConfigurationManager
-                            .getProperty(ckey);
+                    String name = ckey.substring(PROP_PFX.length(), ckey.length() - 6);
+                    String dispatcherClass = ConfigurationManager.getProperty(ckey);
 
                     // Can we grab all of the consumers configured for this
                     // dispatcher
@@ -353,6 +350,7 @@ public class EventManager
                     // upon other makeObject(key) requests resulting in a faster
                     // pool
                     // get.
+                    log.info("Adding dispatcher: " + name + " class: " + dispatcherClass);
 
                     dispatchers.put(name, dispatcherClass);
 

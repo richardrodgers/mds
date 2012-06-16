@@ -56,7 +56,7 @@ import ch.qos.logback.core.util.StatusPrinter;
 public class ConfigurationManager
 {
     /** log4j category */
-    private static Logger log = LoggerFactory.getLogger(ConfigurationManager.class);
+    private static Logger log = null; // LoggerFactory.getLogger(ConfigurationManager.class);
 
     /** The configuration properties */
     private static Properties properties = null;
@@ -214,7 +214,7 @@ public class ConfigurationManager
         String value = props == null ? null : props.getProperty(property);
         return (value != null) ? value.trim() : null;
     }
-    
+       
     /**
      * Get a module configuration property value.
      * 
@@ -932,7 +932,7 @@ public class ConfigurationManager
             // Has the default configuration location been overridden?
             else if (configProperty != null)
             {
-                log.info("Loading system provided config property (-Ddspace.configuration): " + configProperty);
+                //log.info("Loading system provided config property (-Ddspace.configuration): " + configProperty);
                 
                 // Load the overriding configuration
                 loadedFile = new File(configProperty);
@@ -944,7 +944,7 @@ public class ConfigurationManager
                 url = ConfigurationManager.class.getResource("/kernel.cfg");
                 if (url != null)
                 {
-                    log.info("Loading from classloader: " + url);
+                    //log.info("Loading from classloader: " + url);
                     
                     loadedFile = new File(url.getPath());
                 }
@@ -952,7 +952,7 @@ public class ConfigurationManager
             
             if (url == null)
             {
-                log.error("Cannot find kernel.cfg");
+                //log.error("Cannot find kernel.cfg");
                 throw new IllegalStateException("Cannot find kernel.cfg");
             }
             else
@@ -977,7 +977,7 @@ public class ConfigurationManager
         }
         catch (IOException e)
         {
-            log.error("Can't load configuration: " + url, e);
+            //log.error("Can't load configuration: " + url, e);
 
             // FIXME: Maybe something more graceful here, but with the
             // configuration we can't do anything
@@ -1075,30 +1075,43 @@ public class ConfigurationManager
              * will use the defaults provided by logback.
              * 
              * Property format is:
-             * log.init.config = ${dspace.dir}/config/logback.xml
+             * log.config = ${dspace.dir}/conf/logback.xml
              * 
              * If there is a problem with the file referred to in
              * "log.configuration" it needs to be sent to System.err
              * so do not instantiate another Logging configuration.
              *
              */
-            String dsLogConfiguration = ConfigurationManager.getProperty("log.init.config");
+            log = LoggerFactory.getLogger(ConfigurationManager.class);
+            /*
+            String dsLogConfiguration = ConfigurationManager.getProperty("log.config");
 
             if (dsLogConfiguration == null || System.getProperty("dspace.log.init.disable") != null)
             {
-                /* 
-                 * Do nothing if log config not set in dspace.cfg or "dspace.log.init.disable" 
-                 * system property set.  Leave it upto logback to properly init its logging 
-                 * via classpath or system properties.
-                 */
+                // 
+                // Do nothing if log config not set in dspace.cfg or "dspace.log.init.disable" 
+                // system property set.  Leave it upto logback to properly init its logging 
+                // via classpath or system properties.
+                //
                 log.info("Using default logback provided log configuration," +
-                        "if unintended, check your dspace.cfg for (log.init.config)");
+                        "if unintended, check your dspace.cfg for (log.config)");
             }
             else
             {
-                log.info("Using dspace provided log configuration (log.init.config)");
+                log.info("Using dspace provided log configuration (log.config)");
                                
                 File logConfigFile = new File(dsLogConfiguration);
+                
+                // handle special case of logging during module installation
+                // the configured location is on the deployment directory, which doesn't
+                // exist yet. Use the copy in the (source) classpath, which will be correct
+                if (! logConfigFile.exists()) {
+                    URL lbUrl = ConfigurationManager.class.getResource("/logback.xml");
+                    if (lbUrl != null) {
+                        log.info("Loading from classloader: " + lbUrl);
+                        logConfigFile = new File(lbUrl.getPath());
+                    }
+                }
                 
                 if(logConfigFile.exists())
                 {
@@ -1107,7 +1120,7 @@ public class ConfigurationManager
                     LoggerContext context = (LoggerContext)LoggerFactory.getILoggerFactory();
                     try {
                         JoranConfigurator configurator = new JoranConfigurator();
-                        configurator.setContext(context);     
+                        configurator.setContext(context);
                         context.reset(); 
                         configurator.doConfigure(logConfigFile);
                       } catch (JoranException je) {
@@ -1120,7 +1133,7 @@ public class ConfigurationManager
                     log.info("File does not exist: " + dsLogConfiguration);
                 }
             }
-
+            */
     }
 
     /**
@@ -1172,8 +1185,8 @@ public class ConfigurationManager
                 }
                 else
                 {
-                    log.warn("Interpolation failed in value of property \""+key+
-                             "\", there is no property named \""+var+"\"");
+                    //log.warn("Interpolation failed in value of property \""+key+
+                    //         "\", there is no property named \""+var+"\"");
                 }
                 from = end+1;
             }

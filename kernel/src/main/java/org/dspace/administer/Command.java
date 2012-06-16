@@ -22,6 +22,7 @@ import org.dspace.core.Context;
 import org.dspace.core.LogManager;
 import org.dspace.storage.rdbms.DatabaseManager;
 import org.dspace.storage.rdbms.TableRow;
+import org.dspace.storage.rdbms.TableRowIterator;
 
 /**
  * Class representing a specific binding of an argument list
@@ -35,7 +36,7 @@ import org.dspace.storage.rdbms.TableRow;
  */
 public class Command
 {    
-    /** log4j logger */
+    /** logger */
     private static Logger log = LoggerFactory.getLogger(Command.class);
 
     /** The row in the table representing this command */
@@ -104,6 +105,31 @@ public class Command
                 									"name", name.toLowerCase());
         
         return (row != null && row.getBooleanColumn("launchable")) ? new Command(row) : null;
+    }
+    
+    /**
+     * Find all commands.
+     * 
+     * @param context the DSpace context
+     * @return commandList list of commands
+     */
+    public static List<Command> findAll(Context context) throws SQLException, AuthorizeException {
+        List<Command> commands = new ArrayList<Command>();
+
+        TableRowIterator tri = DatabaseManager.queryTable(context, "command",
+                               "SELECT * FROM command ORDER BY command_id");
+        try {
+            while (tri.hasNext()) {
+                TableRow row = tri.next();
+                commands.add(new Command(row));
+            }
+        } finally {
+            // close the TableRowIterator to free up resources
+            if (tri != null) {
+                tri.close();
+            }
+        }       
+        return commands;
     }
 
     /**

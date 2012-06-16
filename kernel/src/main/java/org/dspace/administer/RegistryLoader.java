@@ -141,7 +141,7 @@ public class RegistryLoader
     	    throws SQLException, IOException, SAXException, TransformerException,
     	    AuthorizeException, NonUniqueMetadataException {
     	
-    	String docType = document.getDocumentElement().getLocalName();
+    	String docType = document.getDocumentElement().getTagName();
     	boolean canProcess = false;
     	for (LoaderType type : LoaderType.values()) {
     		if (type.getElement().equals(docType)) {
@@ -414,14 +414,13 @@ public class RegistryLoader
         Stack<Step> stack = new Stack<Step>();
         for (int i = 0; i < stepNodes.getLength(); i++)
         {
-            Node n = stepNodes.item(i);
-            
-            String className = getElementData(node, "class");
+            Node n = stepNodes.item(i);            
+            String className = getElementData(n, "class");
             StringBuilder sb = new StringBuilder();
-            for (String arg : getRepeatedElementData(node, "argument")) {
+            for (String arg : getRepeatedElementData(n, "argument")) {
             	sb.append(arg).append(" ");
             }
-            boolean noUserArgs = "false".equals(getAttributeData(node, "passuserargs"));
+            boolean noUserArgs = "false".equals(getAttributeData(n, "passuserargs"));
             stack.push(new Step(className, sb.toString().trim(), ! noUserArgs, i));
         }
         // OK - is there a single step only, or a succession chain?

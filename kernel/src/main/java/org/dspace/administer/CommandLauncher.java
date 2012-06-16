@@ -15,72 +15,118 @@ import java.lang.reflect.Method;
 import org.dspace.core.Context;
 
 /**
- * DSpace command launcher. Reads commands from DB.
+ * DSpace command launcher. Reads command data from DB.
  * Adapted from ScriptLauncher (authors: Stuart Lewis & Mark Diggory)
  *
  * @author richardrodgers
  */
-public class CommandLauncher
-{
+public class CommandLauncher {
+	
+	private static final String[] builtins = { "list", "help", "install", "update" };
     /**
      * Execute the DSpace command launcher
      *
      * @param args Any parameters required to be passed to the commands it executes
      */
-    public static void main(String[] args) throws Exception
-    {
+    public static void main(String[] args) throws Exception {
         // Check that there is at least one argument
         if (args.length < 1) {
             System.err.println("You must provide at least one command argument");
             System.exit(1);
         }
         
-        List<String> cmdLineArgs = Arrays.asList(args);
+        List<String> cmdLineArgs = new ArrayList(Arrays.asList(args));
         String cmdName = cmdLineArgs.remove(0);
+        int exitCode = 0;
         // Check for 'built-in' commands before trying to look command up
-        // Is it the special case 'dsrun' where the user provides the class name?
         if ("dsrun".equals(cmdName)) {
             if (cmdLineArgs.size() < 1) {
                 System.err.println("Error in launcher: Missing class name for dsrun");
-                System.exit(1);
+                exitCode = 1;
+            } else {
+            	String className = cmdLineArgs.remove(0);
+            	invokeCommand(className, cmdLineArgs);
             }
-            String className = cmdLineArgs.remove(0);
-            invokeCommand(className, cmdLineArgs);
-            System.exit(0);
-        } else if ("install".equals(cmdName)) {
+        } else if ("install".equals(cmdName) || "update".equals(cmdName)) {
         	// Installer built-in simply because it is needed before DB exists
-        	// so cannot be read from registry
+        	// so cannot be read from registry - thus hard-coded case here
+        	// push the argument back to the command
+        	cmdLineArgs.add(0, cmdName);
         	invokeCommand("org.dspace.administer.Installer", cmdLineArgs);
-        	System.exit(0);
-        }
-        // OK - try to look up command
-        Context ctx = null;
-        try {
-        	ctx = new Context();
-        	ctx.turnOffAuthorisationSystem();
-        	Command	command = Command.findByName(ctx, cmdName);
-        	if (command == null) {
-        		System.err.println("Error in launcher: unknown command: " + cmdName);
-        		System.exit(1);
+        } else {
+        	Context ctx = null;
+        	try {
+        		ctx = new Context();
+              	ctx.turnOffAuthorisationSystem();
+              	if ("list".equals(cmdName)) {
+                	// display list of commands accessible from launcher
+                	System.out.println("Available commands:");
+                	for (String cn : listCommands(ctx)) {
+                		System.out.println(cn);
+                	}
+              	} else if ("help".equals(cmdName)) {
+                	// Display a helpful message for a command
+              		if (cmdLineArgs.size() == 0) {
+              			System.out.println("Use 'help <command>' for information on a command");
+              			System.out.println("Use 'list' to see all available commands");
+              		} else {
+              			String cName = cmdLineArgs.get(0);
+              			if ("install".equals(cName) || "update".equals(cName)) {
+              				System.out.println("Use '" + cName + " <module>' to " + cName + " a module to your deployed system");
+              			} else {
+              				Command cmd = Command.findByName(ctx, cName);
+              				if (cmd != null) {
+              					System.out.println(cName + ": " + cmd.getDescription());
+              					System.out.println("class: " + cmd.getClassName());
+              					String argList = cmd.getArguments();
+              					if (argList.length() > 0) {
+              						System.out.println("arguments: " + argList);
+              					}
+              				} else {
+              					System.out.println("Unknown command: " + cName);
+              					exitCode = 1;
+              				}
+              			}
+              		}
+              	} else {
+            		Command	command = Command.findByName(ctx, cmdName);
+            		if (command == null) {
+            			System.out.println("Unknown command: " + cmdName);
+            			exitCode = 1;
+            		} else {
+            			do {
+            				List<String> effectiveArgs = buildArgList(command, cmdLineArgs);
+            				invokeCommand(command.getClassName(), effectiveArgs);
+            				command = command.getSuccessor(ctx);
+            			} while (command != null);
+            		}
+              	}
+              	ctx.complete();
+        	} catch (ClassNotFoundException cfnE) {
+        		System.err.println("Error in command: Invalid class name: " + cfnE.getMessage());
+        		exitCode = 1;
+        	} catch (Exception e) {
+        		Throwable cause = e.getCause();
+        		System.err.println("Exception: " + cause.getMessage());
+        		exitCode = 1;
+        	} finally {
+        		if (ctx != null && ctx.isValid()) {
+        			ctx.abort();
+        		}
         	}
-        	do {
-        		List<String> effectiveArgs = buildArgList(command, cmdLineArgs);
-        		invokeCommand(command.getClassName(), effectiveArgs);
-        		command = command.getSuccessor(ctx);
-        	} while (command != null);
-        	ctx.complete();
-        	System.exit(0);
-        } catch (ClassNotFoundException cfnE) {
-        	System.err.println("Error in command: Invalid class name: " + cfnE.getMessage());
-        } catch (Exception e) {
-        	Throwable cause = e.getCause();
-            System.err.println("Exception: " + cause.getMessage());
-        } finally {
-        	if (ctx != null && ctx.isValid()) {
-        		ctx.abort();
-        	}
         }
-        System.exit(1);
+        System.exit(exitCode);
+    }
+    
+    private static List<String> listCommands(Context ctx) throws Exception {
+    	List<String> commands = new ArrayList<String>(Arrays.asList(builtins));
+    	// then installed commands
+    	for (Command cmd : Command.findAll(ctx)) {
+    		if (cmd.isLaunchable()) {
+    			commands.add(cmd.getName());
+    		}
+    	}
+    	return commands;
     }
     
     private static List<String> buildArgList(Command command, List<String> cmdLineArgs) {
@@ -89,7 +135,7 @@ public class CommandLauncher
     		// start with cmd-line args
     		retArgs.addAll(cmdLineArgs);
     	}
-    	if (command.getArguments() != null) {
+    	if (command.getArguments() != null && command.getArguments().length() > 0) {
     		retArgs.addAll(Arrays.asList(command.getArguments().split("\\s+")));
     	}
     	return retArgs;
@@ -100,17 +146,9 @@ public class CommandLauncher
         // Run the main() method
         Class target = Class.forName(className, true,
         						     Thread.currentThread().getContextClassLoader());
-        Object[] arguments = {useargs};
-
-        // Useful for debugging, so left in the code...
-        /**System.out.print("About to execute: " + className);
-        for (String param : useargs) {
-            System.out.print(" " + param);
-        }
-        System.out.println("");**/
-
-        Class[] argTypes = {useargs.getClass()};
-        Method main = target.getMethod("main", argTypes);
-        main.invoke(null, arguments);
+        String[] mainArgs = useargs.toArray(new String[useargs.size()]);
+        Class[] argTypes = new Class[] { String[].class };
+        Method main = target.getDeclaredMethod("main", argTypes);
+        main.invoke(null, (Object)mainArgs);
     }
 }

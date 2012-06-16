@@ -7,34 +7,38 @@
  */
 package org.dspace.search;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.io.InputStream;
-import java.util.List;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-class IndexingTask {
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+
+/**
+ * Container for index data and instructions to pass
+ * to an indexer. Essentially a set of mappings from
+ * field names to values or data streams.
+ * 
+ * @author richardrodgers
+ */
+
+public class IndexingTask {
 	
     enum Action { ADD, UPDATE, DELETE, TX_BEGIN, TX_END, PURGE };
 
     private Action action;
-    private Map<String, List<String>> fields;
-    private Map<String, List<InputStream>> streams;
+    private Multimap<String, String> fields;
+    private Multimap<String, InputStream> streams;
 
     IndexingTask(Action pAction) {
         action = pAction;
-        fields = new HashMap<String, List<String>>();
+        fields = ArrayListMultimap.create();
     }
     
     void addField(String name, String value) {
-    	List<String> values = fields.get(name);
-    	if (values == null) {
-    		values = new ArrayList<String>();
-    		fields.put(name, values);
-    	}
-    	values.add(value);
+    	fields.put(name, value);
     }
     
     void addFieldSet(Map<String, String> fieldSet) {
@@ -45,14 +49,9 @@ class IndexingTask {
     
     void addStream(String name, InputStream stream) {
     	if (streams == null) {
-    		streams = new HashMap<String, List<InputStream>>();
+    		streams = ArrayListMultimap.create();
     	}
-    	List<InputStream> values = streams.get(name);
-    	if (values == null) {
-    		values = new ArrayList<InputStream>();
-    		streams.put(name, values);
-    	}
-    	values.add(stream);
+    	streams.put(name, stream);
     }
     
     public Action getAction() {
@@ -63,22 +62,20 @@ class IndexingTask {
     	return fields.keySet();
     }
     
-    public List<String> getFieldValues(String key) {
-    	List<String> ret = fields.get(key);
-    	return (ret != null) ? ret : new ArrayList<String>();
+    public Collection<String> getFieldValues(String key) {
+    	return fields.get(key);
     }
     
     public String getFieldValue(String key) {
-    	List<String> ret = getFieldValues(key);
-    	return (ret.size() > 0) ? ret.get(0) : null;
+    	Collection<String> ret = getFieldValues(key);
+    	return (ret.size() > 0) ? ret.iterator().next() : null;
     }
     
     public Set<String> getStreamKeys() {
     	return (streams != null) ? streams.keySet() : new HashSet<String>();
     }
     
-    public List<InputStream> getStreamValues(String key) {
-    	List<InputStream> ret = streams.get(key);
-    	return (ret != null) ? ret : new ArrayList<InputStream>();
+    public Collection<InputStream> getStreamValues(String key) {
+    	return (streams != null) ? streams.get(key) : new HashSet<InputStream>();
     }
 }
