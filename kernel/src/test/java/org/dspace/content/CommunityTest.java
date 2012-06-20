@@ -11,9 +11,9 @@ package org.dspace.content;
 import java.io.File;
 import java.io.FileInputStream;
 import java.sql.SQLException;
-import org.dspace.authorize.AuthorizeException;
-import org.dspace.core.Context;
-import org.dspace.eperson.Group;
+import java.util.List;
+
+
 import org.junit.*;
 import static org.junit.Assert.* ;
 import static org.hamcrest.CoreMatchers.*;
@@ -23,7 +23,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.dspace.authorize.AuthorizeManager;
+import org.dspace.authorize.AuthorizeException;
+import org.dspace.content.BoundedIterator;
+import org.dspace.core.Context;
 import org.dspace.core.Constants;
+import org.dspace.eperson.Group;
 
 /**
  * Unit Tests for class Community
@@ -126,8 +130,8 @@ public class CommunityTest extends AbstractDSpaceObjectTest
         //the item created by default has no name set
         assertThat("testCreate 2", son, notNullValue());        
         assertThat("testCreate 3", son.getName(), equalTo(""));        
-        assertTrue("testCreate 4", son.getAllParents().length == 1);
-        assertThat("testCreate 5", son.getAllParents()[0], equalTo(c));
+        assertTrue("testCreate 4", son.getAllParents().size() == 1);
+        assertThat("testCreate 5", son.getAllParents().get(0), equalTo(c));
     }
 
 
@@ -159,8 +163,8 @@ public class CommunityTest extends AbstractDSpaceObjectTest
         //the item created by default has no name set
         assertThat("testCreate 2", son, notNullValue());
         assertThat("testCreate 3", son.getName(), equalTo(""));
-        assertTrue("testCreate 4", son.getAllParents().length == 1);
-        assertThat("testCreate 5", son.getAllParents()[0], equalTo(created));
+        assertTrue("testCreate 4", son.getAllParents().size() == 1);
+        assertThat("testCreate 5", son.getAllParents().get(0), equalTo(created));
     }
 
     /**
@@ -268,18 +272,19 @@ public class CommunityTest extends AbstractDSpaceObjectTest
     @Test
     public void testFindAll() throws Exception
     {
-        Community[] all = Community.findAll(context);
+        BoundedIterator<Community> all = Community.findAll(context);
         assertThat("testFindAll 0", all, notNullValue());
-        assertTrue("testFindAll 1", all.length >= 1);
+        assertTrue("testFindAll 1", all.hasNext());
 
         boolean added = false;
-        for(Community cm: all)
+        while(all.hasNext())
         {
-            if(cm.equals(c))
+            if(all.next().equals(c))
             {
                 added = true;
             }
         }
+        all.close();
         assertTrue("testFindAll 2",added);
     }
 
@@ -289,17 +294,13 @@ public class CommunityTest extends AbstractDSpaceObjectTest
     @Test
     public void testFindAllTop() throws Exception
     {
-        Community[] all = Community.findAllTop(context);
+        BoundedIterator<Community> all = Community.findAllTop(context);
         assertThat("testFindAllTop 0", all, notNullValue());
-        assertTrue("testFindAllTop 1", all.length >= 1);
-        for(Community cm: all)
-        {
-            assertThat("testFindAllTop for", cm.getAllParents().length, equalTo(0));
-        }
-
+        assertTrue("testFindAllTop 1", all.hasNext());
         boolean added = false;
-        for(Community cm: all)
-        {
+        while (all.hasNext()) {
+        	Community cm = all.next();
+            assertThat("testFindAllTop for", cm.getAllParents().size(), equalTo(0));
             if(cm.equals(c))
             {
                 added = true;
@@ -336,19 +337,19 @@ public class CommunityTest extends AbstractDSpaceObjectTest
     public void testGetMetadata()
     {
         //by default all empty values will return ""
-        assertThat("testGetMetadata 0",c.getMetadata("name"), equalTo(""));
-        assertThat("testGetMetadata 1",c.getMetadata("short_description"), equalTo(""));
-        assertThat("testGetMetadata 2",c.getMetadata("introductory_text"), equalTo(""));
-        assertThat("testGetMetadata 3",c.getMetadata("logo_bitstream_id"), equalTo(""));
-        assertThat("testGetMetadata 4",c.getMetadata("copyright_text"), equalTo(""));
-        assertThat("testGetMetadata 5",c.getMetadata("side_bar_text"), equalTo(""));
+        assertThat("testGetMetadata 0",c.getMetadata("name").get(0).getValue(), equalTo(""));
+        assertThat("testGetMetadata 1",c.getMetadata("short_description").get(0).getValue(), equalTo(""));
+        assertThat("testGetMetadata 2",c.getMetadata("introductory_text").get(0).getValue(), equalTo(""));
+        assertThat("testGetMetadata 3",c.getMetadata("logo_bitstream_id").get(0).getValue(), equalTo(""));
+        assertThat("testGetMetadata 4",c.getMetadata("copyright_text").get(0).getValue(), equalTo(""));
+        assertThat("testGetMetadata 5",c.getMetadata("side_bar_text").get(0).getValue(), equalTo(""));
     }
 
     /**
      * Test of setMetadata method, of class Community.
      */
     @Test
-    public void testSetMetadata()
+    public void testSetMetadata() throws Exception
     {
         String name = "name";
         String sdesc = "short description";
@@ -357,19 +358,19 @@ public class CommunityTest extends AbstractDSpaceObjectTest
         String copy = "copyright declaration";
         String sidebar = "side bar text";
 
-        c.setMetadata("name", name);
-        c.setMetadata("short_description", sdesc);
-        c.setMetadata("introductory_text", itext);
-        c.setMetadata("logo_bitstream_id", logo);
-        c.setMetadata("copyright_text", copy);
-        c.setMetadata("side_bar_text", sidebar);
+        c.setMetadataValue("name", name);
+        c.setMetadataValue("short_description", sdesc);
+        c.setMetadataValue("introductory_text", itext);
+        c.setMetadataValue("logo_bitstream_id", logo);
+        c.setMetadataValue("copyright_text", copy);
+        c.setMetadataValue("side_bar_text", sidebar);
 
-        assertThat("testSetMetadata 0",c.getMetadata("name"), equalTo(name));
-        assertThat("testSetMetadata 1",c.getMetadata("short_description"), equalTo(sdesc));
-        assertThat("testSetMetadata 2",c.getMetadata("introductory_text"), equalTo(itext));
-        assertThat("testSetMetadata 3",c.getMetadata("logo_bitstream_id"), equalTo(logo));
-        assertThat("testSetMetadata 4",c.getMetadata("copyright_text"), equalTo(copy));
-        assertThat("testSetMetadata 5",c.getMetadata("side_bar_text"), equalTo(sidebar));
+        assertThat("testSetMetadata 0",c.getMetadata("name").get(0).getValue(), equalTo(name));
+        assertThat("testSetMetadata 1",c.getMetadata("short_description").get(0).getValue(), equalTo(sdesc));
+        assertThat("testSetMetadata 2",c.getMetadata("introductory_text").get(0).getValue(), equalTo(itext));
+        assertThat("testSetMetadata 3",c.getMetadata("logo_bitstream_id").get(0).getValue(), equalTo(logo));
+        assertThat("testSetMetadata 4",c.getMetadata("copyright_text").get(0).getValue(), equalTo(copy));
+        assertThat("testSetMetadata 5",c.getMetadata("side_bar_text").get(0).getValue(), equalTo(sidebar));
     }
 
     /**
@@ -674,12 +675,12 @@ public class CommunityTest extends AbstractDSpaceObjectTest
 
         //empty by default
         assertThat("testGetCollections 0",c.getCollections(), notNullValue());
-        assertTrue("testGetCollections 1", c.getCollections().length == 0);
+        assertTrue("testGetCollections 1", ! c.getCollections().hasNext());
 
         Collection result = c.createCollection();
         assertThat("testGetCollections 2",c.getCollections(), notNullValue());
-        assertTrue("testGetCollections 3", c.getCollections().length == 1);
-        assertThat("testGetCollections 4",c.getCollections()[0], equalTo(result));
+        assertTrue("testGetCollections 3", c.getCollections().hasNext());
+        assertThat("testGetCollections 4",c.getCollections().next(), equalTo(result));
     }
 
     /**
@@ -701,13 +702,13 @@ public class CommunityTest extends AbstractDSpaceObjectTest
 
         //empty by default
         assertThat("testGetSubcommunities 0",c.getSubcommunities(), notNullValue());
-        assertTrue("testGetSubcommunities 1", c.getSubcommunities().length == 0);
+        assertTrue("testGetSubcommunities 1", ! c.getSubcommunities().hasNext());
 
         //community with  parent
         Community son = Community.create(c, context);
         assertThat("testGetSubcommunities 2",c.getSubcommunities(), notNullValue());
-        assertTrue("testGetSubcommunities 3", c.getSubcommunities().length == 1);
-        assertThat("testGetSubcommunities 4", c.getSubcommunities()[0], equalTo(son));
+        assertTrue("testGetSubcommunities 3", c.getSubcommunities().hasNext());
+        assertThat("testGetSubcommunities 4", c.getSubcommunities().next(), equalTo(son));
     }
 
     /**
@@ -755,13 +756,13 @@ public class CommunityTest extends AbstractDSpaceObjectTest
 
         //empty by default
         assertThat("testGetAllParents 0",c.getAllParents(), notNullValue());
-        assertTrue("testGetAllParents 1", c.getAllParents().length == 0);
+        assertTrue("testGetAllParents 1", c.getAllParents().size() == 0);
 
         //community with  parent
         Community son = Community.create(c, context);
         assertThat("testGetAllParents 2",son.getAllParents(), notNullValue());
-        assertTrue("testGetAllParents 3", son.getAllParents().length == 1);
-        assertThat("testGetAllParents 4", son.getAllParents()[0], equalTo(c));
+        assertTrue("testGetAllParents 3", son.getAllParents().size() == 1);
+        assertThat("testGetAllParents 4", son.getAllParents().get(0), equalTo(c));
     }
 
     /**
@@ -782,7 +783,7 @@ public class CommunityTest extends AbstractDSpaceObjectTest
         Collection result = c.createCollection();
         assertThat("testCreateCollectionAuth 0", result, notNullValue());
         assertThat("testCreateCollectionAuth 1", c.getCollections(), notNullValue());
-        assertThat("testCreateCollectionAuth 2", c.getCollections()[0], equalTo(result));
+        assertThat("testCreateCollectionAuth 2", c.getCollections().next(), equalTo(result));
     }
 
     /**
@@ -822,7 +823,7 @@ public class CommunityTest extends AbstractDSpaceObjectTest
         Collection col = Collection.create(context);
         c.addCollection(col);
         assertThat("testAddCollectionAuth 0", c.getCollections(), notNullValue());
-        assertThat("testAddCollectionAuth 1", c.getCollections()[0], equalTo(col));
+        assertThat("testAddCollectionAuth 1", c.getCollections().next(), equalTo(col));
     }
 
     /**
@@ -864,8 +865,8 @@ public class CommunityTest extends AbstractDSpaceObjectTest
 
         Community result = c.createSubcommunity();
         assertThat("testCreateSubcommunityAuth 0",c.getSubcommunities(), notNullValue());
-        assertTrue("testCreateSubcommunityAuth 1", c.getSubcommunities().length == 1);
-        assertThat("testCreateSubcommunityAuth 2", c.getSubcommunities()[0], equalTo(result));
+        assertTrue("testCreateSubcommunityAuth 1", c.getSubcommunities().hasNext());
+        assertThat("testCreateSubcommunityAuth 2", c.getSubcommunities().next(), equalTo(result));
     }
 
     /**
@@ -910,8 +911,8 @@ public class CommunityTest extends AbstractDSpaceObjectTest
         Community result = Community.create(null, context);
         c.addSubcommunity(result);
         assertThat("testAddSubcommunityAuth 0",c.getSubcommunities(), notNullValue());
-        assertTrue("testAddSubcommunityAuth 1", c.getSubcommunities().length == 1);
-        assertThat("testAddSubcommunityAuth 2", c.getSubcommunities()[0], equalTo(result));
+        assertTrue("testAddSubcommunityAuth 1", c.getSubcommunities().hasNext());
+        assertThat("testAddSubcommunityAuth 2", c.getSubcommunities().next(), equalTo(result));
     }
 
     /**
@@ -958,12 +959,12 @@ public class CommunityTest extends AbstractDSpaceObjectTest
         Collection col = Collection.create(context);
         c.addCollection(col);
         assertThat("testRemoveCollectionAuth 0", c.getCollections(), notNullValue());
-        assertTrue("testRemoveCollectionAuth 1", c.getCollections().length == 1);
-        assertThat("testRemoveCollectionAuth 2", c.getCollections()[0], equalTo(col));
+        assertTrue("testRemoveCollectionAuth 1", c.getCollections().hasNext());
+        assertThat("testRemoveCollectionAuth 2", c.getCollections().next(), equalTo(col));
         
         c.removeCollection(col);
         assertThat("testRemoveCollectionAuth 3", c.getCollections(), notNullValue());
-        assertTrue("testRemoveCollectionAuth 4", c.getCollections().length == 0);
+        assertTrue("testRemoveCollectionAuth 4", ! c.getCollections().hasNext());
     }
 
     /**
@@ -986,8 +987,8 @@ public class CommunityTest extends AbstractDSpaceObjectTest
         Collection col = Collection.create(context);
         c.addCollection(col);
         assertThat("testRemoveCollectionNoAuth 0", c.getCollections(), notNullValue());
-        assertTrue("testRemoveCollectionNoAuth 1", c.getCollections().length == 1);
-        assertThat("testRemoveCollectionNoAuth 2", c.getCollections()[0], equalTo(col));
+        assertTrue("testRemoveCollectionNoAuth 1", c.getCollections().hasNext());
+        assertThat("testRemoveCollectionNoAuth 2", c.getCollections().next(), equalTo(col));
 
         c.removeCollection(col);
         fail("Exception expected");
@@ -1016,12 +1017,12 @@ public class CommunityTest extends AbstractDSpaceObjectTest
         Community com = Community.create(null,context);
         c.addSubcommunity(com);
         assertThat("testRemoveSubcommunityAuth 0", c.getSubcommunities(), notNullValue());
-        assertTrue("testRemoveSubcommunityAuth 1", c.getSubcommunities().length == 1);
-        assertThat("testRemoveSubcommunityAuth 2", c.getSubcommunities()[0], equalTo(com));
+        assertTrue("testRemoveSubcommunityAuth 1", c.getSubcommunities().hasNext());
+        assertThat("testRemoveSubcommunityAuth 2", c.getSubcommunities().next(), equalTo(com));
 
         c.removeSubcommunity(com);
         assertThat("testRemoveSubcommunityAuth 3", c.getSubcommunities(), notNullValue());
-        assertTrue("testRemoveSubcommunityAuth 4", c.getSubcommunities().length == 0);
+        assertTrue("testRemoveSubcommunityAuth 4", ! c.getSubcommunities().hasNext());
     }
 
     /**

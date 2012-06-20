@@ -147,7 +147,7 @@ public class MockDatabaseManager
     	}
     	catch(Exception e)
     	{
-    		log.debug("error initialize");
+    		log.debug("error initialize: " + e.getMessage());
     	}   	
     }
 

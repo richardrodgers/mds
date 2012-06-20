@@ -28,7 +28,7 @@ import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.MDValue;
 import org.dspace.content.DSpaceObject;
 import org.dspace.content.Item;
-import org.dspace.content.ItemIterator;
+import org.dspace.content.BoundedIterator;
 import org.dspace.content.MetadataSchema;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Constants;
@@ -295,16 +295,14 @@ public class EmbargoManager
                     }
                 }
             }
-            else
-            {
-                ItemIterator ii = Item.findByMetadataField(context, lift_schema, lift_element, lift_qualifier, MDValue.ANY);
-                while (ii.hasNext())
-                {
-                    if (em.processOneItem(context, ii.next(), now))
-                    {
+            else {
+                BoundedIterator<Item> ii = Item.findByMetadataField(context, lift_schema, lift_element, lift_qualifier, MDValue.ANY);
+                while (ii.hasNext()) {
+                    if (em.processOneItem(context, ii.next(), now)) {
                         status = 1;
                     }
                 }
+                ii.close();
             }
             log.debug("Cache size at end = "+context.getCacheSize());
             context.complete();

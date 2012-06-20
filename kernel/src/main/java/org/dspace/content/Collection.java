@@ -254,10 +254,12 @@ public class Collection extends DSpaceObject
      * @return the collections in the system
      * @throws SQLException
      */
-    public static List<Collection> findAll(Context context) throws SQLException {
+    public static BoundedIterator<Collection> findAll(Context context) throws SQLException {
         TableRowIterator tri = DatabaseManager.queryTable(context, "collection",
                 "SELECT * FROM collection ORDER BY name");
+        return new BoundedIterator<Collection>(context, tri);
 
+        /*
         List<Collection> collections = new ArrayList<Collection>();
         try {
             while (tri.hasNext()) {
@@ -280,6 +282,7 @@ public class Collection extends DSpaceObject
             }
         }
         return collections;
+        */
     }
 
     /**
@@ -288,7 +291,7 @@ public class Collection extends DSpaceObject
      * @return an iterator over the items in the collection.
      * @throws SQLException
      */
-    public ItemIterator getItems() throws SQLException {
+    public BoundedIterator<Item> getItems() throws SQLException {
         String myQuery = "SELECT item.* FROM item, collection2item WHERE "
                 + "item.item_id=collection2item.item_id AND "
                 + "collection2item.collection_id= ? "
@@ -297,7 +300,7 @@ public class Collection extends DSpaceObject
         TableRowIterator rows = DatabaseManager.queryTable(context, "item",
                 myQuery,getID());
 
-        return new ItemIterator(context, rows);
+        return new BoundedIterator<Item>(context, rows);
     }
 
     /**
@@ -306,7 +309,7 @@ public class Collection extends DSpaceObject
      * @return an iterator over the items in the collection.
      * @throws SQLException
      */
-    public ItemIterator getAllItems() throws SQLException {
+    public BoundedIterator<Item> getAllItems() throws SQLException {
         String myQuery = "SELECT item.* FROM item, collection2item WHERE "
                 + "item.item_id=collection2item.item_id AND "
                 + "collection2item.collection_id= ? ";
@@ -314,7 +317,7 @@ public class Collection extends DSpaceObject
         TableRowIterator rows = DatabaseManager.queryTable(context, "item",
                 myQuery,getID());
 
-        return new ItemIterator(context, rows);
+        return new BoundedIterator<Item>(context, rows);
     }
 
      /**
@@ -893,7 +896,7 @@ public class Collection extends DSpaceObject
         removeTemplateItem();
         
         // Remove items
-        ItemIterator items = getAllItems();
+        BoundedIterator<Item> items = getAllItems();
 
         try {
         	while (items.hasNext()) {
@@ -1156,22 +1159,14 @@ public class Collection extends DSpaceObject
     public static List<Collection> findAuthorized(Context context, Community comm,
             int actionID) throws java.sql.SQLException  {
         List<Collection> myResults = new ArrayList<Collection>();
-
-        List<Collection> myCollections = null;
-
-        if (comm != null) {
-            myCollections = comm.getCollections();
-        } else {
-            myCollections = Collection.findAll(context);
-        }
-
-        // now build a list of collections you have authorization for
-        for (Collection coll : myCollections) {
-            if (AuthorizeManager.authorizeActionBoolean(context, coll, actionID)) {
-                myResults.add(coll);
+        BoundedIterator<Collection> colIter = (comm != null) ? comm.getCollections() : Collection.findAll(context);
+        while(colIter.hasNext()) {
+            Collection c = colIter.next();
+            if (AuthorizeManager.authorizeActionBoolean(context, c, actionID)) {
+            	myResults.add(c);
             }
         }
-
+        colIter.close();
         return myResults;
     }
 

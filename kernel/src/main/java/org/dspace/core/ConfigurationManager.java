@@ -333,7 +333,7 @@ public class ConfigurationManager
            }
            catch (NumberFormatException e)
            {
-               log.warn("Warning: Number format error in property: " + property);
+               lazyWarn("Warning: Number format error in property: " + property);
            }
         }
 
@@ -421,7 +421,7 @@ public class ConfigurationManager
             }
             catch (NumberFormatException e)
             {
-                log.warn("Warning: Number format error in property: " + property);
+                lazyWarn("Warning: Number format error in property: " + property);
             }
         }
 
@@ -457,7 +457,7 @@ public class ConfigurationManager
         }
         catch (IOException e)
         {
-            log.error("Can't load configuration", e);
+            lazyError("Can't load configuration", e);
 
             // FIXME: Maybe something more graceful here, but with the
            // configuration we can't do anything
@@ -745,7 +745,7 @@ public class ConfigurationManager
         }
         catch (IOException e)
         {
-            log.warn("news_read: " + e.getLocalizedMessage());
+            lazyWarn("news_read: " + e.getLocalizedMessage());
         }
 
         return text.toString();
@@ -776,7 +776,7 @@ public class ConfigurationManager
         }
         catch (IOException e)
         {
-            log.warn("news_write: " + e.getLocalizedMessage());
+            lazyWarn("news_write: " + e.getLocalizedMessage());
         }
 
         return news;
@@ -802,7 +802,7 @@ public class ConfigurationManager
         }
         catch (IOException e)
         {
-            log.warn("license_write: " + e.getLocalizedMessage());
+           lazyWarn("license_write: " + e.getLocalizedMessage());
         }
 
         license = newLicense;
@@ -870,12 +870,12 @@ public class ConfigurationManager
             else
             {
                 // log invalid request
-                log.warn("Requested configuration module: " + module + " not found");
+                lazyWarn("Requested configuration module: " + module + " not found");
             }
         }
         catch (IOException ioE)
         {
-            log.error("Can't load configuration: " + (modFile == null ? "<unknown>" : modFile.getAbsolutePath()), ioE);
+            lazyError("Can't load configuration: " + (modFile == null ? "<unknown>" : modFile.getAbsolutePath()), ioE);
         }
 
         return;
@@ -911,19 +911,19 @@ public class ConfigurationManager
             {
                 // A security manager may stop us from accessing the system properties.
                 // This isn't really a fatal error though, so catch and ignore
-                log.warn("Unable to access system properties, ignoring.", se);
+                //log.warn("Unable to access system properties, ignoring.", se);
             }
             
             // should only occur after a flush()
             if (loadedFile != null)
             {
-                log.info("Reloading current config file: " + loadedFile.getAbsolutePath());
+                //log.info("Reloading current config file: " + loadedFile.getAbsolutePath());
                 
                 url = loadedFile.toURI().toURL();
             }
             else if (configFile != null)
             {
-                log.info("Loading provided config file: " + configFile);
+                //log.info("Loading provided config file: " + configFile);
                 
                 loadedFile = new File(configFile);
                 url = loadedFile.toURI().toURL();
@@ -1082,7 +1082,7 @@ public class ConfigurationManager
              * so do not instantiate another Logging configuration.
              *
              */
-            log = LoggerFactory.getLogger(ConfigurationManager.class);
+            //log = LoggerFactory.getLogger(ConfigurationManager.class);
             /*
             String dsLogConfiguration = ConfigurationManager.getProperty("log.config");
 
@@ -1134,6 +1134,30 @@ public class ConfigurationManager
                 }
             }
             */
+    }
+    
+    // these lazy log initialization methods needed because config data needed to
+    // initialize the logging system
+    
+    private static void lazyInfo(String message) {
+    	if (log == null) {
+    		log = LoggerFactory.getLogger(ConfigurationManager.class);
+    	}
+    	log.info(message);
+    }
+    
+    private static void lazyWarn(String message) {
+    	if (log == null) {
+    		log = LoggerFactory.getLogger(ConfigurationManager.class);
+    	}
+    	log.warn(message);
+    }
+    
+    private static void lazyError(String message, Throwable t) {
+    	if (log == null) {
+    		log = LoggerFactory.getLogger(ConfigurationManager.class);
+    	}
+    	log.error(message, t);
     }
 
     /**

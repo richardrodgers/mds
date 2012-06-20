@@ -11,16 +11,20 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.sql.SQLException;
-import org.dspace.core.Context;
+import java.util.List;
+
 import org.junit.*;
 import static org.junit.Assert.* ;
 import static org.hamcrest.CoreMatchers.*;
 import mockit.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.core.Constants;
+import org.dspace.core.Context;
 
 /**
  * Unit Tests for class Bitstream
@@ -104,11 +108,11 @@ public class BitstreamTest extends AbstractDSpaceObjectTest
     @Test
     public void testFindAll() throws SQLException
     {
-        Bitstream[] found =  Bitstream.findAll(context);
+        List<Bitstream> found =  Bitstream.findAll(context);
         assertThat("testFindAll 0", found, notNullValue());
         //we have many bs, one created per test run, so at least we have 1 if
         //this test is run first
-        assertTrue("testFindAll 1", found.length >= 1);
+        assertTrue("testFindAll 1", found.size() >= 1);
 
         boolean added = false;
         for(Bitstream b: found)
@@ -245,19 +249,6 @@ public class BitstreamTest extends AbstractDSpaceObjectTest
     }
 
     /**
-     * Test of setDescription method, of class Bitstream.
-     */
-    @Test
-    public void testSetDescription()
-    {
-        String description = "new description";
-        bs.setDescription(description);
-        assertThat("testSetDescription 0", bs.getDescription(), notNullValue());
-        assertThat("testSetDescription 1", bs.getDescription(), not(equalTo("")));
-        assertThat("testSetDescription 2", bs.getDescription(), equalTo(description));
-    }
-
-    /**
      * Test of getChecksum method, of class Bitstream.
      */
     @Test
@@ -292,33 +283,6 @@ public class BitstreamTest extends AbstractDSpaceObjectTest
     {
         long size = 238413;
         assertThat("testGetSize 0", bs.getSize(), equalTo(size));
-    }
-
-    /**
-     * Test of setUserFormatDescription method, of class Bitstream.
-     */
-    @Test
-    public void testSetUserFormatDescription() throws SQLException
-    {
-        String userdescription = "user format description";
-        bs.setUserFormatDescription(userdescription);
-        assertThat("testSetUserFormatDescription 0", bs.getUserFormatDescription()
-                , notNullValue());
-        assertThat("testSetUserFormatDescription 1", bs.getUserFormatDescription()
-                , not(equalTo("")));
-        assertThat("testSetUserFormatDescription 2", bs.getUserFormatDescription()
-                , equalTo(userdescription));
-    }
-
-    /**
-     * Test of getUserFormatDescription method, of class Bitstream.
-     */
-    @Test
-    public void testGetUserFormatDescription()
-    {
-        //null by default if not set
-        assertThat("testGetUserFormatDescription 0", bs.getUserFormatDescription()
-                , nullValue());
     }
 
     /**
@@ -466,7 +430,7 @@ public class BitstreamTest extends AbstractDSpaceObjectTest
     {
         assertThat("testGetBundles 0", bs.getBundles(), notNullValue());
         //by default no bundles
-        assertTrue("testGetBundles 1", bs.getBundles().length == 0);
+        assertTrue("testGetBundles 1", bs.getBundles().size() == 0);
     }
 
     /**

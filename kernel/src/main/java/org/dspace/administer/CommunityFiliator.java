@@ -16,6 +16,7 @@ import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 
 import org.dspace.authorize.AuthorizeException;
+import org.dspace.content.BoundedIterator;
 import org.dspace.content.Collection;
 import org.dspace.content.Community;
 import org.dspace.core.Constants;
@@ -152,14 +153,14 @@ public class CommunityFiliator
             throws SQLException, AuthorizeException, IOException {
         // verify that child is indeed a child of parent
         boolean isChild = false;
-        for (Community kid: parent.getSubcommunities())
-        {
-            if (kid.getID() == child.getID()) {
+        BoundedIterator<Community> kidIter = parent.getSubcommunities();
+        while(kidIter.hasNext()) {
+            if (kidIter.next().getID() == child.getID()) {
                 isChild = true;
                 break;
             }
         }
-
+        kidIter.close();
         if (! isChild) {
             System.out.println("Error, child community not a child of parent community");
             System.exit(1);

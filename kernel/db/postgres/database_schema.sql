@@ -330,9 +330,7 @@ CREATE TABLE MetadataValue
   metadata_field_id  INTEGER REFERENCES MetadataFieldRegistry(metadata_field_id),
   text_value         TEXT,
   text_lang          VARCHAR(24),
-  place              INTEGER,
-  authority          VARCHAR(100),
-  confidence         INTEGER DEFAULT -1
+  place              INTEGER
 );
 
 -- Create a dcvalue view for backwards compatibilty

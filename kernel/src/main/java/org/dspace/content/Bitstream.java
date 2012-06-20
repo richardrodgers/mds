@@ -254,7 +254,7 @@ public class Bitstream extends DSpaceObject
      */
     @Override
     public String getName() {
-        return getMetadataValue("dsl.name");
+        return tableRow.getStringColumn("name");
     }
     
     /**
@@ -335,6 +335,7 @@ public class Bitstream extends DSpaceObject
      *            the user's description of the format
      * @throws SQLException
      */
+    /*
     public void setUserFormatDescription(String desc) throws SQLException {
         // FIXME: Would be better if this didn't throw an SQLException,
         // but we need to find the unknown format!
@@ -342,6 +343,7 @@ public class Bitstream extends DSpaceObject
         tableRow.setColumn("user_format_description", desc);
         modifiedMetadata = true;
     }
+    */
 
     /**
      * Get the user's format description. Returns null if the format is known by
@@ -349,10 +351,12 @@ public class Bitstream extends DSpaceObject
      * 
      * @return the user's format description.
      */
+    /*
     public String getUserFormatDescription()
     {
         return tableRow.getStringColumn("user_format_description");
     }
+    */
 
     /**
      * Get the description of the format - either the user's or the description
@@ -365,7 +369,7 @@ public class Bitstream extends DSpaceObject
         if (bitstreamFormat.getShortDescription().equals("Unknown"))
         {
             // Get user description if there is one
-            String desc = tableRow.getStringColumn("user_format_description");
+            String desc = null; //tableRow.getStringColumn("user_format_description");
 
             if (desc == null)
             {
@@ -414,7 +418,7 @@ public class Bitstream extends DSpaceObject
         }
 
         // Remove user type description
-        tableRow.setColumnNull("user_format_description");
+        // tableRow.setColumnNull("user_format_description");
 
         // Update the ID in the table row
         tableRow.setColumn("bitstream_format_id", bitstreamFormat.getID());

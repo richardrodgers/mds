@@ -164,12 +164,10 @@ public class Item extends DSpaceObject
      * @return an iterator over the items in the archive.
      * @throws SQLException
      */
-    public static ItemIterator findAll(Context context) throws SQLException {
+    public static BoundedIterator<Item> findAll(Context context) throws SQLException {
         String myQuery = "SELECT * FROM item WHERE in_archive='1'";
-
         TableRowIterator rows = DatabaseManager.queryTable(context, "item", myQuery);
-
-        return new ItemIterator(context, rows);
+        return new BoundedIterator<Item>(context, rows);
     }
 
     /**
@@ -183,14 +181,12 @@ public class Item extends DSpaceObject
      * @return an iterator over the items submitted by eperson
      * @throws SQLException
      */
-    public static ItemIterator findBySubmitter(Context context, EPerson eperson)
+    public static BoundedIterator<Item> findBySubmitter(Context context, EPerson eperson)
             throws SQLException {
         String myQuery = "SELECT * FROM item WHERE in_archive='1' AND submitter_id="
                 + eperson.getID();
-
         TableRowIterator rows = DatabaseManager.queryTable(context, "item", myQuery);
-
-        return new ItemIterator(context, rows);
+        return new BoundedIterator<Item>(context, rows);
     }
 
     /**
@@ -1331,28 +1327,29 @@ public class Item extends DSpaceObject
      */
     public List<Collection> getCollectionsNotLinked() throws SQLException
     {
-        List<Collection> allCollections = Collection.findAll(context);
+        BoundedIterator<Collection> allIter = Collection.findAll(context);
         List<Collection> linkedCollections = getCollections();
-        List<Collection> notLinkedCollections = new ArrayList<Collection>(allCollections.size() - linkedCollections.size());
+        List<Collection> notLinkedCollections = new ArrayList<Collection>();
+        //List<Collection> notLinkedCollections = new ArrayList<Collection>(allCollections.size() - linkedCollections.size());
 
-        if ((allCollections.size() - linkedCollections.size()) == 0) {
-            return notLinkedCollections;
-        }
+        //if ((allCollections.size() - linkedCollections.size()) == 0) {
+        //    return notLinkedCollections;
+        //}
         
-        int i = 0;
-        for (Collection collection : allCollections) {
-             boolean alreadyLinked = false;            
-             for (Collection linkedCommunity : linkedCollections) {
-                 if (collection.getID() == linkedCommunity.getID()) {
-                     alreadyLinked = true;
-                     break;
-                 }
-             }            
-             if (!alreadyLinked) {
-                 notLinkedCollections.add(i++, collection);
-             }
+        while (allIter.hasNext()) {
+        	Collection collection = allIter.next();
+            boolean alreadyLinked = false;            
+            for (Collection linkedCommunity : linkedCollections) {
+                if (collection.getID() == linkedCommunity.getID()) {
+                    alreadyLinked = true;
+                    break;
+                }
+            }            
+            if (!alreadyLinked) {
+                notLinkedCollections.add(collection);
+            }
         }
-        
+        allIter.close();
         return notLinkedCollections;
     }
 
@@ -1394,7 +1391,7 @@ public class Item extends DSpaceObject
      * @throws SQLException, AuthorizeException, IOException
      *
      */
-    public static ItemIterator findByMetadataField(Context context,
+    public static BoundedIterator<Item> findByMetadataField(Context context,
                String schema, String element, String qualifier, String value)
           throws SQLException, AuthorizeException, IOException {
         MetadataSchema mds = MetadataSchema.find(context, schema);
@@ -1419,7 +1416,7 @@ public class Item extends DSpaceObject
             query += " AND metadatavalue.text_value = ?";
             rows = DatabaseManager.queryTable(context, "item", query, mdf.getFieldID(), value);
         }
-        return new ItemIterator(context, rows);
+        return new BoundedIterator<Item>(context, rows);
      }
     
     public DSpaceObject getAdminObject(int action) throws SQLException {
@@ -1548,37 +1545,4 @@ public class Item extends DSpaceObject
         }
     }
 
-    /**
-     * Find all the items in the archive with a given authority key value
-     * in the indicated metadata field.
-     *
-     * @param context DSpace context object
-     * @param schema metadata field schema
-     * @param element metadata field element
-     * @param qualifier metadata field qualifier
-     * @param value the value of authority key to look for
-     * @return an iterator over the items matching that authority value
-     * @throws SQLException, AuthorizeException, IOException
-     */
-    public static ItemIterator findByAuthorityValue(Context context,
-            String schema, String element, String qualifier, String value)
-        throws SQLException, AuthorizeException, IOException
-    {
-        MetadataSchema mds = MetadataSchema.find(context, schema);
-        if (mds == null)
-        {
-            throw new IllegalArgumentException("No such metadata schema: " + schema);
-        }
-        MetadataField mdf = MetadataField.findByElement(context, mds.getSchemaID(), element, qualifier);
-        if (mdf == null)
-        {
-            throw new IllegalArgumentException("No such metadata field: schema=" + schema + ", element=" + element + ", qualifier=" + qualifier);
-        }
-
-        TableRowIterator rows = DatabaseManager.queryTable(context, "item",
-            "SELECT item.* FROM metadatavalue,item WHERE item.in_archive='1' "+
-            "AND item.dso_id = metadatavalue.dso_id AND metadata_field_id = ? AND authority = ?",
-            mdf.getFieldID(), value);
-        return new ItemIterator(context, rows);
-    }
 }

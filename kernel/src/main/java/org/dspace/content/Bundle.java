@@ -204,7 +204,7 @@ public class Bundle extends DSpaceObject
      */
     public void setName(String name) {
         tableRow.setColumn("name", name);
-        modifiedMetadata = true;
+        //modifiedMetadata = true;
     }
 
     /**

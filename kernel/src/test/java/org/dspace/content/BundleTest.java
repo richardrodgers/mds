@@ -8,27 +8,29 @@
 package org.dspace.content;
 
 import java.util.Iterator;
-import org.dspace.core.Constants;
-import org.dspace.core.Context;
-import org.dspace.authorize.AuthorizeManager;
-import mockit.NonStrictExpectations;
 import java.io.FileInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import org.dspace.authorize.AuthorizeException;
-import org.dspace.authorize.ResourcePolicy;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import mockit.NonStrictExpectations;
 import static org.junit.Assert.*;
 import static org.hamcrest.CoreMatchers.*;
+
+import org.dspace.core.Constants;
+import org.dspace.core.Context;
+import org.dspace.authorize.AuthorizeException;
+import org.dspace.authorize.ResourcePolicy;
+import org.dspace.authorize.AuthorizeManager;
 
 /**
  * Units tests for class Bundle
@@ -108,7 +110,7 @@ public class BundleTest extends AbstractDSpaceObjectTest
         //the item created by default has no name nor type set
         assertThat("testCreate 0", created, notNullValue());
         assertTrue("testCreate 1", created.getID() >= 0);
-        assertTrue("testCreate 2", created.getBitstreams().length == 0);
+        assertTrue("testCreate 2", created.getBitstreams().size() == 0);
         assertThat("testCreate 3", created.getName(), nullValue());
     }
 
@@ -237,7 +239,7 @@ public class BundleTest extends AbstractDSpaceObjectTest
 
         //default bundle has no bitstreams
         assertThat("testGetBitstreams 0", b.getBitstreams(), notNullValue());
-        assertThat("testGetBitstreams 1", b.getBitstreams().length, equalTo(0));
+        assertThat("testGetBitstreams 1", b.getBitstreams().size(), equalTo(0));
 
         //let's add a bitstream
         String name = "name";
@@ -246,8 +248,8 @@ public class BundleTest extends AbstractDSpaceObjectTest
         bs.setName(name);
         b.addBitstream(bs);
         assertThat("testGetBitstreams 2", b.getBitstreams(), notNullValue());
-        assertThat("testGetBitstreams 3", b.getBitstreams().length, equalTo(1));
-        assertThat("testGetBitstreams 4", b.getBitstreams()[0].getName(), equalTo(name));
+        assertThat("testGetBitstreams 3", b.getBitstreams().size(), equalTo(1));
+        assertThat("testGetBitstreams 4", b.getBitstreams().get(0).getName(), equalTo(name));
         context.commit();
     }
 
@@ -259,7 +261,7 @@ public class BundleTest extends AbstractDSpaceObjectTest
     {
         //by default this bundle belong to no item
         assertThat("testGetItems 0", b.getItems(), notNullValue());
-        assertThat("testGetItems 1", b.getItems().length, equalTo(0));
+        assertThat("testGetItems 1", b.getItems().size(), equalTo(0));
     }
 
     /**

@@ -38,13 +38,13 @@ import com.google.common.base.CharMatcher;
 import com.google.common.base.Strings;
 
 import org.dspace.content.Bitstream;
+import org.dspace.content.BoundedIterator;
 import org.dspace.content.Bundle;
 import org.dspace.content.Collection;
 import org.dspace.content.Community;
 import org.dspace.content.MDValue;
 import org.dspace.content.DSpaceObject;
 import org.dspace.content.Item;
-import org.dspace.content.ItemIterator;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
@@ -308,7 +308,7 @@ public class DSIndexer {
     
     /**
      * Iterates over all Items, Collections and Communities. And updates
-     * them in the index. Uses decaching to control memory footprint.
+     * them in the index. Uses BoundedIterators to control memory footprint.
      * Uses indexContent and isStale to check state of item in index.
      * 
      * At first it may appear counterintuitive to have an IndexWriter/Reader
@@ -320,32 +320,36 @@ public class DSIndexer {
      * @param force 
      */
     public void updateIndex(Context context, boolean force) {
+    	BoundedIterator<Item> items = null;
+    	BoundedIterator<Collection> colIter = null;
+    	BoundedIterator<Community> comIter = null;
     	try {
-            ItemIterator items = null;
-            try {
-                for(items = Item.findAll(context);items.hasNext();) {
-                    Item item = (Item) items.next();
-                    indexContent(context, item, false);
-                    item.decache();
-                }
-            } finally {
-                if (items != null) {
-                    items.close();
-                }
+            items = Item.findAll(context);
+            while (items.hasNext()) {
+                indexContent(context, items.next(), false);
             }
 
-            for (Collection collection : Collection.findAll(context)) {
-                indexContent(context, collection, false);
-    	        context.removeCached(collection, collection.getID());
+            colIter = Collection.findAll(context);
+            while (colIter.hasNext()) {
+                indexContent(context, colIter.next(), false);
             }
-
-            for (Community community : Community.findAll(context)) {
-                indexContent(context, community, false);
-    	        context.removeCached(community, community.getID());
+            comIter = Community.findAll(context);
+            while (comIter.hasNext()) {
+                indexContent(context, comIter.next(), false);
     	    }
 
         } catch(Exception e) {
     		log.error(e.getMessage(), e);
+    	} finally {
+    		if (items != null) {
+    			items.close();
+    		}   		
+    		if (colIter != null) {
+    			colIter.close();
+    		}
+    		if (comIter != null) {
+    			comIter.close();
+    		}
     	}
     }
         

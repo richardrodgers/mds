@@ -8,8 +8,10 @@
 package org.dspace.content;
 
 import java.sql.SQLException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.dspace.AbstractUnitTest;
 import org.dspace.authorize.AuthorizeException;
 import org.junit.*;
@@ -93,107 +95,107 @@ public class ItemComparatorTest extends AbstractUnitTest
         ItemComparator ic = null;
 
         //one of the tiems has no value
-        ic = new ItemComparator("test", "one", Item.ANY, true);
+        ic = new ItemComparator("test", "one", MDValue.ANY, true);
         result = ic.compare(one, two);
         assertTrue("testCompare 0",result == 0);
 
-        ic = new ItemComparator("test", "one", Item.ANY, true);
-        one.addMetadata("dc", "test", "one", Item.ANY, "1");        
+        ic = new ItemComparator("test", "one", MDValue.ANY, true);
+        one.addMetadata("dc", "test", "one", MDValue.ANY, "1");        
         result = ic.compare(one, two);
         assertTrue("testCompare 1",result >= 1);
-        one.clearMetadata("dc", "test", "one", Item.ANY);
+        one.clearMetadata("dc", "test", "one", MDValue.ANY);
         
-        ic = new ItemComparator("test", "one", Item.ANY, true);
-        two.addMetadata("dc", "test", "one", Item.ANY, "1");        
+        ic = new ItemComparator("test", "one", MDValue.ANY, true);
+        two.addMetadata("dc", "test", "one", MDValue.ANY, "1");        
         result = ic.compare(one, two);
         assertTrue("testCompare 2",result <= -1);
-        two.clearMetadata("dc", "test", "one", Item.ANY);
+        two.clearMetadata("dc", "test", "one", MDValue.ANY);
         
         //value in both items
-        ic = new ItemComparator("test", "one", Item.ANY, true);
-        one.addMetadata("dc", "test", "one", Item.ANY, "1");
-        two.addMetadata("dc", "test", "one", Item.ANY, "2");
+        ic = new ItemComparator("test", "one", MDValue.ANY, true);
+        one.addMetadata("dc", "test", "one", MDValue.ANY, "1");
+        two.addMetadata("dc", "test", "one", MDValue.ANY, "2");
         result = ic.compare(one, two);
         assertTrue("testCompare 3",result <= -1);
-        one.clearMetadata("dc", "test", "one", Item.ANY);
-        two.clearMetadata("dc", "test", "one", Item.ANY);
+        one.clearMetadata("dc", "test", "one", MDValue.ANY);
+        two.clearMetadata("dc", "test", "one", MDValue.ANY);
         
-        ic = new ItemComparator("test", "one", Item.ANY, true);
-        one.addMetadata("dc", "test", "one", Item.ANY, "1");
-        two.addMetadata("dc", "test", "one", Item.ANY, "1");
+        ic = new ItemComparator("test", "one", MDValue.ANY, true);
+        one.addMetadata("dc", "test", "one", MDValue.ANY, "1");
+        two.addMetadata("dc", "test", "one", MDValue.ANY, "1");
         result = ic.compare(one, two);
         assertTrue("testCompare 4",result == 0);
-        one.clearMetadata("dc", "test", "one", Item.ANY);
-        two.clearMetadata("dc", "test", "one", Item.ANY);
+        one.clearMetadata("dc", "test", "one", MDValue.ANY);
+        two.clearMetadata("dc", "test", "one", MDValue.ANY);
         
-        ic = new ItemComparator("test", "one", Item.ANY, true);
-        one.addMetadata("dc", "test", "one", Item.ANY, "2");
-        two.addMetadata("dc", "test", "one", Item.ANY, "1");
+        ic = new ItemComparator("test", "one", MDValue.ANY, true);
+        one.addMetadata("dc", "test", "one", MDValue.ANY, "2");
+        two.addMetadata("dc", "test", "one", MDValue.ANY, "1");
         result = ic.compare(one, two);
         assertTrue("testCompare 5",result >= 1);
-        one.clearMetadata("dc", "test", "one", Item.ANY);
-        two.clearMetadata("dc", "test", "one", Item.ANY);
+        one.clearMetadata("dc", "test", "one", MDValue.ANY);
+        two.clearMetadata("dc", "test", "one", MDValue.ANY);
 
         //multiple values (min, max)
-        ic = new ItemComparator("test", "one", Item.ANY, true);
-        one.addMetadata("dc", "test", "one", Item.ANY, "0");
-        one.addMetadata("dc", "test", "one", Item.ANY, "1");
-        two.addMetadata("dc", "test", "one", Item.ANY, "2");
-        two.addMetadata("dc", "test", "one", Item.ANY, "3");
+        ic = new ItemComparator("test", "one", MDValue.ANY, true);
+        one.addMetadata("dc", "test", "one", MDValue.ANY, "0");
+        one.addMetadata("dc", "test", "one", MDValue.ANY, "1");
+        two.addMetadata("dc", "test", "one", MDValue.ANY, "2");
+        two.addMetadata("dc", "test", "one", MDValue.ANY, "3");
         result = ic.compare(one, two);
         assertTrue("testCompare 3",result <= -1);
-        one.clearMetadata("dc", "test", "one", Item.ANY);
-        two.clearMetadata("dc", "test", "one", Item.ANY);
+        one.clearMetadata("dc", "test", "one", MDValue.ANY);
+        two.clearMetadata("dc", "test", "one", MDValue.ANY);
 
-        ic = new ItemComparator("test", "one", Item.ANY, true);
-        one.addMetadata("dc", "test", "one", Item.ANY, "0");
-        one.addMetadata("dc", "test", "one", Item.ANY, "1");
-        two.addMetadata("dc", "test", "one", Item.ANY, "-1");
-        two.addMetadata("dc", "test", "one", Item.ANY, "1");
+        ic = new ItemComparator("test", "one", MDValue.ANY, true);
+        one.addMetadata("dc", "test", "one", MDValue.ANY, "0");
+        one.addMetadata("dc", "test", "one", MDValue.ANY, "1");
+        two.addMetadata("dc", "test", "one", MDValue.ANY, "-1");
+        two.addMetadata("dc", "test", "one", MDValue.ANY, "1");
         result = ic.compare(one, two);
         assertTrue("testCompare 4",result == 0);
-        one.clearMetadata("dc", "test", "one", Item.ANY);
-        two.clearMetadata("dc", "test", "one", Item.ANY);
+        one.clearMetadata("dc", "test", "one", MDValue.ANY);
+        two.clearMetadata("dc", "test", "one", MDValue.ANY);
 
-        ic = new ItemComparator("test", "one", Item.ANY, true);
-        one.addMetadata("dc", "test", "one", Item.ANY, "1");
-        one.addMetadata("dc", "test", "one", Item.ANY, "2");
-        two.addMetadata("dc", "test", "one", Item.ANY, "1");
-        two.addMetadata("dc", "test", "one", Item.ANY, "-1");
+        ic = new ItemComparator("test", "one", MDValue.ANY, true);
+        one.addMetadata("dc", "test", "one", MDValue.ANY, "1");
+        one.addMetadata("dc", "test", "one", MDValue.ANY, "2");
+        two.addMetadata("dc", "test", "one", MDValue.ANY, "1");
+        two.addMetadata("dc", "test", "one", MDValue.ANY, "-1");
         result = ic.compare(one, two);
         assertTrue("testCompare 5",result >= 1);
-        one.clearMetadata("dc", "test", "one", Item.ANY);
-        two.clearMetadata("dc", "test", "one", Item.ANY);
+        one.clearMetadata("dc", "test", "one", MDValue.ANY);
+        two.clearMetadata("dc", "test", "one", MDValue.ANY);
 
-        ic = new ItemComparator("test", "one", Item.ANY, false);
-        one.addMetadata("dc", "test", "one", Item.ANY, "1");
-        one.addMetadata("dc", "test", "one", Item.ANY, "2");
-        two.addMetadata("dc", "test", "one", Item.ANY, "2");
-        two.addMetadata("dc", "test", "one", Item.ANY, "3");
+        ic = new ItemComparator("test", "one", MDValue.ANY, false);
+        one.addMetadata("dc", "test", "one", MDValue.ANY, "1");
+        one.addMetadata("dc", "test", "one", MDValue.ANY, "2");
+        two.addMetadata("dc", "test", "one", MDValue.ANY, "2");
+        two.addMetadata("dc", "test", "one", MDValue.ANY, "3");
         result = ic.compare(one, two);
         assertTrue("testCompare 3",result <= -1);
-        one.clearMetadata("dc", "test", "one", Item.ANY);
-        two.clearMetadata("dc", "test", "one", Item.ANY);
+        one.clearMetadata("dc", "test", "one", MDValue.ANY);
+        two.clearMetadata("dc", "test", "one", MDValue.ANY);
 
-        ic = new ItemComparator("test", "one", Item.ANY, false);
-        one.addMetadata("dc", "test", "one", Item.ANY, "1");
-        one.addMetadata("dc", "test", "one", Item.ANY, "2");
-        two.addMetadata("dc", "test", "one", Item.ANY, "1");
-        two.addMetadata("dc", "test", "one", Item.ANY, "5");
+        ic = new ItemComparator("test", "one", MDValue.ANY, false);
+        one.addMetadata("dc", "test", "one", MDValue.ANY, "1");
+        one.addMetadata("dc", "test", "one", MDValue.ANY, "2");
+        two.addMetadata("dc", "test", "one", MDValue.ANY, "1");
+        two.addMetadata("dc", "test", "one", MDValue.ANY, "5");
         result = ic.compare(one, two);
         assertTrue("testCompare 4",result == 0);
-        one.clearMetadata("dc", "test", "one", Item.ANY);
-        two.clearMetadata("dc", "test", "one", Item.ANY);
+        one.clearMetadata("dc", "test", "one", MDValue.ANY);
+        two.clearMetadata("dc", "test", "one", MDValue.ANY);
 
-        ic = new ItemComparator("test", "one", Item.ANY, false);
-        one.addMetadata("dc", "test", "one", Item.ANY, "2");
-        one.addMetadata("dc", "test", "one", Item.ANY, "3");
-        two.addMetadata("dc", "test", "one", Item.ANY, "1");
-        two.addMetadata("dc", "test", "one", Item.ANY, "4");
+        ic = new ItemComparator("test", "one", MDValue.ANY, false);
+        one.addMetadata("dc", "test", "one", MDValue.ANY, "2");
+        one.addMetadata("dc", "test", "one", MDValue.ANY, "3");
+        two.addMetadata("dc", "test", "one", MDValue.ANY, "1");
+        two.addMetadata("dc", "test", "one", MDValue.ANY, "4");
         result = ic.compare(one, two);
         assertTrue("testCompare 5",result >= 1);
-        one.clearMetadata("dc", "test", "one", Item.ANY);
-        two.clearMetadata("dc", "test", "one", Item.ANY);
+        one.clearMetadata("dc", "test", "one", MDValue.ANY);
+        two.clearMetadata("dc", "test", "one", MDValue.ANY);
     }
 
     /**
@@ -203,25 +205,25 @@ public class ItemComparatorTest extends AbstractUnitTest
     @SuppressWarnings({"ObjectEqualsNull", "IncompatibleEquals"})
     public void testEquals()
     {
-        ItemComparator ic = new ItemComparator("test", "one", Item.ANY, true);
+        ItemComparator ic = new ItemComparator("test", "one", MDValue.ANY, true);
         ItemComparator target = null;
 
         assertFalse("testEquals 0", ic.equals(null));
         assertFalse("testEquals 1", ic.equals("test one"));
 
-        target = new ItemComparator("test1", "one", Item.ANY, true);
+        target = new ItemComparator("test1", "one", MDValue.ANY, true);
         assertFalse("testEquals 2", ic.equals(target));
 
-        target = new ItemComparator("test", "one1", Item.ANY, true);
+        target = new ItemComparator("test", "one1", MDValue.ANY, true);
         assertFalse("testEquals 3", ic.equals(target));
 
         target = new ItemComparator("test", "one", "es", true);
         assertFalse("testEquals 4", ic.equals(target));
 
-        target = new ItemComparator("test1", "one", Item.ANY, false);
+        target = new ItemComparator("test1", "one", MDValue.ANY, false);
         assertFalse("testEquals 5", ic.equals(target));
 
-        target = new ItemComparator("test", "one", Item.ANY, true);
+        target = new ItemComparator("test", "one", MDValue.ANY, true);
         assertTrue("testEquals 6", ic.equals(target));
     }
 

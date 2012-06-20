@@ -10,6 +10,7 @@ package org.dspace.content;
 import java.io.File;
 import java.io.FileInputStream;
 import java.sql.SQLException;
+import java.util.List;
 
 import org.dspace.authorize.AuthorizeException;
 
@@ -153,18 +154,17 @@ public class CollectionTest extends AbstractDSpaceObjectTest
     @Test
     public void testFindAll() throws Exception
     {
-        Collection[] all = Collection.findAll(context);
+        BoundedIterator<Collection> all = Collection.findAll(context);
         assertThat("testFindAll 0", all, notNullValue());
-        assertTrue("testFindAll 1", all.length >= 1);
+        assertTrue("testFindAll 1", all.hasNext());
 
         boolean added = false;
-        for(Collection cl: all)
-        {
-            if(cl.equals(c))
-            {
+        while (all.hasNext()) {
+            if (all.next().equals(c)) {
                 added = true;
             }
         }
+        all.close();
         assertTrue("testFindAll 2",added);
     }
 
@@ -174,12 +174,13 @@ public class CollectionTest extends AbstractDSpaceObjectTest
     @Test
     public void testGetItems() throws Exception
     {
-        ItemIterator items = c.getItems();
+        BoundedIterator<Item> items = c.getItems();
         assertThat("testGetItems 0", items, notNullValue());
         //by default is empty
         assertFalse("testGetItems 1", items.hasNext());
         assertThat("testGetItems 2", items.next(), nullValue());
-        assertThat("testGetItems 3", items.nextID(), equalTo(-1));
+        //assertThat("testGetItems 3", items.nextID(), equalTo(-1));
+        items.close();
     }
 
     /**
@@ -188,12 +189,13 @@ public class CollectionTest extends AbstractDSpaceObjectTest
     @Test
     public void testGetAllItems() throws Exception
     {
-        ItemIterator items = c.getAllItems();
+        BoundedIterator<Item> items = c.getAllItems();
         assertThat("testGetAllItems 0", items, notNullValue());
         //by default is empty
         assertFalse("testGetAllItems 1", items.hasNext());
         assertThat("testGetAllItems 2", items.next(), nullValue());
-        assertThat("testGetAllItems 3", items.nextID(), equalTo(-1));
+        //assertThat("testGetAllItems 3", items.nextID(), equalTo(-1));
+        items.close();
     }
 
     /**
@@ -224,22 +226,22 @@ public class CollectionTest extends AbstractDSpaceObjectTest
     public void testGetMetadata()
     {
         //by default all empty values will return ""
-        assertThat("testGetMetadata 0",c.getMetadata("name"), equalTo(""));
-        assertThat("testGetMetadata 1",c.getMetadata("short_description"), equalTo(""));
-        assertThat("testGetMetadata 2",c.getMetadata("introductory_text"), equalTo(""));
-        assertThat("testGetMetadata 3",c.getMetadata("logo_bitstream_id"), equalTo(""));
-        assertThat("testGetMetadata 4",c.getMetadata("copyright_text"), equalTo(""));
-        assertThat("testGetMetadata 5",c.getMetadata("template_item_id"), equalTo(""));
-        assertThat("testGetMetadata 6",c.getMetadata("provenance_description"), equalTo(""));
-        assertThat("testGetMetadata 7",c.getMetadata("side_bar_text"), equalTo(""));
-        assertThat("testGetMetadata 8",c.getMetadata("license"), equalTo(""));
+        assertThat("testGetMetadata 0",c.getMetadata("name").get(0).getValue(), equalTo(""));
+        assertThat("testGetMetadata 1",c.getMetadata("dsl.short_description").get(0).getValue(), equalTo(""));
+        assertThat("testGetMetadata 2",c.getMetadata("dsl.introductory_text").get(0).getValue(), equalTo(""));
+        assertThat("testGetMetadata 3",c.getMetadata("logo_bitstream_id").get(0).getValue(), equalTo(""));
+        assertThat("testGetMetadata 4",c.getMetadata("dsl.copyright_text").get(0).getValue(), equalTo(""));
+        assertThat("testGetMetadata 5",c.getMetadata("template_item_id").get(0).getValue(), equalTo(""));
+        assertThat("testGetMetadata 6",c.getMetadata("dsl.provenance_description").get(0).getValue(), equalTo(""));
+        assertThat("testGetMetadata 7",c.getMetadata("side_bar_text").get(0).getValue(), equalTo(""));
+        assertThat("testGetMetadata 8",c.getMetadata("license").get(0).getValue(), equalTo(""));
     }
 
     /**
      * Test of setMetadata method, of class Collection.
      */
     @Test
-    public void testSetMetadata()
+    public void testSetMetadata() throws Exception
     {
         String name = "name";
         String sdesc = "short description";
@@ -251,25 +253,25 @@ public class CollectionTest extends AbstractDSpaceObjectTest
         String provDesc = "provenance description";
         String license = "license text";
 
-        c.setMetadata("name", name);
-        c.setMetadata("short_description", sdesc);
-        c.setMetadata("introductory_text", itext);
-        c.setMetadata("logo_bitstream_id", logo);
-        c.setMetadata("copyright_text", copy);
-        c.setMetadata("side_bar_text", sidebar);
-        c.setMetadata("template_item_id", tempItem);
-        c.setMetadata("provenance_description", provDesc);
-        c.setMetadata("license", license);
+        c.setMetadataValue("name", name);
+        c.setMetadataValue("short_description", sdesc);
+        c.setMetadataValue("introductory_text", itext);
+        c.setMetadataValue("logo_bitstream_id", logo);
+        c.setMetadataValue("copyright_text", copy);
+        c.setMetadataValue("side_bar_text", sidebar);
+        c.setMetadataValue("template_item_id", tempItem);
+        c.setMetadataValue("provenance_description", provDesc);
+        c.setMetadataValue("license", license);
 
-        assertThat("testSetMetadata 0",c.getMetadata("name"), equalTo(name));
-        assertThat("testSetMetadata 1",c.getMetadata("short_description"), equalTo(sdesc));
-        assertThat("testSetMetadata 2",c.getMetadata("introductory_text"), equalTo(itext));
-        assertThat("testSetMetadata 3",c.getMetadata("logo_bitstream_id"), equalTo(logo));
-        assertThat("testSetMetadata 4",c.getMetadata("copyright_text"), equalTo(copy));
-        assertThat("testSetMetadata 5",c.getMetadata("side_bar_text"), equalTo(sidebar));
-        assertThat("testGetMetadata 6",c.getMetadata("template_item_id"), equalTo(tempItem));
-        assertThat("testGetMetadata 7",c.getMetadata("provenance_description"), equalTo(provDesc));
-        assertThat("testGetMetadata 8",c.getMetadata("license"), equalTo(license));
+        assertThat("testSetMetadata 0",c.getMetadata("name").get(0).getValue(), equalTo(name));
+        assertThat("testSetMetadata 1",c.getMetadata("short_description").get(0).getValue(), equalTo(sdesc));
+        assertThat("testSetMetadata 2",c.getMetadata("introductory_text").get(0).getValue(), equalTo(itext));
+        assertThat("testSetMetadata 3",c.getMetadata("logo_bitstream_id").get(0).getValue(), equalTo(logo));
+        assertThat("testSetMetadata 4",c.getMetadata("copyright_text").get(0).getValue(), equalTo(copy));
+        assertThat("testSetMetadata 5",c.getMetadata("side_bar_text").get(0).getValue(), equalTo(sidebar));
+        assertThat("testGetMetadata 6",c.getMetadata("template_item_id").get(0).getValue(), equalTo(tempItem));
+        assertThat("testGetMetadata 7",c.getMetadata("provenance_description").get(0).getValue(), equalTo(provDesc));
+        assertThat("testGetMetadata 8",c.getMetadata("license").get(0).getValue(), equalTo(license));
     }
 
     /**
@@ -694,7 +696,7 @@ public class CollectionTest extends AbstractDSpaceObjectTest
      * Test of setLicense method, of class Collection.
      */
     @Test
-    public void testSetLicense() 
+    public void testSetLicense() throws Exception
     {
         String license = "license for test";
         c.setLicense(license);
@@ -807,7 +809,7 @@ public class CollectionTest extends AbstractDSpaceObjectTest
         Item item = Item.create(context);
         c.addItem(item);
         boolean added = false;
-        ItemIterator ii = c.getAllItems();
+        BoundedIterator<Item> ii = c.getAllItems();
         while(ii.hasNext())
         {
             if(ii.next().equals(item))
@@ -815,6 +817,7 @@ public class CollectionTest extends AbstractDSpaceObjectTest
                 added = true;
             }
         }
+        ii.close();
         assertTrue("testAddItemAuth 0",added);
     }
 
@@ -860,7 +863,7 @@ public class CollectionTest extends AbstractDSpaceObjectTest
 
         c.removeItem(item);
         boolean isthere = false;
-        ItemIterator ii = c.getAllItems();
+        BoundedIterator<Item> ii = c.getAllItems();
         while(ii.hasNext())
         {
             if(ii.next().equals(item))
@@ -868,6 +871,7 @@ public class CollectionTest extends AbstractDSpaceObjectTest
                 isthere = true;
             }
         }
+        ii.close();
         assertFalse("testRemoveItemAuth 0",isthere);
     }
 
@@ -1760,7 +1764,7 @@ public class CollectionTest extends AbstractDSpaceObjectTest
     public void testGetCommunities() throws Exception
     {
         assertThat("testGetCommunities 0",c.getCommunities(), notNullValue());
-        assertTrue("testGetCommunities 1",c.getCommunities().length == 0);
+        assertTrue("testGetCommunities 1",c.getCommunities().size() == 0);
     }
 
     /**
@@ -1804,29 +1808,29 @@ public class CollectionTest extends AbstractDSpaceObjectTest
         Community com = Community.create(null, context);
         context.restoreAuthSystemState();
 
-        Collection[] found = Collection.findAuthorized(context, com, Constants.WRITE);
+        List<Collection> found = Collection.findAuthorized(context, com, Constants.WRITE);
         assertThat("testFindAuthorized 0",found,notNullValue());
-        assertTrue("testFindAuthorized 1",found.length == 0);
+        assertTrue("testFindAuthorized 1",found.size() == 0);
 
         found = Collection.findAuthorized(context, null, Constants.WRITE);
         assertThat("testFindAuthorized 2",found,notNullValue());
-        assertTrue("testFindAuthorized 3",found.length == 0);
+        assertTrue("testFindAuthorized 3",found.size() == 0);
 
         found = Collection.findAuthorized(context, com, Constants.ADD);
         assertThat("testFindAuthorized 3",found,notNullValue());
-        assertTrue("testFindAuthorized 4",found.length == 0);
+        assertTrue("testFindAuthorized 4",found.size() == 0);
 
         found = Collection.findAuthorized(context, null, Constants.ADD);
         assertThat("testFindAuthorized 5",found,notNullValue());
-        assertTrue("testFindAuthorized 6",found.length == 0);
+        assertTrue("testFindAuthorized 6",found.size() == 0);
 
         found = Collection.findAuthorized(context, com, Constants.READ);
         assertThat("testFindAuthorized 7",found,notNullValue());
-        assertTrue("testFindAuthorized 8",found.length == 0);
+        assertTrue("testFindAuthorized 8",found.size() == 0);
 
         found = Collection.findAuthorized(context, null, Constants.READ);
         assertThat("testFindAuthorized 9",found,notNullValue());
-        assertTrue("testFindAuthorized 10",found.length >= 1);
+        assertTrue("testFindAuthorized 10",found.size() >= 1);
     }
 
     /**

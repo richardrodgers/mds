@@ -94,6 +94,7 @@ public class AbstractUnitTest
     @BeforeClass
     public static void initOnce()
     {
+    	Context ctx = null;
         try
         {
             //set a standard time zone for the tests
@@ -160,7 +161,7 @@ public class AbstractUnitTest
             //load the default registries. This assumes the temporal filesystem is working
             //and the in-memory DB in place
             MockDatabaseManager.damnYou();
-            Context ctx = new Context();
+            ctx = new Context();
             ctx.turnOffAuthorisationSystem();
 
             //we can't check via a boolean value (even static) as the class is destroyed by the
@@ -187,8 +188,9 @@ public class AbstractUnitTest
                 }
 
                 //Create search and browse indexes
-                DSIndexer.cleanIndex(ctx);
-                DSIndexer.createIndex(ctx);
+                DSIndexer dsi = new DSIndexer();
+                //DSIndexer.cleanIndex(ctx);
+                dsi.createIndex(ctx);
                 ctx.commit();
 
                 //indexer does a 'complete' on the context
@@ -198,11 +200,11 @@ public class AbstractUnitTest
                 indexer.initBrowse();
             }
             ctx.restoreAuthSystemState();
-            if(ctx.isValid())
-            {
-                ctx.complete();
-            }
-            ctx = null;    
+            //if(ctx.isValid())
+            //{
+            //    ctx.complete();
+            //}
+            //ctx = null;    
         } 
         catch (BrowseException ex)
         {
@@ -248,6 +250,14 @@ public class AbstractUnitTest
         {
             log.error("Error initializing tests", ex);
             fail("Error initializing tests");
+        } finally {
+        	if (ctx != null && ctx.isValid()) {
+        		try {
+        			ctx.complete();
+        		} catch (SQLException sqlE) {
+        			log.error("Cannot complete context");
+        		}
+        	}
         }
     }
 

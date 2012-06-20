@@ -8,14 +8,15 @@
 package org.dspace.content;
 
 import java.sql.SQLException;
-import org.dspace.AbstractUnitTest;
+
 import org.junit.*;
 import static org.junit.Assert.* ;
 import static org.hamcrest.CoreMatchers.*;
+
+import org.dspace.AbstractUnitTest;
 import org.dspace.core.Constants;
 import org.dspace.eperson.EPerson;
 import org.dspace.eperson.Group;
-
 
 /**
  * Tests DSpaceObject class. This is an abstract class, so this test is also
@@ -47,110 +48,7 @@ public abstract class AbstractDSpaceObjectTest extends AbstractUnitTest
         dspaceObject = null;
         super.destroy();
     }
-
-    /**
-     * Test of clearDetails method, of class DSpaceObject.
-     */
-    @Test
-    public void testClearDetails()
-    {
-        String[] testData = new String[] {"details 1", "details 2", "details 3"};
-        for(String s: testData)
-        {
-            dspaceObject.addDetails(s);
-        }
-
-        String details = dspaceObject.getDetails();
-        dspaceObject.clearDetails();
-
-        assertThat("testClearDetails 0", dspaceObject.getDetails(), nullValue());
-        assertThat("testClearDetails 1", dspaceObject.getDetails(), not(equalTo(details)));
-    }
-
-    /**
-     * Test of addDetails method, of class DSpaceObject.
-     */
-    @Test
-    public void testAddDetails()
-    {
-        String[] testData = new String[] {"details 1", "details 2", "details 3"};
-        for(String s: testData)
-        {
-            dspaceObject.addDetails(s);
-        }
-        assertThat("testAddDetails 0", dspaceObject.getDetails(), is(equalTo("details 1, details 2, details 3")));
-        assertThat("testAddDetails 1", dspaceObject.getDetails(), is(not(equalTo(null))));
-    }
-
-    /**
-     * Test of getDetails method, of class DSpaceObject.
-     */
-    @Test
-    public void testGetDetails()
-    {
-        assertThat("testGetDetails 0", dspaceObject.getDetails(), nullValue());
-
-        String[] testData = new String[] {"details 1", "details 2", "details 3"};
-        for(String s: testData)
-        {
-            dspaceObject.addDetails(s);
-        }
-        assertThat("testGetDetails 1", dspaceObject.getDetails(), is(equalTo("details 1, details 2, details 3")));
-    }
-    
-    /**
-     * Test of find method, of class DSpaceObject.
-     */
-    @Test
-    public void testFind() throws SQLException
-    {
-        if(this.dspaceObject instanceof Bitstream)
-        {
-            assertThat("BITSTREAM type", DSpaceObject.find(context,
-                Constants.BITSTREAM, dspaceObject.getID()), notNullValue());
-        }
-        else if(this.dspaceObject instanceof Bundle)
-        {
-            assertThat("BUNDLE type", DSpaceObject.find(context,
-                Constants.BUNDLE, dspaceObject.getID()), notNullValue());
-        }
-        else if(this.dspaceObject instanceof Item)
-        {
-            assertThat("ITEM type", DSpaceObject.find(context,
-                Constants.ITEM, dspaceObject.getID()), notNullValue());
-        }
-        else if(this.dspaceObject instanceof Collection)
-        {
-            assertThat("COLLECTION type", DSpaceObject.find(context,
-                Constants.COLLECTION, dspaceObject.getID()), notNullValue());
-        }
-        else if(this.dspaceObject instanceof Community)
-        {
-            assertThat("COMMUNITY type", DSpaceObject.find(context,
-                Constants.COMMUNITY, dspaceObject.getID()), notNullValue());
-        }
-        else if(this.dspaceObject instanceof Group)
-        {
-            assertThat("GROUP type", DSpaceObject.find(context,
-                Constants.GROUP, dspaceObject.getID()), notNullValue());
-        }
-        else if(this.dspaceObject instanceof EPerson)
-        {
-            assertThat("EPERSON type", DSpaceObject.find(context,
-                Constants.EPERSON, dspaceObject.getID()), notNullValue());
-        }
-        else if(this.dspaceObject instanceof Site)
-        {
-            assertThat("SITE type", DSpaceObject.find(context,
-                Constants.SITE, dspaceObject.getID()), notNullValue());
-        }
-        else
-        {
-            assertThat("Unknown type", DSpaceObject.find(context, -99, 1),
-                nullValue());
-        }
-    }
-    
+        
     /**
      * Test of getAdminObject method, of class DSpaceObject.
      */

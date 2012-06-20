@@ -16,6 +16,7 @@ import org.dspace.core.Context;
 import java.io.FileInputStream;
 import java.io.File;
 import java.sql.SQLException;
+import java.util.List;
 
 import org.dspace.AbstractUnitTest;
 import org.slf4j.Logger;
@@ -139,10 +140,10 @@ public class InstallItemTest extends AbstractUnitTest
         WorkspaceItem is = WorkspaceItem.create(context, col, false);
 
         //get current date
-        DCDate now = DCDate.getCurrent();
-        String dayAndTime = now.toString();
+        //DCDate now = DCDate.getCurrent();
+        //String dayAndTime = now.toString();
         //parse out just the date, remove the time (format: yyyy-mm-ddT00:00:00Z)
-        String date = dayAndTime.substring(0, dayAndTime.indexOf("T"));
+        String date = "dummy date"; //dayAndTime.substring(0, dayAndTime.indexOf("T"));
 
         //Build the beginning of a dummy provenance message
         //(restoreItem should NEVER insert a provenance message with today's date)
@@ -155,11 +156,11 @@ public class InstallItemTest extends AbstractUnitTest
         assertThat("testRestoreItem 0", result, equalTo(is.getItem()));
 
         //Make sure that restore did NOT insert a new provenance message with today's date
-        DCValue[] provMsgValues = result.getMetadata("dc", "description", "provenance", Item.ANY);
+        List<MDValue> provMsgValues = result.getMetadata("dc", "description", "provenance", MDValue.ANY);
         int i = 1;
-        for(DCValue val : provMsgValues)
+        for(MDValue val : provMsgValues)
         {
-            assertFalse("testRestoreItem " + i, val.value.startsWith(provDescriptionBegins));
+            assertFalse("testRestoreItem " + i, val.getValue().startsWith(provDescriptionBegins));
             i++;
         }
     }

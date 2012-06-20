@@ -16,9 +16,9 @@ import org.slf4j.LoggerFactory;
 
 import org.dspace.content.Collection;
 import org.dspace.content.Community;
+import org.dspace.content.BoundedIterator;
 import org.dspace.content.DSpaceObject;
 import org.dspace.content.Item;
-import org.dspace.content.ItemIterator;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
@@ -59,40 +59,43 @@ public abstract class AbstractCurationTask implements CurationTask
      * @param dso
      * @throws IOException
      */
-    protected void distribute(DSpaceObject dso) throws IOException
-    {
-        try
-        {
+    protected void distribute(DSpaceObject dso) throws IOException {
+    	BoundedIterator<Item> itIter = null;
+    	BoundedIterator<Community> scIter = null;
+    	BoundedIterator<Collection> colIter = null;
+        try {
             int type = dso.getType();
-            if (Constants.ITEM == type)
-            {
+            if (Constants.ITEM == type) {
                 performItem((Item)dso);
-            }
-            else if (Constants.COLLECTION == type)
-            {
-                ItemIterator iter = ((Collection)dso).getItems();
-                while (iter.hasNext())
-                {
-                    performItem(iter.next());
+            } else if (Constants.COLLECTION == type)  {
+                itIter = ((Collection)dso).getItems();
+                while (itIter.hasNext()) {
+                    performItem(itIter.next());
                 }
-            }
-            else if (Constants.COMMUNITY == type)
-            {
+            } else if (Constants.COMMUNITY == type) {
                 Community comm = (Community)dso;
-                for (Community subcomm : comm.getSubcommunities())
-                {
-                    distribute(subcomm);
+                scIter = comm.getSubcommunities();
+                while(scIter.hasNext()) {
+                    distribute(scIter.next());
                 }
-                for (Collection coll : comm.getCollections())
-                {
-                    distribute(coll);
+                colIter = comm.getCollections();
+                while(colIter.hasNext()) {
+                    distribute(colIter.next());
                 }
             }
-        }
-        catch (SQLException sqlE)
-        {
+        } catch (SQLException sqlE) {
             throw new IOException(sqlE.getMessage(), sqlE);
-        }       
+        } finally {
+        	if (itIter != null) {
+        		itIter.close();
+        	}
+        	if (scIter != null) {
+        		scIter.close();
+        	}
+        	if (colIter != null) {
+        		colIter.close();
+        	}
+        }
     }
     
     /**

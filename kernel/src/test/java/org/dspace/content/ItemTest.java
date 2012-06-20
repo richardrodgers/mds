@@ -12,8 +12,11 @@ import java.io.FileInputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
-
-import org.dspace.authorize.AuthorizeException;
+import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,16 +24,12 @@ import org.slf4j.LoggerFactory;
 import org.joda.time.DateTime;
 import org.joda.time.Days;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-
 import org.junit.*;
 import static org.junit.Assert.* ;
 import static org.hamcrest.CoreMatchers.*;
 import mockit.*;
 
+import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.authorize.ResourcePolicy;
 import org.dspace.authority.MetadataAuthorityManager;
@@ -46,7 +45,6 @@ import org.dspace.eperson.Group;
 public class ItemTest  extends AbstractDSpaceObjectTest
 {
 
-    /** log4j category */
     private static final Logger log = LoggerFactory.getLogger(ItemTest.class);
 
     /**
@@ -137,7 +135,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
     @Test
     public void testFindAll() throws Exception
     {
-        ItemIterator all = Item.findAll(context);
+        BoundedIterator<Item> all = Item.findAll(context);
         assertThat("testFindAll 0", all, notNullValue());
 
         boolean added = false;
@@ -149,6 +147,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
                 added = true;
             }
         }
+        all.close();
         assertTrue("testFindAll 1",added);
     }
 
@@ -158,7 +157,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
     @Test
     public void testFindBySubmitter() throws Exception 
     {
-        ItemIterator all = Item.findBySubmitter(context, context.getCurrentUser());
+        BoundedIterator<Item> all = Item.findBySubmitter(context, context.getCurrentUser());
         assertThat("testFindBySubmitter 0", all, notNullValue());
 
         boolean added = false;
@@ -170,6 +169,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
                 added = true;
             }
         }
+        all.close();
         assertTrue("testFindBySubmitter 1",added);
 
         context.turnOffAuthorisationSystem();
@@ -179,6 +179,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
         assertThat("testFindBySubmitter 2", all, notNullValue());
         assertFalse("testFindBySubmitter 3", all.hasNext());
         assertThat("testFindBySubmitter 4", all.next(), nullValue());
+        all.close();
     }
 
     /**
@@ -271,20 +272,6 @@ public class ItemTest  extends AbstractDSpaceObjectTest
     }
 
     /**
-     * Test of getDC method, of class Item.
-     */
-    @Test
-    public void testGetDC()
-    {
-        String element = "contributor";
-        String qualifier = "author";
-        String lang = Item.ANY;
-        DCValue[] dc = it.getDC(element, qualifier, lang);
-        assertThat("testGetDC 0",dc,notNullValue());
-        assertTrue("testGetDC 1",dc.length == 0);
-    }
-
-    /**
      * Test of getMetadata method, of class Item.
      */
     @Test
@@ -293,10 +280,10 @@ public class ItemTest  extends AbstractDSpaceObjectTest
         String schema = "dc";
         String element = "contributor";
         String qualifier = "author";
-        String lang = Item.ANY;
-        DCValue[] dc = it.getMetadata(schema, element, qualifier, lang);
-        assertThat("testGetMetadata_4args 0",dc,notNullValue());
-        assertTrue("testGetMetadata_4args 1",dc.length == 0);
+        String lang = MDValue.ANY;
+        List<MDValue> md = it.getMetadata(schema, element, qualifier, lang);
+        assertThat("testGetMetadata_4args 0",md,notNullValue());
+        assertTrue("testGetMetadata_4args 1",md.size() == 0);
     }
 
     /**
@@ -306,19 +293,19 @@ public class ItemTest  extends AbstractDSpaceObjectTest
     public void testGetMetadata_String()
     {
         String mdString = "dc.contributor.author";
-        DCValue[] dc = it.getMetadata(mdString);
-        assertThat("testGetMetadata_String 0",dc,notNullValue());
-        assertTrue("testGetMetadata_String 1",dc.length == 0);
+        List<MDValue> md = it.getMetadata(mdString);
+        assertThat("testGetMetadata_String 0",md,notNullValue());
+        assertTrue("testGetMetadata_String 1",md.size() == 0);
 
         mdString = "dc.contributor.*";
-        dc = it.getMetadata(mdString);
-        assertThat("testGetMetadata_String 2",dc,notNullValue());
-        assertTrue("testGetMetadata_String 3",dc.length == 0);
+        md = it.getMetadata(mdString);
+        assertThat("testGetMetadata_String 2",md,notNullValue());
+        assertTrue("testGetMetadata_String 3",md.size() == 0);
 
         mdString = "dc.contributor";
-        dc = it.getMetadata(mdString);
-        assertThat("testGetMetadata_String 4",dc,notNullValue());
-        assertTrue("testGetMetadata_String 5",dc.length == 0);
+        md = it.getMetadata(mdString);
+        assertThat("testGetMetadata_String 4",md,notNullValue());
+        assertTrue("testGetMetadata_String 5",md.size() == 0);
     }
 
     /**
@@ -334,54 +321,8 @@ public class ItemTest  extends AbstractDSpaceObjectTest
         it.addMetadata("test", "type", null, null, testType);
 
         // Check that only one is returned when we ask for all dc.type values
-        DCValue[] values = it.getMetadata("dc", "type", null, null);
-        assertTrue("Return results", values.length == 1);
-    }
-
-    /**
-     * Test of addDC method, of class Item.
-     */
-    @Test
-    public void testAddDC_4args_1()
-    {
-        String element = "contributor";
-        String qualifier = "author";
-        String lang = Item.ANY;
-        String[] values = {"value0","value1"};
-        it.addDC(element, qualifier, lang, values);
-
-        DCValue[] dc = it.getDC(element, qualifier, lang);
-        assertThat("testAddDC_4args_1 0",dc,notNullValue());
-        assertTrue("testAddDC_4args_1 1",dc.length == 2);
-        assertThat("testAddDC_4args_1 2",dc[0].element,equalTo(element));
-        assertThat("testAddDC_4args_1 3",dc[0].qualifier,equalTo(qualifier));
-        assertThat("testAddDC_4args_1 4",dc[0].language,equalTo(lang));
-        assertThat("testAddDC_4args_1 5",dc[0].value,equalTo(values[0]));
-        assertThat("testAddDC_4args_1 6",dc[1].element,equalTo(element));
-        assertThat("testAddDC_4args_1 7",dc[1].qualifier,equalTo(qualifier));
-        assertThat("testAddDC_4args_1 8",dc[1].language,equalTo(lang));
-        assertThat("testAddDC_4args_1 9",dc[1].value,equalTo(values[1]));
-    }
-
-    /**
-     * Test of addDC method, of class Item.
-     */
-    @Test
-    public void testAddDC_4args_2()
-    {
-        String element = "contributor";
-        String qualifier = "author";
-        String lang = Item.ANY;
-        String value = "value";
-        it.addDC(element, qualifier, lang, value);
-
-        DCValue[] dc = it.getDC(element, qualifier, lang);
-        assertThat("testAddDC_4args_2 0",dc,notNullValue());
-        assertTrue("testAddDC_4args_2 1",dc.length == 1);
-        assertThat("testAddDC_4args_2 2",dc[0].element,equalTo(element));
-        assertThat("testAddDC_4args_2 3",dc[0].qualifier,equalTo(qualifier));
-        assertThat("testAddDC_4args_2 4",dc[0].language,equalTo(lang));
-        assertThat("testAddDC_4args_2 5",dc[0].value,equalTo(value));
+        List<MDValue> values = it.getMetadata("dc", "type", null, null);
+        assertTrue("Return results", values.size() == 1);
     }
 
     /**
@@ -393,96 +334,23 @@ public class ItemTest  extends AbstractDSpaceObjectTest
         String schema = "dc";
         String element = "contributor";
         String qualifier = "author";
-        String lang = Item.ANY;
-        String[] values = {"value0","value1"};
+        String lang = MDValue.ANY;
+        List<String> values = Arrays.asList("value0","value1");
         it.addMetadata(schema, element, qualifier, lang, values);
 
-        DCValue[] dc = it.getMetadata(schema, element, qualifier, lang);
-        assertThat("testAddMetadata_5args_1 0",dc,notNullValue());
-        assertTrue("testAddMetadata_5args_1 1",dc.length == 2);
-        assertThat("testAddMetadata_5args_1 2",dc[0].schema,equalTo(schema));
-        assertThat("testAddMetadata_5args_1 3",dc[0].element,equalTo(element));
-        assertThat("testAddMetadata_5args_1 4",dc[0].qualifier,equalTo(qualifier));
-        assertThat("testAddMetadata_5args_1 5",dc[0].language,equalTo(lang));
-        assertThat("testAddMetadata_5args_1 6",dc[0].value,equalTo(values[0]));
-        assertThat("testAddMetadata_5args_1 7",dc[1].schema,equalTo(schema));
-        assertThat("testAddMetadata_5args_1 8",dc[1].element,equalTo(element));
-        assertThat("testAddMetadata_5args_1 9",dc[1].qualifier,equalTo(qualifier));
-        assertThat("testAddMetadata_5args_1 10",dc[1].language,equalTo(lang));
-        assertThat("testAddMetadata_5args_1 11",dc[1].value,equalTo(values[1]));
-    }
-
-    /**
-     * Test of addMetadata method, of class Item.
-     */
-    @Test
-    public void testAddMetadata_7args_1_authority() throws InstantiationException, IllegalAccessException, NoSuchMethodException, SecurityException, IllegalArgumentException, InvocationTargetException
-    {
-        //we have enabled an authority control in dspace-test.cfg to run this test
-        //as MetadataAuthorityManager can't be mocked properly
-
-        String schema = "dc";
-        String element = "language";
-        String qualifier = "iso";
-        String lang = Item.ANY;
-        String[] values = {"en_US","en"};
-        String[] authorities = {"accepted","uncertain"};
-        int[] confidences = {0,0};
-        it.addMetadata(schema, element, qualifier, lang, values, authorities, confidences);
-
-        DCValue[] dc = it.getMetadata(schema, element, qualifier, lang);
-        assertThat("testAddMetadata_7args_1 0",dc,notNullValue());
-        assertTrue("testAddMetadata_7args_1 1",dc.length == 2);
-        assertThat("testAddMetadata_7args_1 2",dc[0].schema,equalTo(schema));
-        assertThat("testAddMetadata_7args_1 3",dc[0].element,equalTo(element));
-        assertThat("testAddMetadata_7args_1 4",dc[0].qualifier,equalTo(qualifier));
-        assertThat("testAddMetadata_7args_1 5",dc[0].language,equalTo(lang));
-        assertThat("testAddMetadata_7args_1 6",dc[0].value,equalTo(values[0]));
-        assertThat("testAddMetadata_7args_1 7",dc[0].authority,equalTo(authorities[0]));
-        assertThat("testAddMetadata_7args_1 8",dc[0].confidence,equalTo(confidences[0]));
-        assertThat("testAddMetadata_7args_1 9",dc[1].schema,equalTo(schema));
-        assertThat("testAddMetadata_7args_1 10",dc[1].element,equalTo(element));
-        assertThat("testAddMetadata_7args_1 11",dc[1].qualifier,equalTo(qualifier));
-        assertThat("testAddMetadata_7args_1 12",dc[1].language,equalTo(lang));
-        assertThat("testAddMetadata_7args_1 13",dc[1].value,equalTo(values[1]));
-        assertThat("testAddMetadata_7args_1 14",dc[1].authority,equalTo(authorities[1]));
-        assertThat("testAddMetadata_7args_1 15",dc[1].confidence,equalTo(confidences[1]));
-    }
-
-     /**
-     * Test of addMetadata method, of class Item.
-     */
-    @Test
-    public void testAddMetadata_7args_1_noauthority()
-    {
-        //by default has no authority
-
-        String schema = "dc";
-        String element = "contributor";
-        String qualifier = "author";
-        String lang = Item.ANY;
-        String[] values = {"value0","value1"};
-        String[] authorities = {"auth0","auth2"};
-        int[] confidences = {0,0};
-        it.addMetadata(schema, element, qualifier, lang, values, authorities, confidences);
-
-        DCValue[] dc = it.getMetadata(schema, element, qualifier, lang);
-        assertThat("testAddMetadata_7args_1 0",dc,notNullValue());
-        assertTrue("testAddMetadata_7args_1 1",dc.length == 2);
-        assertThat("testAddMetadata_7args_1 2",dc[0].schema,equalTo(schema));
-        assertThat("testAddMetadata_7args_1 3",dc[0].element,equalTo(element));
-        assertThat("testAddMetadata_7args_1 4",dc[0].qualifier,equalTo(qualifier));
-        assertThat("testAddMetadata_7args_1 5",dc[0].language,equalTo(lang));
-        assertThat("testAddMetadata_7args_1 6",dc[0].value,equalTo(values[0]));
-        assertThat("testAddMetadata_7args_1 7",dc[0].authority,nullValue());
-        assertThat("testAddMetadata_7args_1 8",dc[0].confidence,equalTo(-1));
-        assertThat("testAddMetadata_7args_1 9",dc[1].schema,equalTo(schema));
-        assertThat("testAddMetadata_7args_1 10",dc[1].element,equalTo(element));
-        assertThat("testAddMetadata_7args_1 11",dc[1].qualifier,equalTo(qualifier));
-        assertThat("testAddMetadata_7args_1 12",dc[1].language,equalTo(lang));
-        assertThat("testAddMetadata_7args_1 13",dc[1].value,equalTo(values[1]));
-        assertThat("testAddMetadata_7args_1 14",dc[1].authority,nullValue());
-        assertThat("testAddMetadata_7args_1 15",dc[1].confidence,equalTo(-1));
+        List<MDValue> md = it.getMetadata(schema, element, qualifier, lang);
+        assertThat("testAddMetadata_5args_1 0",md,notNullValue());
+        assertTrue("testAddMetadata_5args_1 1",md.size() == 2);
+        assertThat("testAddMetadata_5args_1 2",md.get(0).getSchema(),equalTo(schema));
+        assertThat("testAddMetadata_5args_1 3",md.get(0).getElement(),equalTo(element));
+        assertThat("testAddMetadata_5args_1 4",md.get(0).getQualifier(),equalTo(qualifier));
+        assertThat("testAddMetadata_5args_1 5",md.get(0).getLanguage(),equalTo(lang));
+        assertThat("testAddMetadata_5args_1 6",md.get(0).getValue(),equalTo(values.get(0)));
+        assertThat("testAddMetadata_5args_1 7",md.get(1).getSchema(),equalTo(schema));
+        assertThat("testAddMetadata_5args_1 8",md.get(1).getElement(),equalTo(element));
+        assertThat("testAddMetadata_5args_1 9",md.get(1).getQualifier(),equalTo(qualifier));
+        assertThat("testAddMetadata_5args_1 10",md.get(1).getLanguage(),equalTo(lang));
+        assertThat("testAddMetadata_5args_1 11",md.get(1).getValue(),equalTo(values.get(1)));
     }
 
     /**
@@ -491,104 +359,26 @@ public class ItemTest  extends AbstractDSpaceObjectTest
     @Test
     public void testAddMetadata_5args_2() 
     {
-         String schema = "dc";
+        String schema = "dc";
         String element = "contributor";
         String qualifier = "author";
-        String lang = Item.ANY;
-        String[] values = {"value0","value1"};
+        String lang = MDValue.ANY;
+        List<String> values = Arrays.asList("value0","value1");
         it.addMetadata(schema, element, qualifier, lang, values);
 
-        DCValue[] dc = it.getMetadata(schema, element, qualifier, lang);
-        assertThat("testAddMetadata_5args_2 0",dc,notNullValue());
-        assertTrue("testAddMetadata_5args_2 1",dc.length == 2);
-        assertThat("testAddMetadata_5args_2 2",dc[0].schema,equalTo(schema));
-        assertThat("testAddMetadata_5args_2 3",dc[0].element,equalTo(element));
-        assertThat("testAddMetadata_5args_2 4",dc[0].qualifier,equalTo(qualifier));
-        assertThat("testAddMetadata_5args_2 5",dc[0].language,equalTo(lang));
-        assertThat("testAddMetadata_5args_2 6",dc[0].value,equalTo(values[0]));
-        assertThat("testAddMetadata_5args_2 7",dc[1].schema,equalTo(schema));
-        assertThat("testAddMetadata_5args_2 8",dc[1].element,equalTo(element));
-        assertThat("testAddMetadata_5args_2 9",dc[1].qualifier,equalTo(qualifier));
-        assertThat("testAddMetadata_5args_2 10",dc[1].language,equalTo(lang));
-        assertThat("testAddMetadata_5args_2 11",dc[1].value,equalTo(values[1]));
-    }
-
-    /**
-     * Test of addMetadata method, of class Item.
-     */
-    @Test
-    public void testAddMetadata_7args_2_authority()
-    {
-        //we have enabled an authority control in dspace-test.cfg to run this test
-        //as MetadataAuthorityManager can't be mocked properly
-
-        String schema = "dc";
-        String element = "language";
-        String qualifier = "iso";
-        String lang = Item.ANY;
-        String values = "en";
-        String authorities = "accepted";
-        int confidences = 0;
-        it.addMetadata(schema, element, qualifier, lang, values, authorities, confidences);
-
-        DCValue[] dc = it.getMetadata(schema, element, qualifier, lang);
-        assertThat("testAddMetadata_7args_2 0",dc,notNullValue());
-        assertTrue("testAddMetadata_7args_2 1",dc.length == 1);
-        assertThat("testAddMetadata_7args_2 2",dc[0].schema,equalTo(schema));
-        assertThat("testAddMetadata_7args_2 3",dc[0].element,equalTo(element));
-        assertThat("testAddMetadata_7args_2 4",dc[0].qualifier,equalTo(qualifier));
-        assertThat("testAddMetadata_7args_2 5",dc[0].language,equalTo(lang));
-        assertThat("testAddMetadata_7args_2 6",dc[0].value,equalTo(values));
-        assertThat("testAddMetadata_7args_2 7",dc[0].authority,equalTo(authorities));
-        assertThat("testAddMetadata_7args_2 8",dc[0].confidence,equalTo(confidences));
-    }
-
-    /**
-     * Test of addMetadata method, of class Item.
-     */
-    @Test
-    public void testAddMetadata_7args_2_noauthority()
-    {
-        //by default has no authority
-
-        String schema = "dc";
-        String element = "contributor";
-        String qualifier = "author";
-        String lang = Item.ANY;
-        String values = "value0";
-        String authorities = "auth0";
-        int confidences = 0;
-        it.addMetadata(schema, element, qualifier, lang, values, authorities, confidences);
-
-        DCValue[] dc = it.getMetadata(schema, element, qualifier, lang);
-        assertThat("testAddMetadata_7args_2 0",dc,notNullValue());
-        assertTrue("testAddMetadata_7args_2 1",dc.length == 1);
-        assertThat("testAddMetadata_7args_2 2",dc[0].schema,equalTo(schema));
-        assertThat("testAddMetadata_7args_2 3",dc[0].element,equalTo(element));
-        assertThat("testAddMetadata_7args_2 4",dc[0].qualifier,equalTo(qualifier));
-        assertThat("testAddMetadata_7args_2 5",dc[0].language,equalTo(lang));
-        assertThat("testAddMetadata_7args_2 6",dc[0].value,equalTo(values));
-        assertThat("testAddMetadata_7args_2 7",dc[0].authority,nullValue());
-        assertThat("testAddMetadata_7args_2 8",dc[0].confidence,equalTo(-1));
-    }
-
-    /**
-     * Test of clearDC method, of class Item.
-     */
-    @Test
-    public void testClearDC() 
-    {
-        String element = "contributor";
-        String qualifier = "author";
-        String lang = Item.ANY;
-        String value = "value";
-        it.addDC(element, qualifier, lang, value);
-
-        it.clearDC(element, qualifier, lang);
-
-        DCValue[] dc = it.getDC(element, qualifier, lang);
-        assertThat("testClearDC 0",dc,notNullValue());
-        assertTrue("testClearDC 1",dc.length == 0);
+        List<MDValue> md = it.getMetadata(schema, element, qualifier, lang);
+        assertThat("testAddMetadata_5args_2 0",md,notNullValue());
+        assertTrue("testAddMetadata_5args_2 1",md.size() == 2);
+        assertThat("testAddMetadata_5args_2 2",md.get(0).getSchema(),equalTo(schema));
+        assertThat("testAddMetadata_5args_2 3",md.get(0).getElement(),equalTo(element));
+        assertThat("testAddMetadata_5args_2 4",md.get(0).getQualifier(),equalTo(qualifier));
+        assertThat("testAddMetadata_5args_2 5",md.get(0).getLanguage(),equalTo(lang));
+        assertThat("testAddMetadata_5args_2 6",md.get(0).getValue(),equalTo(values.get(0)));
+        assertThat("testAddMetadata_5args_2 7",md.get(1).getSchema(),equalTo(schema));
+        assertThat("testAddMetadata_5args_2 8",md.get(1).getElement(),equalTo(element));
+        assertThat("testAddMetadata_5args_2 9",md.get(1).getQualifier(),equalTo(qualifier));
+        assertThat("testAddMetadata_5args_2 10",md.get(1).getLanguage(),equalTo(lang));
+        assertThat("testAddMetadata_5args_2 11",md.get(1).getValue(),equalTo(values.get(1)));
     }
 
     /**
@@ -600,15 +390,15 @@ public class ItemTest  extends AbstractDSpaceObjectTest
         String schema = "dc";
         String element = "contributor";
         String qualifier = "author";
-        String lang = Item.ANY;
+        String lang = MDValue.ANY;
         String values = "value0";
         it.addMetadata(schema, element, qualifier, lang, values);
 
         it.clearMetadata(schema, element, qualifier, lang);
 
-        DCValue[] dc = it.getMetadata(schema, element, qualifier, lang);
-        assertThat("testClearMetadata 0",dc,notNullValue());
-        assertTrue("testClearMetadata 1",dc.length == 0);
+        List<MDValue> md = it.getMetadata(schema, element, qualifier, lang);
+        assertThat("testClearMetadata 0",md,notNullValue());
+        assertTrue("testClearMetadata 1",md.size() == 0);
     }
 
     /**
@@ -649,7 +439,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
     public void testGetCollections() throws Exception
     {
         assertThat("testGetCollections 0", it.getCollections(), notNullValue());
-        assertTrue("testGetCollections 1", it.getCollections().length == 0);
+        assertTrue("testGetCollections 1", it.getCollections().size() == 0);
     }
 
     /**
@@ -659,7 +449,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
     public void testGetCommunities() throws Exception 
     {
         assertThat("testGetCommunities 0", it.getCommunities(), notNullValue());
-        assertTrue("testGetCommunities 1", it.getCommunities().length == 0);
+        assertTrue("testGetCommunities 1", it.getCommunities().size() == 0);
     }
 
     /**
@@ -669,7 +459,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
     public void testGetBundles_0args() throws Exception
     {
         assertThat("testGetBundles_0args 0", it.getBundles(), notNullValue());
-        assertTrue("testGetBundles_0args 1", it.getBundles().length == 0);
+        assertTrue("testGetBundles_0args 1", it.getBundles().size() == 0);
     }
 
     /**
@@ -680,7 +470,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
     {
         String name = "name";
         assertThat("testGetBundles_String 0", it.getBundles(name), notNullValue());
-        assertTrue("testGetBundles_String 1", it.getBundles(name).length == 0);
+        assertTrue("testGetBundles_String 1", it.getBundles(name).size() == 0);
     }
 
     /**
@@ -703,7 +493,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
         assertThat("testCreateBundleAuth 0",created, notNullValue());
         assertThat("testCreateBundleAuth 1",created.getName(), equalTo(name));
         assertThat("testCreateBundleAuth 2", it.getBundles(name), notNullValue());
-        assertTrue("testCreateBundleAuth 3", it.getBundles(name).length == 1);
+        assertTrue("testCreateBundleAuth 3", it.getBundles(name).size() == 1);
     }
 
     /**
@@ -788,8 +578,8 @@ public class ItemTest  extends AbstractDSpaceObjectTest
         it.addBundle(created);
         
         assertThat("testAddBundleAuth 0", it.getBundles(name), notNullValue());
-        assertTrue("testAddBundleAuth 1", it.getBundles(name).length == 1);
-        assertThat("testAddBundleAuth 2", it.getBundles(name)[0], equalTo(created));
+        assertTrue("testAddBundleAuth 1", it.getBundles(name).size() == 1);
+        assertThat("testAddBundleAuth 2", it.getBundles(name).get(0), equalTo(created));
     }
 
     /**
@@ -839,7 +629,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
         
         it.removeBundle(created);
         assertThat("testRemoveBundleAuth 0", it.getBundles(name), notNullValue());
-        assertTrue("testRemoveBundleAuth 1", it.getBundles(name).length == 0);
+        assertTrue("testRemoveBundleAuth 1", it.getBundles(name).size() == 0);
     }
 
     /**
@@ -957,7 +747,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
     public void testGetNonInternalBitstreams() throws Exception
     {
         assertThat("testGetNonInternalBitstreams 0", it.getNonInternalBitstreams(), notNullValue());
-        assertTrue("testGetNonInternalBitstreams 1", it.getNonInternalBitstreams().length == 0);
+        assertTrue("testGetNonInternalBitstreams 1", it.getNonInternalBitstreams().size() == 0);
     }
 
     /**
@@ -984,7 +774,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
 
         it.removeDSpaceLicense();
         assertThat("testRemoveDSpaceLicenseAuth 0", it.getBundles(name), notNullValue());
-        assertTrue("testRemoveDSpaceLicenseAuth 1", it.getBundles(name).length == 0);
+        assertTrue("testRemoveDSpaceLicenseAuth 1", it.getBundles(name).size() == 0);
     }
 
     /**
@@ -1045,7 +835,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
 
         it.removeLicenses();
         assertThat("testRemoveLicensesAuth 0", it.getBundles(name), notNullValue());
-        assertTrue("testRemoveLicensesAuth 1", it.getBundles(name).length == 0);
+        assertTrue("testRemoveLicensesAuth 1", it.getBundles(name).size() == 0);
     }
 
     /**
@@ -1384,7 +1174,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
         it.replaceAllBitstreamPolicies(newpolicies);
 
         List<ResourcePolicy> retrieved = new ArrayList<ResourcePolicy>();
-        Bundle[] bundles = it.getBundles();
+        List<Bundle> bundles = it.getBundles();
         for(Bundle b: bundles)
         {
             retrieved.addAll(b.getBundlePolicies());
@@ -1474,7 +1264,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
         assertTrue("testInheritCollectionDefaultPolicies 0", equals);
 
         retrieved = new ArrayList<ResourcePolicy>();
-        Bundle[] bundles = it.getBundles();
+        List<Bundle> bundles = it.getBundles();
         for(Bundle b: bundles)
         {
             retrieved.addAll(b.getBundlePolicies());
@@ -1527,11 +1317,11 @@ public class ItemTest  extends AbstractDSpaceObjectTest
     @Test
     public void testGetCollectionsNotLinked() throws Exception
     {
-        Collection[] result = it.getCollectionsNotLinked();
+        List<Collection> result = it.getCollectionsNotLinked();
         boolean isin = false;
         for(Collection c: result)
         {
-            ItemIterator iit = c.getAllItems();
+            BoundedIterator<Item> iit = c.getAllItems();
             while(iit.hasNext())
             {
                 if(iit.next().getID() == it.getID())
@@ -1669,18 +1459,19 @@ public class ItemTest  extends AbstractDSpaceObjectTest
         String qualifier = "author";
         String value = "value";
 
-        ItemIterator result = Item.findByMetadataField(context, schema, element, qualifier, value);
+        BoundedIterator<Item> result = Item.findByMetadataField(context, schema, element, qualifier, value);
         assertThat("testFindByMetadataField 0",result,notNullValue());
         assertFalse("testFindByMetadataField 1",result.hasNext());
         assertThat("testFindByMetadataField 2",result.next(), nullValue());
-
-        it.addMetadata(schema,element, qualifier, Item.ANY, value);
+        result.close();
+        it.addMetadata(schema,element, qualifier, MDValue.ANY, value);
         it.update();
 
         result = Item.findByMetadataField(context, schema, element, qualifier, value);
         assertThat("testFindByMetadataField 3",result,notNullValue());        
         assertTrue("testFindByMetadataField 4",result.hasNext());
         assertTrue("testFindByMetadataField 5",result.next().equals(it));
+        result.close();
     }
 
     /**
@@ -1722,31 +1513,6 @@ public class ItemTest  extends AbstractDSpaceObjectTest
         }
     }
 
-    /**
-     * Test of findByAuthorityValue method, of class Item.
-     */
-    @Test
-    public void testFindByAuthorityValue() throws Exception
-    {
-        String schema = "dc";
-        String element = "language";
-        String qualifier = "iso";
-        String value = "en";
-        String authority = "accepted";
-        int confidence = 0;
 
-        ItemIterator result = Item.findByAuthorityValue(context, schema, element, qualifier, value);
-        assertThat("testFindByAuthorityValue 0",result,notNullValue());
-        assertFalse("testFindByAuthorityValue 1",result.hasNext());
-        assertThat("testFindByAuthorityValue 2",result.next(), nullValue());
-
-        it.addMetadata(schema, element, qualifier, Item.ANY, value, authority, confidence);
-        it.update();
-
-        result = Item.findByAuthorityValue(context, schema, element, qualifier, authority);
-        assertThat("testFindByAuthorityValue 3",result,notNullValue());
-        assertTrue("testFindByAuthorityValue 4",result.hasNext());
-        assertThat("testFindByAuthorityValue 5",result.next(),equalTo(it));
-    }
 
 }

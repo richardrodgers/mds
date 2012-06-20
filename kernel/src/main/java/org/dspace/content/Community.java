@@ -208,6 +208,7 @@ public class Community extends DSpaceObject
      * 
      * @return the communities in the system
      */
+    /*
     public static List<Community> findAll(Context context) throws SQLException {
         TableRowIterator tri = DatabaseManager.queryTable(context, "community",
                 "SELECT * FROM community ORDER BY name");
@@ -236,6 +237,13 @@ public class Community extends DSpaceObject
         }
         return communities;
     }
+    */
+    
+    public static BoundedIterator<Community> findAll(Context context) throws SQLException {
+        TableRowIterator tri = DatabaseManager.queryTable(context, "community",
+                "SELECT * FROM community ORDER BY name");
+        return new BoundedIterator<Community>(context, tri);
+    }
 
     /**
      * Get a list of all top-level communities in the system. These are
@@ -247,13 +255,15 @@ public class Community extends DSpaceObject
      * 
      * @return the top-level communities in the system
      */
-    public static List<Community> findAllTop(Context context) throws SQLException  {
+    public static BoundedIterator<Community> findAllTop(Context context) throws SQLException  {
         // get all communities that are not children
         TableRowIterator tri = DatabaseManager.queryTable(context, "community",
                 "SELECT * FROM community WHERE NOT community_id IN "
                         + "(SELECT child_comm_id FROM community2community) "
                         + "ORDER BY name");
+        return new BoundedIterator<Community>(context, tri);
 
+        /*
         List<Community> topCommunities = new ArrayList<Community>();
         try {
             while (tri.hasNext()) {
@@ -276,6 +286,7 @@ public class Community extends DSpaceObject
             }
         }   
         return topCommunities;
+        */
     }
 
     /**
@@ -469,8 +480,8 @@ public class Community extends DSpaceObject
      * 
      * @return array of Collection objects
      */
-    public List<Collection> getCollections() throws SQLException {
-        List<Collection> collections = new ArrayList<Collection>();
+    public BoundedIterator<Collection> getCollections() throws SQLException {
+        //List<Collection> collections = new ArrayList<Collection>();
 
         // Get the table rows
         TableRowIterator tri = DatabaseManager.queryTable(
@@ -479,7 +490,10 @@ public class Community extends DSpaceObject
             "community2collection.collection_id=collection.collection_id " +
             "AND community2collection.community_id= ? ORDER BY collection.name",
             getID());
+        
+        return new BoundedIterator<Collection>(context, tri);
 
+        /*
         // Make Collection objects
         try {
             while (tri.hasNext()) {
@@ -502,6 +516,7 @@ public class Community extends DSpaceObject
             }
         }
         return collections;
+        */
     }
 
     /**
@@ -511,8 +526,8 @@ public class Community extends DSpaceObject
      * 
      * @return array of Community objects
      */
-    public List<Community> getSubcommunities() throws SQLException {
-        List<Community> subcommunities = new ArrayList<Community>();
+    public BoundedIterator<Community> getSubcommunities() throws SQLException {
+        //List<Community> subcommunities = new ArrayList<Community>();
 
         // Get the table rows
         TableRowIterator tri = DatabaseManager.queryTable(
@@ -521,7 +536,8 @@ public class Community extends DSpaceObject
                 "community2community.child_comm_id=community.community_id " + 
                 "AND community2community.parent_comm_id= ? ORDER BY community.name",
                 getID());
-        
+        return new BoundedIterator<Community>(context, tri);
+        /*
 
         // Make Community objects
         try  {
@@ -545,6 +561,7 @@ public class Community extends DSpaceObject
             }
         }
         return subcommunities;
+        */
     }
 
     /**
@@ -836,9 +853,11 @@ public class Community extends DSpaceObject
 
         if (parent != null) {
             // remove the subcommunities first
-            for (Community subcommunity : getSubcommunities()) {
-                subcommunity.delete();
+        	BoundedIterator<Community> scIter = getSubcommunities();
+            while(scIter.hasNext()) {
+                scIter.next().delete();
             }
+            scIter.close();
             // now let the parent remove the community
             parent.removeSubcommunity(this);
 
@@ -864,14 +883,18 @@ public class Community extends DSpaceObject
         deleteMetadata();
 
         // Remove collections
-        for (Collection col : getCollections()) {
-            removeCollection(col);
+        BoundedIterator<Collection> colIter = getCollections();
+        while(colIter.hasNext()) {
+            removeCollection(colIter.next());
         }
+        colIter.close();
 
         // delete subcommunities
-        for (Community comm : getSubcommunities()) {
-            comm.delete();
+        BoundedIterator<Community> cmIter = getSubcommunities();
+        while(cmIter.hasNext()) {
+            cmIter.next().delete();
         }
+        cmIter.close();
 
         // Remove the logo
         setLogo(null);
@@ -987,13 +1010,17 @@ public class Community extends DSpaceObject
     public int countItems() throws SQLException {       
     	int total = 0;
     	// add collection counts
-        for (Collection col : getCollections()) {
-        	total += col.countItems();
+    	BoundedIterator<Collection> colIter = getCollections();
+        while(colIter.hasNext()) {
+            total += colIter.next().countItems();
         }
+        colIter.close();
         // add sub-community counts
-        for (Community comm : getSubcommunities()) {
-        	total += comm.countItems();
+        BoundedIterator<Community> cmIter = getSubcommunities();
+        while(cmIter.hasNext()) {
+        	total += cmIter.next().countItems();
         }
+        cmIter.close();
         return total;
     }
     

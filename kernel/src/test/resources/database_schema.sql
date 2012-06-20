@@ -1,16 +1,9 @@
 --
--- The contents of this file are subject to the license and copyright
--- detailed in the LICENSE and NOTICE files at the root of the source
--- tree and available online at
---
--- http://www.dspace.org/license/
---
---
 -- database_schema.sql
 --
--- Version: $Revision: 4718 $
+-- Version: $Revision: 6574 $
 --
--- Date:    $Date: 2010-01-21 20:28:22 +0000 (Thu, 21 Jan 2010) $
+-- Date:    $Date: 2011-08-19 04:10:34 -0400 (Fri, 19 Aug 2011) $
 --
 -- Copyright (c) 2002-2009, The DSpace Foundation.  All rights reserved.
 --
@@ -73,8 +66,7 @@
 --   The function reads the next value from the sequence
 --   'tablename_seq'
 -------------------------------------------------------
--- Commented as it is not compatible with H2
--- CREATE FUNCTION getnextid(VARCHAR(40)) RETURNS INTEGER AS
+--CREATE FUNCTION getnextid(VARCHAR(40)) RETURNS INTEGER AS
 --    'SELECT CAST (nextval($1 || ''_seq'') AS INTEGER) AS RESULT;' LANGUAGE SQL;
 
 
@@ -87,12 +79,11 @@ CREATE SEQUENCE bitstreamformatregistry_seq;
 CREATE SEQUENCE fileextension_seq;
 CREATE SEQUENCE bitstream_seq;
 CREATE SEQUENCE eperson_seq;
-CREATE SEQUENCE epersongroup_seq;
+CREATE SEQUENCE epersongroup_seq START WITH 0;
 CREATE SEQUENCE item_seq;
 CREATE SEQUENCE bundle_seq;
 CREATE SEQUENCE item2bundle_seq;
 CREATE SEQUENCE bundle2bitstream_seq;
-CREATE SEQUENCE dctyperegistry_seq;
 CREATE SEQUENCE dcvalue_seq;
 CREATE SEQUENCE community_seq;
 CREATE SEQUENCE collection_seq;
@@ -112,10 +103,25 @@ CREATE SEQUENCE epersongroup2workspaceitem_seq;
 CREATE SEQUENCE metadataschemaregistry_seq;
 CREATE SEQUENCE metadatafieldregistry_seq;
 CREATE SEQUENCE metadatavalue_seq;
+CREATE SEQUENCE dspaceobject_seq;
 CREATE SEQUENCE group2group_seq;
 CREATE SEQUENCE group2groupcache_seq;
 CREATE SEQUENCE harvested_collection_seq;
 CREATE SEQUENCE harvested_item_seq;
+CREATE SEQUENCE command_seq;
+
+-------------------------------------------------------
+-- DSpaceObject table
+-------------------------------------------------------
+CREATE TABLE DSpaceObject
+(
+  dso_id               INTEGER PRIMARY KEY,
+  dso_type_id          INTEGER,
+  -- UUID as string
+  object_id            VARCHAR(36)
+);
+
+-- indexing TODO
 
 -------------------------------------------------------
 -- BitstreamFormatRegistry table
@@ -149,13 +155,12 @@ CREATE INDEX fe_bitstream_fk_idx ON FileExtension(bitstream_format_id);
 CREATE TABLE Bitstream
 (
    bitstream_id            INTEGER PRIMARY KEY,
+   dso_id                  INTEGER REFERENCES DSpaceObject(dso_id),
    bitstream_format_id     INTEGER REFERENCES BitstreamFormatRegistry(bitstream_format_id),
    name                    VARCHAR(256),
    size_bytes              BIGINT,
    checksum                VARCHAR(64),
    checksum_algorithm      VARCHAR(32),
-   description             TEXT,
-   user_format_description TEXT,
    source                  VARCHAR(256),
    internal_id             VARCHAR(256),
    deleted                 BOOL,
@@ -163,6 +168,7 @@ CREATE TABLE Bitstream
    sequence_id             INTEGER
 );
 
+CREATE INDEX bitstream_dso_fk_idx ON Bitstream(dso_id);
 CREATE INDEX bit_bitstream_fk_idx ON Bitstream(bitstream_format_id);
 
 -------------------------------------------------------
@@ -171,6 +177,7 @@ CREATE INDEX bit_bitstream_fk_idx ON Bitstream(bitstream_format_id);
 CREATE TABLE EPerson
 (
   eperson_id          INTEGER PRIMARY KEY,
+  dso_id              INTEGER REFERENCES DSpaceObject(dso_id),
   email               VARCHAR(64),
   password            VARCHAR(64),
   firstname           VARCHAR(64),
@@ -185,6 +192,7 @@ CREATE TABLE EPerson
   language            VARCHAR(64)
 );
 
+CREATE INDEX eperson_dso_fk_idx ON EPerson(dso_id);
 -- index by email
 CREATE INDEX eperson_email_idx ON EPerson(email);
 
@@ -197,9 +205,11 @@ CREATE INDEX eperson_netid_idx ON EPerson(netid);
 CREATE TABLE EPersonGroup
 (
   eperson_group_id INTEGER PRIMARY KEY,
+  dso_id           INTEGER REFERENCES DSpaceObject(dso_id),
   name             VARCHAR(256)
 );
 
+CREATE INDEX group_dso_fk_idx ON EPersonGroup(dso_id);
 ------------------------------------------------------
 -- Group2Group table, records group membership in other groups
 ------------------------------------------------------
@@ -238,6 +248,7 @@ CREATE INDEX g2gc_child_fk_idx ON Group2Group(child_id);
 CREATE TABLE Item
 (
   item_id         INTEGER PRIMARY KEY,
+  dso_id          INTEGER REFERENCES DSpaceObject(dso_id),
   submitter_id    INTEGER REFERENCES EPerson(eperson_id),
   in_archive      BOOL,
   withdrawn       BOOL,
@@ -245,6 +256,7 @@ CREATE TABLE Item
   owning_collection INTEGER
 );
 
+CREATE INDEX item_dso_fk_idx ON Item(dso_id);
 CREATE INDEX item_submitter_fk_idx ON Item(submitter_id);
 
 -------------------------------------------------------
@@ -253,10 +265,12 @@ CREATE INDEX item_submitter_fk_idx ON Item(submitter_id);
 CREATE TABLE Bundle
 (
   bundle_id          INTEGER PRIMARY KEY,
-  name               VARCHAR(16),  
+  dso_id             INTEGER REFERENCES DSpaceObject(dso_id),
+  name               VARCHAR(16),
   primary_bitstream_id  INTEGER REFERENCES Bitstream(bitstream_id)
 );
 
+CREATE INDEX bundle_dso_fk_idx ON Bundle(dso_id);
 CREATE INDEX bundle_primary_fk_idx ON Bundle(primary_bitstream_id);
 
 -------------------------------------------------------
@@ -312,7 +326,7 @@ CREATE TABLE MetadataFieldRegistry
 CREATE TABLE MetadataValue
 (
   metadata_value_id  INTEGER PRIMARY KEY,
-  item_id            INTEGER REFERENCES Item(item_id),
+  dso_id             INTEGER REFERENCES DSpaceObject(dso_id),
   metadata_field_id  INTEGER REFERENCES MetadataFieldRegistry(metadata_field_id),
   text_value         TEXT,
   text_lang          VARCHAR(24),
@@ -322,37 +336,35 @@ CREATE TABLE MetadataValue
 );
 
 -- Create a dcvalue view for backwards compatibilty
-CREATE VIEW dcvalue AS 
-  SELECT MetadataValue.metadata_value_id AS "dc_value_id", MetadataValue.item_id,
+CREATE VIEW dcvalue AS
+  SELECT MetadataValue.metadata_value_id AS "dc_value_id", MetadataValue.dso_id,
     MetadataValue.metadata_field_id AS "dc_type_id", MetadataValue.text_value,
     MetadataValue.text_lang, MetadataValue.place
   FROM MetadataValue, MetadataFieldRegistry
   WHERE MetadataValue.metadata_field_id = MetadataFieldRegistry.metadata_field_id
   AND MetadataFieldRegistry.metadata_schema_id = 1;
 
--- An index for item_id - almost all access is based on
--- instantiating the item object, which grabs all values
--- related to that item
-CREATE INDEX metadatavalue_item_idx ON MetadataValue(item_id);
-CREATE INDEX metadatavalue_item_idx2 ON MetadataValue(item_id,metadata_field_id);
+-- An index for dso_id - almost all access is based on
+-- instantiating the dso object, which grabs all values
+-- related to that dso
+CREATE INDEX metadatavalue_dso_idx ON MetadataValue(dso_id);
+CREATE INDEX metadatavalue_dso_idx2 ON MetadataValue(dso_id,metadata_field_id);
 CREATE INDEX metadatavalue_field_fk_idx ON MetadataValue(metadata_field_id);
 CREATE INDEX metadatafield_schema_idx ON MetadataFieldRegistry(metadata_schema_id);
-  
+
 -------------------------------------------------------
 -- Community table
 -------------------------------------------------------
 CREATE TABLE Community
 (
   community_id      INTEGER PRIMARY KEY,
+  dso_id            INTEGER REFERENCES DSpaceObject(dso_id),
   name              VARCHAR(128),
-  short_description VARCHAR(512),
-  introductory_text TEXT,
   logo_bitstream_id INTEGER REFERENCES Bitstream(bitstream_id),
-  copyright_text    TEXT,
-  side_bar_text     TEXT,
-  admin             INTEGER REFERENCES EPersonGroup( eperson_group_id )
+  admin             INTEGER REFERENCES EPersonGroup(eperson_group_id)
 );
 
+CREATE INDEX community_dso_fk_idx ON Community(dso_id);
 CREATE INDEX community_logo_fk_idx ON Community(logo_bitstream_id);
 CREATE INDEX community_admin_fk_idx ON Community(admin);
 
@@ -362,15 +374,10 @@ CREATE INDEX community_admin_fk_idx ON Community(admin);
 CREATE TABLE Collection
 (
   collection_id     INTEGER PRIMARY KEY,
+  dso_id            INTEGER REFERENCES DSpaceObject(dso_id),
   name              VARCHAR(128),
-  short_description VARCHAR(512),
-  introductory_text TEXT,
   logo_bitstream_id INTEGER REFERENCES Bitstream(bitstream_id),
   template_item_id  INTEGER REFERENCES Item(item_id),
-  provenance_description  TEXT,
-  license           TEXT,
-  copyright_text    TEXT,
-  side_bar_text     TEXT,
   workflow_step_1   INTEGER REFERENCES EPersonGroup( eperson_group_id ),
   workflow_step_2   INTEGER REFERENCES EPersonGroup( eperson_group_id ),
   workflow_step_3   INTEGER REFERENCES EPersonGroup( eperson_group_id ),
@@ -378,6 +385,7 @@ CREATE TABLE Collection
   admin             INTEGER REFERENCES EPersonGroup( eperson_group_id )
 );
 
+CREATE INDEX collection_dso_fk_idx ON Collection(dso_id);
 CREATE INDEX collection_logo_fk_idx ON Collection(logo_bitstream_id);
 CREATE INDEX collection_template_fk_idx ON Collection(template_item_id);
 CREATE INDEX collection_workflow1_fk_idx ON Collection(workflow_step_1);
@@ -626,9 +634,8 @@ CREATE TABLE community_item_count (
 --  and administrators
 -------------------------------------------------------
 -- We don't use getnextid() for 'anonymous' since the sequences start at '1'
-INSERT INTO epersongroup VALUES(0, 'Anonymous');
-INSERT INTO epersongroup VALUES(NEXTVAL('epersongroup_seq'), 'Administrator');
-
+--INSERT INTO epersongroup VALUES(0, 'Anonymous');
+--INSERT INTO epersongroup VALUES(nextval('epersongroup_seq'), 'Administrator');
 
 -------------------------------------------------------
 -- Create the harvest settings table
@@ -663,9 +670,32 @@ CREATE TABLE harvested_item
 
 CREATE INDEX harvested_item_fk_idx ON harvested_item(item_id);
 
+CREATE TABLE ctask_data
+(
+    ctask_id 		INTEGER PRIMARY KEY,
+    name		    VARCHAR,
+    description		VARCHAR,
+    type            INTEGER,
+    install_date    TIMESTAMP,
+    version_str		VARCHAR,
+    load_addr		VARCHAR,
+    config		    VARCHAR,
+    info_url		VARCHAR,
+    visible_ui      BOOL,
+    visible_api     BOOL
+);
 
-
-
-
-
-
+-------------------------------------------------------
+-- Command table
+-------------------------------------------------------
+CREATE TABLE command
+(
+  command_id           INTEGER PRIMARY KEY,
+  name                 VARCHAR,
+  description          VARCHAR,
+  class_name           VARCHAR,
+  arguments            VARCHAR,
+  launchable	       BOOL,
+  fwd_user_args        BOOL,
+  successor            INTEGER 
+);

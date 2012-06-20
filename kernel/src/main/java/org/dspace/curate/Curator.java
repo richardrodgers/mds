@@ -23,7 +23,8 @@ import org.slf4j.LoggerFactory;
 import org.dspace.content.Collection;
 import org.dspace.content.Community;
 import org.dspace.content.DSpaceObject;
-import org.dspace.content.ItemIterator;
+import org.dspace.content.BoundedIterator;
+import org.dspace.content.Item;
 import org.dspace.content.Site;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
@@ -637,6 +638,7 @@ public class Curator
     private boolean doSite(TaskRunner tr, Site site) throws IOException
     {
         Context ctx = null;
+        BoundedIterator<Community> cIter = null;
         try
         {
             //get access to the curation thread's current context
@@ -659,10 +661,9 @@ public class Curator
             
             //Then, perform this task for all Top-Level Communities in the Site
             // (this will recursively perform task for all objects in DSpace)
-            for (Community subcomm : Community.findAllTop(ctx))
-            {
-                if (! doCommunity(tr, subcomm))
-                {
+            cIter = Community.findAllTop(ctx);
+            while(cIter.hasNext()) {
+                if (! doCommunity(tr, cIter.next())) {
                     return false;
                 }
             }
@@ -670,6 +671,10 @@ public class Curator
         catch (SQLException sqlE)
         {
             throw new IOException(sqlE);
+        } finally {
+        	if (cIter != null) {
+        		cIter.close();
+        	}
         }
 
         return true;
@@ -682,32 +687,34 @@ public class Curator
      * @return true if successful, false otherwise
      * @throws IOException 
      */
-    private boolean doCommunity(TaskRunner tr, Community comm) throws IOException
-    {
-        try
-        {
-            if (! tr.run(comm))
-            {
+    private boolean doCommunity(TaskRunner tr, Community comm) throws IOException {
+    	BoundedIterator<Community> scIter = null;
+    	BoundedIterator<Collection> colIter = null;
+        try  {
+            if (! tr.run(comm)) {
                 return false;
             }
-            for (Community subcomm : comm.getSubcommunities())
-            {
-                if (! doCommunity(tr, subcomm))
-                {
+            scIter = comm.getSubcommunities();
+            while(scIter.hasNext()) {
+                if (! doCommunity(tr, scIter.next())) {
                     return false;
                 }
             }
-            for (Collection coll : comm.getCollections())
-            {
-                if (! doCollection(tr, coll))
-                {
+            colIter = comm.getCollections();
+            while(colIter.hasNext()) {
+                if (! doCollection(tr, colIter.next())) {
                     return false;
                 }
             }
-        }
-        catch (SQLException sqlE)
-        {
+        } catch (SQLException sqlE) {
             throw new IOException(sqlE.getMessage(), sqlE);
+        } finally {
+        	if (scIter != null) {
+        		scIter.close();
+        	}
+        	if (colIter != null) {
+        		colIter.close();
+        	}
         }
         return true;
     }
@@ -721,24 +728,23 @@ public class Curator
      */
     private boolean doCollection(TaskRunner tr, Collection coll) throws IOException
     {
-        try
-        {
-            if (! tr.run(coll))
-            {
+    	BoundedIterator<Item> iter = null;
+        try {
+            if (! tr.run(coll)) {
                 return false;
             }
-            ItemIterator iter = coll.getItems();
-            while (iter.hasNext())
-            {
-                if (! tr.run(iter.next()))
-                {
+            iter = coll.getItems();
+            while (iter.hasNext()) {
+                if (! tr.run(iter.next())) {
                     return false;
                 }
             }
-        }
-        catch (SQLException sqlE)
-        {
+        } catch (SQLException sqlE)  {
             throw new IOException(sqlE.getMessage(), sqlE);
+        } finally {
+        	if (iter != null) {
+        		iter.close();
+        	}
         }
         return true;
     }

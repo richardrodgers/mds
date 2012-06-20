@@ -46,6 +46,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -117,7 +118,7 @@ import org.dspace.workflow.WorkflowManager;
  *    <?xml version="1.0" encoding="UTF-8" ?>
  *    <metadata>
  *      <mdvalues schema="dc">
- *      	<mdvalue element="contributor" qualifier="author" language="us">Rodgers, Richard</mdvalue>
+ *      	<mdvalue element="contributor" qualifier="author" language="us" place="1">Rodgers, Richard</mdvalue>
  *          ....
  *      </mdvalues>
  *      <mdvalues schema="etd">
@@ -146,7 +147,7 @@ public class ContentImport {
 	private static final String FETCHFILE = "fetch.txt";
     private static final Logger log = LoggerFactory.getLogger(ContentImport.class);
     enum Action {add, replace, delete}
-    @Option(name="-a", usage="action to take: add, replace, or delete", required=true)
+    @Argument(index=0, usage="action to take: add, replace, or delete", required=true)
     private Action action;
     @Option(name="-w", usage="send submission(s) through collection's workflow")
     private boolean useWorkflow;
@@ -735,7 +736,7 @@ public class ContentImport {
     private void addBundleTree(Context c, Item parent, File workingDir,
 		       PrintWriter mapOut) throws Exception {
     	// temp name will be reset in metadata assignments
-    	Bundle bundle =  parent.createBundle("temp");
+    	Bundle bundle = parent.createBundle("temp");
 
     	// now load metadata, etc
     	loadMetadata(c, bundle, workingDir);
@@ -891,7 +892,15 @@ public class ContentImport {
             		if (schema != null) {
             			addMDValue(c, dso, schema, n);
             		} else {
-            			dso.setMetadataValue(getAttributeValue(n, "element"), getStringValue(n));
+            			// argh
+            			switch (dso.getType()) {
+            			   case Constants.COMMUNITY: ((Community)dso).setName(getStringValue(n)); break;
+            			   case Constants.COLLECTION: ((Collection)dso).setName(getStringValue(n)); break;
+            			   case Constants.BUNDLE: ((Bundle)dso).setName(getStringValue(n)); break;
+            			   case Constants.BITSTREAM: ((Bitstream)dso).setName(getStringValue(n)); break;
+            			   default: break;
+            			}
+            			//dso.setMetadataValue(getAttributeValue(n, "element"), getStringValue(n));
             		}
             	}
             }
@@ -904,15 +913,17 @@ public class ContentImport {
         // compensate for empty value getting read as "null", which won't display
         String value = Strings.nullToEmpty(getStringValue(n)); //n.getNodeValue();
        
-        // //getElementData(n, "element");
         String element = getAttributeValue(n, "element");
         String qualifier = getAttributeValue(n, "qualifier"); //NodeValue();
-        // //getElementData(n,
-        // "qualifier");
         String language = getAttributeValue(n, "language");
-        if (language != null) {
+        if (! Strings.isNullOrEmpty(language)) {
             language = language.trim();
         }
+        int place = -1;
+        String placeStr = getAttributeValue(n, "place");
+        if (! Strings.isNullOrEmpty(placeStr)) {
+        	place = Integer.parseInt(placeStr);
+        } 
 
         if (verbose) {
             System.out.println("\tSchema: " + schema + " Element: " + element + " Qualifier: " + qualifier
@@ -937,7 +948,7 @@ public class ContentImport {
         	if (dso.getType() == Constants.ITEM) {
         		((Item)dso).addMetadata(schema, element, qualifier, language, value);
         	} else if (dso.getType() == Constants.BITSTREAM) {
-        		((Bitstream)dso).addMetadata(schema, element, qualifier, language, value);
+        		((Bitstream)dso).addMetadata(schema, element, qualifier, language, place, value);
         	}
         } else {
             // If we're just test the import, let's check that the actual metadata field exists.

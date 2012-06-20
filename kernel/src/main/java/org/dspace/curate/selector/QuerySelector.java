@@ -20,10 +20,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.dspace.authorize.AuthorizeException;
+import org.dspace.content.BoundedIterator;
 import org.dspace.content.Collection;
 import org.dspace.content.Community;
 import org.dspace.content.DSpaceObject;
-import org.dspace.content.ItemIterator;
+import org.dspace.content.Item;
 import org.dspace.content.MetadataField;
 import org.dspace.content.MetadataSchema;
 import org.dspace.core.Context;
@@ -63,7 +64,7 @@ public class QuerySelector implements ObjectSelector
    
     private Context context = null;
     private String query = null;
-    private ItemIterator itemIter = null;
+    private BoundedIterator<Item> itemIter = null;
 
     public QuerySelector()
     {
@@ -92,8 +93,7 @@ public class QuerySelector implements ObjectSelector
     {
        	try
     	{
-    		if (itemIter == null)
-    		{
+    		if (itemIter == null) {
     			doQuery();
     		}
        		return itemIter.next();
@@ -157,7 +157,7 @@ public class QuerySelector implements ObjectSelector
     	{
     		rows = DatabaseManager.queryTable(context, "item", sqlGen.getSql());
     	}
-    	itemIter = new ItemIterator(context, rows);
+    	itemIter = new BoundedIterator<Item>(context, rows);
     }
         
     private class SqlGenerator

@@ -7,15 +7,17 @@
  */
 package org.dspace.browse;
 
+import java.sql.SQLException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.dspace.content.Community;
 import org.dspace.content.Collection;
 import org.dspace.core.Context;
+import org.dspace.content.BoundedIterator;
 import org.dspace.content.DSpaceObject;
 import org.dspace.core.ConfigurationManager;
-
-import java.sql.SQLException;
 
 /**
  * This class provides a standard interface to all item counting
@@ -81,13 +83,19 @@ public class ItemCounter
 	 * @throws ItemCountException
 	 */
 	public void buildItemCounts() throws ItemCountException	{
+		BoundedIterator<Community> tlcIter = null;
 		try {
-			for (Community tlc : Community.findAllTop(context)) {
-				count(tlc);
+			tlcIter = Community.findAllTop(context);
+			while(tlcIter.hasNext()) {
+				count(tlcIter.next());
 			}
 		} catch (SQLException e) {
 			log.error("caught exception: ", e);
 			throw new ItemCountException(e);
+		} finally {
+			if (tlcIter != null) {
+				tlcIter.close();
+			}
 		}
 	}
 	
@@ -161,28 +169,35 @@ public class ItemCounter
 	 * @throws ItemCountException
 	 */
 	private void count(Community community)
-		throws ItemCountException
-	{
-		try
-		{
+		throws ItemCountException	{
+		BoundedIterator<Community> scIter = null;
+		BoundedIterator<Collection> colIter = null;
+		try {
 			// first count the community we are in
 			int count = community.countItems();
 			dao.communityCount(community, count);
 			
 			// now get the sub-communities
-			for (Community sc : community.getSubcommunities()) {
-				count(sc);
+			scIter = community.getSubcommunities();
+			while(scIter.hasNext()) {
+				count(scIter.next());
 			}
 			
 			// now get the collections
-			for (Collection col : community.getCollections()) {
-				count(col);
+			colIter = community.getCollections();
+			while(colIter.hasNext()) {
+				count(colIter.next());
 			}
-		}
-		catch (SQLException e)
-		{
+		} catch (SQLException e) {
 			log.error("caught exception: ", e);
 			throw new ItemCountException(e);
+		} finally {
+			if (scIter != null) {
+				scIter.close();
+			}
+			if (colIter != null) {
+				colIter.close();
+			}
 		}
 	}
 	

@@ -32,6 +32,9 @@ public final class MDValue
     
     /** The language of the field, may be <code>null</code> */
     private final String language;
+    
+    /** The index of the value in multi-value fields: -1 if unknown, not relevant */
+    private final int place;
 
     /** The value of the field */
     private final String value;
@@ -41,6 +44,16 @@ public final class MDValue
 		this.element = element;
 		this.qualifier = qualifier;
 		this.language = language;
+		this.value = value;
+		this.place = -1;
+	}
+	
+	public MDValue(String schema, String element, String qualifier, String language, int place, String value) {
+		this.schema = schema;
+		this.element = element;
+		this.qualifier = qualifier;
+		this.language = language;
+		this.place = place;
 		this.value = value;
 	}
 	
@@ -62,6 +75,10 @@ public final class MDValue
 	
 	public String getValue() {
 		return value;
+	}
+	
+	public int getPlace() {
+		return place;
 	}
 		
     public boolean match(String schema, String element, String qualifier, String language) {
@@ -117,6 +134,7 @@ public final class MDValue
     		   Objects.equal(this.element, mdValue.element) &&
     		   Objects.equal(this.qualifier, mdValue.qualifier) &&
     		   Objects.equal(this.language, mdValue.language) &&
+    		   Objects.equal(this.place, mdValue.place) &&
     		   Objects.equal(this.value, mdValue.value));
     }
 }

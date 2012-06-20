@@ -7,12 +7,12 @@
  */
 package org.dspace.authorize;
 
-//import org.dspace.browse.Browse;
 import java.sql.SQLException;
 import java.util.List;
 
 import org.dspace.content.Collection;
 import org.dspace.content.Community;
+import org.dspace.content.BoundedIterator;
 import org.dspace.content.DSpaceObject;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
@@ -41,8 +41,9 @@ public class FixDefaultPolicies
         //////////////////////
         // carnage begins here
         //////////////////////
-        for (Collection t : Collection.findAll(c)) {
-
+    	BoundedIterator<Collection> colIter = Collection.findAll(c);
+        while(colIter.hasNext()) {
+        	Collection t = colIter.next();
             System.out.println("Collection " + t + " " + t.getMetadata("name"));
 
             // check for READ
@@ -78,10 +79,11 @@ public class FixDefaultPolicies
                 addAnonymousPolicy(c, t, Constants.DEFAULT_BITSTREAM_READ);
             }
         }
-
+        colIter.close();
         // now ensure communities have READ policies
-        for (Community t : Community.findAll(c)) {
-
+        BoundedIterator<Community> cmIter = Community.findAll(c);
+        while(cmIter.hasNext()) {
+        	Community t = cmIter.next();
             System.out.println("Community " + t + " " + t.getMetadata("name"));
 
             // check for READ
@@ -95,7 +97,7 @@ public class FixDefaultPolicies
                 addAnonymousPolicy(c, t, Constants.READ);
             }
         }
-
+        cmIter.close();
         c.complete();
         System.exit(0);
     }

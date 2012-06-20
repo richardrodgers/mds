@@ -56,21 +56,39 @@ public abstract class DSpaceObject
      * if no object can be found
      */
     public static DSpaceObject findByObjectID(Context context, String objectID) throws SQLException {
-    	/*
-    	TableRow row = DatabaseManager.find(context, "dspaceobject", objectID);
-		if (row != null) {
-			// determine the type and query appropriate table
-			String tableName = null;
-			switch (row.getIntColumn("dso_type_id")) {
-				case Constants.ITEM: tableName = "item"; break;
-				default: break;
+    	TableRow dsoRow = DatabaseManager.findByUnique(context, "dspaceobject", "object_id", objectID);
+		if (dsoRow != null) {
+			// determine the object type and query appropriate table
+			int type = dsoRow.getIntColumn("dso_type_id");
+			String tableName = Constants.typeText[type].toLowerCase();
+			TableRow row = DatabaseManager.findByUnique(context, tableName, "dso_id", dsoRow.getIntColumn("dso_id"));
+			if (row != null) {
+				return composeDSO(context, type, row);
 			}
-			String query = "SELECT * FROM " + tableName + " WHERE item.dso_id = dspaceobject.dso_id";
-			int dbId = 0;
-			//return Item.find(context, dbId);
 		}
-		*/
     	return null;
+    }
+    
+    public static DSpaceObject composeDSO(Context context, int type, TableRow row) throws SQLException {
+		switch (type) {
+	    	case Constants.COMMUNITY:  return new Community(context, row);
+	    	case Constants.COLLECTION: return new Collection(context, row);
+	    	case Constants.ITEM:       return new Item(context, row);
+	    	case Constants.BUNDLE:     return new Bundle(context, row);
+	    	case Constants.BITSTREAM:  return new Bitstream(context, row);
+	    	default: return null;
+		}
+    }
+    
+    public static Class<? extends DSpaceObject> classFromType(int type) {
+		switch (type) {
+	    	case Constants.COMMUNITY:  return Community.class;
+	    	case Constants.COLLECTION: return Collection.class;
+	    	case Constants.ITEM:       return Item.class;
+	    	case Constants.BUNDLE:     return Bundle.class;
+	    	case Constants.BITSTREAM:  return Bitstream.class;
+	    	default: return null;
+		}   	
     }
     
     /**
@@ -202,10 +220,20 @@ public abstract class DSpaceObject
     }
     
     public void addMetadata(String schema, String element, String qualifier, String lang,
-		    String value) {
+		    				String value) {
+    	addMetadata(schema, element, qualifier, lang, -1, value);
+    }
+    
+    public void addMetadata(String schema, String element, String qualifier, String lang,
+		    				int place, String value) {
     	List<String> values = new ArrayList<String>();
     	values.add(value);
-    	addMetadata(schema, element, qualifier, lang, values);
+    	addMetadata(schema, element, qualifier, lang, place, values);
+    }
+    
+    public void addMetadata(String schema, String element, String qualifier, String lang,
+		    				List<String> values) {
+    	addMetadata(schema, element, qualifier, lang, -1, values);
     }
     
     /**
@@ -228,7 +256,7 @@ public abstract class DSpaceObject
      *            the values to add.
      */
     public void addMetadata(String schema, String element, String qualifier, String lang,
-            			    List<String> values) {
+            			    int place, List<String> values) {
         List<MDValue> mdValues = getMetadata();
         String language = (lang == null ? null : lang.trim());
         String fieldName = schema+"."+element+((qualifier==null)? "": "."+qualifier);
@@ -253,7 +281,7 @@ public abstract class DSpaceObject
             } else {
                 theValue = null;
             }
-            metadata.add(new MDValue(schema, element, qualifier, language, theValue));
+            metadata.add(new MDValue(schema, element, qualifier, language, place, theValue));
         }
 
         if (values.size() > 0) {
@@ -441,6 +469,11 @@ public abstract class DSpaceObject
         return null;
     }
     
+    public void decacheMe() throws SQLException {
+        // Remove item and it's submitter from cache
+        context.removeCached(this, getID());
+    }
+    
     // lazy load of metadata
     private List<MDValue> getMetadata() {
     	if (metadata == null) {
@@ -495,7 +528,7 @@ public abstract class DSpaceObject
     
     private TableRow createMetadataRow(MDValue value) throws SQLException, AuthorizeException {
     	
-    	MetadataSchema schema = MetadataSchema.findByNamespace(context, value.getSchema());
+    	MetadataSchema schema = MetadataSchema.find(context, value.getSchema());
     	MetadataField field = MetadataField.findByElement(context, schema.getSchemaID(),
     			                                          value.getElement(), value.getQualifier());
     	
@@ -505,7 +538,7 @@ public abstract class DSpaceObject
         row.setColumn("metadata_field_id", field.getFieldID());
         row.setColumn("text_value", value.getValue());
         row.setColumn("text_lang", value.getLanguage());
-        row.setColumn("place", "TODO");
+        row.setColumn("place", value.getPlace());
         return row;
     }
 }

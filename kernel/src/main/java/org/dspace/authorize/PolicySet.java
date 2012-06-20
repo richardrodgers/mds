@@ -16,7 +16,7 @@ import org.dspace.content.Bitstream;
 import org.dspace.content.Bundle;
 import org.dspace.content.Collection;
 import org.dspace.content.Item;
-import org.dspace.content.ItemIterator;
+import org.dspace.content.BoundedIterator;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.eperson.Group;
@@ -153,15 +153,15 @@ public class PolicySet
             Collection collection = Collection.find(c, containerID);
             Group group = Group.find(c, groupID);
 
-            ItemIterator i = collection.getItems();
+            BoundedIterator<Item> ii = collection.getItems();
             try
             {
                 if (contentType == Constants.ITEM)
                 {
                     // build list of all items in a collection
-                    while (i.hasNext())
+                    while (ii.hasNext())
                     {
-                        Item myitem = i.next();
+                        Item myitem = ii.next();
 
                         // is this a replace? delete policies first
                         if (isReplace || clearOnly)
@@ -186,9 +186,9 @@ public class PolicySet
                 {
                     // build list of all items in a collection
                     // build list of all bundles in those items
-                    while (i.hasNext())
+                    while (ii.hasNext())
                     {
-                        Item myitem = i.next();
+                        Item myitem = ii.next();
 
                         for (Bundle bundle : myitem.getBundles()) {
 
@@ -216,9 +216,9 @@ public class PolicySet
                 {
                     // build list of all bitstreams in a collection
                     // iterate over items, bundles, get bitstreams
-                    while (i.hasNext())
+                    while (ii.hasNext())
                     {
-                        Item myitem = i.next();
+                        Item myitem = ii.next();
                         System.out.println("Item " + myitem.getID());
 
                         for (Bundle bundle : myitem.getBundles()) {
@@ -250,9 +250,9 @@ public class PolicySet
             }
             finally
             {
-                if (i != null)
+                if (ii != null)
                 {
-                    i.close();
+                    ii.close();
                 }
             }
         }
