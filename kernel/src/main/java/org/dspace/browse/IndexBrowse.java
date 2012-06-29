@@ -56,7 +56,7 @@ public class IndexBrowse
 	private Context context;
 	
 	enum Action {tables, index, full}
-	@Option(name="-a", usage="action to take: 'tables' = make tables only, 'index' = index only, 'full' = tables + index", required=true)
+	@Argument(index=0, usage="action to take: 'tables' = make tables only, 'index' = index only, 'full' = tables + index", required=true)
 	private Action action;
 	
 	/** whether to destroy and rebuild the database */

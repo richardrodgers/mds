@@ -78,7 +78,7 @@ public class BoundedIterator<T extends DSpaceObject> implements Iterator<T>, Clo
     public boolean hasNext() {
     	try {
     		if (rows != null) {
-    			return rows.hasNext() && cursor < max;
+    			return rows.hasNext() && (max < 0L || cursor < max);
     		}
     	} catch (SQLException sqlE) { }
     	return false;

@@ -1,7 +1,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.dspace</groupId>
-    <artifactId>admin</artifactId>
+    <artifactId>dsm-admin</artifactId>
     <version>1.0-SNAPSHOT</version>
     <name>DSpace Adminstration :: Tools</name>
     <description>DSpace administrative applications.</description>
@@ -76,8 +76,9 @@
     <dependencies>
        <dependency>
           <groupId>org.dspace</groupId>
-          <artifactId>kernel</artifactId>
+          <artifactId>dsm-kernel</artifactId>
           <version>1.0-SNAPSHOT</version>
+          <scope>provided</scope>
         </dependency>
         <dependency>
           <groupId>args4j</groupId>
@@ -85,14 +86,14 @@
           <version>2.0.16</version>
         </dependency>
         <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>12.0</version>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+          <version>12.0</version>
         </dependency>
   		<dependency>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-api</artifactId>
-          <version>1.6.4</version>
+          <version>1.6.6</version>
         </dependency>
     </dependencies>
 

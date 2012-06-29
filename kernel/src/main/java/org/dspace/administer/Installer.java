@@ -12,6 +12,9 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.FileInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -39,7 +42,7 @@ import org.xml.sax.SAXException;
 
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
-import org.skife.jdbi.v2.util.IntegerMapper;
+import org.skife.jdbi.v2.BeanMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import org.kohsuke.args4j.CmdLineException;
@@ -60,7 +63,7 @@ import org.dspace.search.DSIndexer;
 import org.dspace.storage.rdbms.DatabaseManager;
 
 /**
- * Contains methods for installing/deploying mds modules from built code
+ * Contains methods for installing/updating mds modules from built code
  * to a configured location. main() method is a command-line tool invoking same.
  * 
  * The Installer requires a very specific configuration to operate. There
@@ -118,7 +121,7 @@ public final class Installer
 			
 	private DSIndexer indexer = null;
 	
-	enum Action {install, update, remove, cleandb}
+	enum Action {install, update, cleandb}
 	
 	@Argument(index=0, usage="action to take", required=true)
 	private Action action;
@@ -129,11 +132,11 @@ public final class Installer
 	// source/staging filesystem location
 	private File baseDir;
 	
-	// coordinates of module being worked with
+	// maven coordinates of module being worked on
 	private String groupId;
 	private String artifactId;
 	private String version;
-	private String packaging = "jar";
+	private String packaging;
 	
     /**
      * For invoking via the command line.
@@ -171,16 +174,23 @@ public final class Installer
     }
     
     public void process() throws BrowseException, IOException, SQLException, Exception {
+    	// reset base if not kernel
+    	if (! "kernel".equals(module)) {
+    		baseDir = new File(baseDir, MODULES_DIR + File.separator + module);
+    	}
+    	// read module POM so we know what we are dealing with
+    	readPOM();
+    	// make sure module obeys the naming convention
+    	checkState(artifactId.startsWith("dsm"),
+    			   "Cannot install module: " + module + " improperly named");
     	Handle h = new DBI(DatabaseManager.getDataSource()).open();
     	try {
     		if (action.equals(Action.install)) {
-    			install(h, module);
+    			install(h);
+    		} else if (action.equals(Action.update)) {
+    			update(h);
     		} else if (action.equals(Action.cleandb)) {
-    	    	File modRoot = baseDir;
-    	    	if (! "kernel".equals(module)) {
-    	    		modRoot = new File(baseDir, MODULES_DIR + File.separator + module);
-    	    	}
-    			cleanDB(h, modRoot);
+    			cleanDB(h);
     		}
     	} finally {
     		if (h != null) {
@@ -189,55 +199,56 @@ public final class Installer
     	}
     }
     
-    private void install(Handle h, String module) throws BrowseException, IOException, SQLException, Exception {
+    private void install(Handle h) throws BrowseException, IOException, SQLException, Exception {
 
-    	// Determine whether this module has already been installed
-    	// or if not, whether we *can* install it.
-    	File modRoot = baseDir;
-    	if (! "kernel".equals(module)) {
-    		modRoot = new File(baseDir, MODULES_DIR + File.separator + module);
-    	}
-    	// first read pom to see what we are working with
-    	readPOM(modRoot);
-    	List<List<String>> components = readDependencies(modRoot, module);
-    	
-    	// first component is the module itself - did we read from POM successfully?
-    	checkState(artifactId != null, "Bad POM file - unable to process");
-    	
+    	checkState("jar".equals(packaging) || "war".equals(packaging),
+    			   "Cannot install module: " + module + " not a valid dspace module");
+    	   	
     	// kernel is a special case as first module - initialize DB if not already done
     	boolean dbReady = dbInitialized(h);
-    	if ("kernel".equals(module) && ! dbReady) {
-    		initDB(h);
+    	if (! dbReady) {
+    		if ("kernel".equals(module)) {
+    			initDB(h);
+    		} else {
+    			throw new IOException("Module 'kernel' must be installed first");
+    		}
     	}
     	
-    	// Query the deployed system for this module
-    	String installed = h.createQuery("SELECT artifact_id FROM installation WHERE component_type = 0 and artifact_id = :aid").
-    			             bind("aid", artifactId).
-    			             map(StringMapper.FIRST).first();
+    	// Determine whether this module has already been installed
+    	checkState(getComponent(h, groupId, artifactId) == null, "Module: '" + artifactId + "' already installed");
+    	System.out.println("Start dependency check");	
     	
-    	if (installed != null) {
-    		throw new IOException("Module: '" + artifactId + "' already installed");
-    	}
-    	
-    	// OK, now determine if the installation would create any classpath conflicts
+    	// Determine whether the installation would create any classpath conflicts
+    	List<List<String>> components = readDependencies();
     	for (List<String> cparts : components) {
-        	// Query the deployed system for this component
-        	String version = h.createQuery("SELECT version_str FROM installation WHERE group_id = :gid AND artifact_id = :aid").
-        			             bind("gid", cparts.get(0)).bind("aid", cparts.get(1)).
-        			             map(StringMapper.FIRST).first();
-        	if (version != null) {
-        		// do versions conflict?
-        		if (! version.equals(cparts.get(3))) {
-        			throw new IOException("Module dependency: '" + cparts.get(1) + "' conflicts with an existing component");
-        		} else {
-        			// notate that we can skip installing this jar - it's already there
-        			cparts.add("skip");
-        		}
-        	} else {
-        		cparts.add("install");
-        	}
+    		// determine if this component needs to be checked
+    		String grpId = cparts.get(0);
+    		String artId = cparts.get(1);
+    		String vsn = cparts.get(3);
+    		String scope = cparts.get(4);
+    		if ("compile".equals(scope) || artId.startsWith("dsm-")) {
+    			// Query the deployed system for this component
+    			Component depComp = getComponent(h, grpId, artId);
+    			if (depComp != null) {
+    				// do versions conflict?
+    				if (! depComp.getVersionStr().equals(vsn)) {
+    					throw new IOException("Module dependency: '" + artId + "' conflicts with an existing component");
+    				} else {
+    					// note that we can forgo installing this jar - it's already there
+    					cparts.add("count");
+    				}
+    			} else {
+    				if (artId.startsWith("dsm-")) {
+    					throw new IOException("Module dependency: '" + artId + "' must be installed first");
+    				} else {
+    					cparts.add("install");
+    				}
+    			}
+    		} else {
+    			cparts.add("ignore");
+    		}
     	}
-    	 			
+    	System.out.println("Finished dependency check");			
     	String destPath = ConfigurationManager.getProperty("dspace.dir");
     	File destFile = new File(destPath);
     	if ("kernel".equals(module)) {
@@ -251,55 +262,56 @@ public final class Installer
     	
     	// first install the module jar itself - this is a special case,
     	// since we check for locally modified version if available
-    	File libSrcDir = new File(modRoot, LIB_DIR);
-    	File buildDir = new File(modRoot, BUILD_DIR);
-    	File modJar = null;
-    	if (buildDir.isDirectory()) {
-    		modJar = new File(buildDir, artifactId + "-" + version + ".jar");
+		File libDestDir = new File(destFile, LIB_DIR);
+		libDestDir.mkdir();
+		File modJar = getModuleArtifact();
+    	if ("jar".equals(packaging)) {
+    		safeCopy(modJar, libDestDir, false);
     	}
-    	// use packaged version otherwise
-    	if (modJar == null || ! modJar.exists()) {
-    		if (libSrcDir.isDirectory()) {
-    			modJar = new File(libSrcDir, artifactId + "-" + version + ".jar");
-    		}
-    	}
-    	File libDestDir = new File(destFile, LIB_DIR);
-    	libDestDir.mkdir();
-    	safeCopy(modJar, libDestDir);
     	// next, update the installation data with module
-    	h.execute("INSERT INTO installation (component_id, component_type, group_id, artifact_id, version_str, ref_count, updated) " +
-    	          "VALUES (nextval('installation_seq'), ?, ?, ?, ?, ?, ?)",
-    			  0, groupId, artifactId, version, 1, new Timestamp(System.currentTimeMillis()));
+    	h.execute("INSERT INTO installation (compid, comptype, groupid, artifactid, versionstr, checksum, graph, updated) " +
+    	          "VALUES (nextval('installation_seq'), ?, ?, ?, ?, ?, ?, ?)",
+    			  0, groupId, artifactId, version, checksum(modJar), "self", new Timestamp(System.currentTimeMillis()));
+    	// update this new component with ref_graph data
+    	//updateReferenceGraph(h, groupId, artifactId, -1);
+    	
     	// now process module resources
     	List<String> excludes = Arrays.asList(exclusions);
-    	for (File file : modRoot.listFiles()) {
+    	for (File file : baseDir.listFiles()) {
     		if (! excludes.contains(file.getName()) && file.isDirectory()) {
-    			safeCopy(file, destFile);
+    			safeCopy(file, destFile, false);
     		}
     	}
     	
-    	// OK now dependent install jars that aren't already there, updating the reference count in any case
+    	// if a WAR module, stop here - dependent jars need not be added to the classpath,
+    	// since they will be used only in the container classpath
+    	if ("war".equals(packaging)) {
+    		System.out.println("done - WAR");
+    		return;
+    	}
+    	
+    	// Install dependent jars that aren't already there, updating their reference graph in any case
+    	Component comp = getComponent(h, groupId, artifactId);
+    	File libSrcDir = new File(baseDir, LIB_DIR);
     	for (List<String> cparts : components) {
     		String grpId = cparts.get(0);
     		String artId = cparts.get(1);
+    		String vsn = cparts.get(3);
     		String status = cparts.get(5);
-    		if ("skip".equals(status)) {
-    			// just update reference count
-            	int count = h.createQuery("SELECT ref_count FROM installation WHERE group_id = :gid AND artifact_id = :aid").
-          	             				 bind("gid", grpId).bind("aid", artId).
-          	             				 map(IntegerMapper.FIRST).first();
-    			h.execute("UPDATE installation SET ref_count = :rc WHERE artifact_id = :aid", count + 1, artId);
-    		} else {
+    		if ("count".equals(status)) {
+    			// just update reference graph
+    			updateReferenceGraph(h, grpId, artId, comp.getCompId());
+    		} else if ("install".equals(status)) {
     			// copy jar to lib & add to installation table
-    			File jarFile = new File(libSrcDir, cparts.get(1) + "-" + cparts.get(3) + ".jar");
-    			safeCopy(jarFile, libDestDir);
-    	    	h.execute("INSERT INTO installation (component_id, component_type, group_id, artifact_id, version_str, ref_count, updated) " +
-    	    	          "VALUES (nextval('installation_seq'), ?, ?, ?, ?, ?, ?)",
-    	    			  1, grpId, artId, cparts.get(3), 1, new Timestamp(System.currentTimeMillis()));
+    			File jarFile = new File(libSrcDir, artId + "-" + vsn + ".jar");
+    			safeCopy(jarFile, libDestDir, false);
+    	    	h.execute("INSERT INTO installation (compid, comptype, groupid, artifactid, versionstr, checksum, graph, updated) " +
+    	    	          "VALUES (nextval('installation_seq'), ?, ?, ?, ?, ?, ?, ?)",
+    	    			  1, grpId, artId, vsn, checksum(jarFile), String.valueOf(comp.getCompId()), new Timestamp(System.currentTimeMillis()));
     		}
     	}
     	System.out.println("Copied components");
-    	loadDDL(modRoot);
+    	loadDDL();
     	// special initialization in kernel module
     	if ("kernel".equals(module)) {
     		// create system-required groups   
@@ -326,16 +338,197 @@ public final class Installer
     	}
     	//initBrowse();
     	// now load registry data into DB
-    	loadRegistries(modRoot);
-    	//initIndexes();
+    	loadRegistries();
+    	if ("kernel".equals(module)) {
+    		initIndexes();
+    	}
     }
     
-    private void safeCopy(File src, File dest) throws IOException {
+    private void update(Handle h) throws BrowseException, IOException, SQLException, Exception {
+    	checkState("jar".equals(packaging) || "war".equals(packaging),
+ 			       "Cannot update module: " + module + " not a dspace module");
+    	checkState(dbInitialized(h), "No kernel module present - install one");
+    	Component curComp = getComponent(h, groupId, artifactId);
+    	checkState(curComp != null, "Module: '" + artifactId + "' is not installed - cannot update");
+    	
+    	String destPath = ConfigurationManager.getProperty("dspace.dir");
+    	File destFile = new File(destPath);
+    	File libDestDir = new File(destFile, LIB_DIR);
+    	   	
+    	if (curComp.getVersionStr().equals(version)) {
+    		// if the version is the same, the *only* code change we permit
+    		// is a difference in the module jar itself (if not a war module)
+    		if ("jar".equals(packaging)) {
+    			File modJar = getModuleArtifact();
+    			String checksum = checksum(modJar);
+    			if (! checksum.equals(curComp.getChecksum())) {
+    				safeCopy(modJar, libDestDir, true);
+    				// update DB to reflect this change
+    				h.execute("UPDATE installation SET checksum = :csum, updated = :upd WHERE groupid = :gid AND artifactid = :aid",
+    						  checksum, new Timestamp(System.currentTimeMillis()), groupId, artifactId);
+    			}
+    		}
+    	} else {
+    		// a version change, need to check everything
+        	// Determine whether the update would create any classpath conflicts
+        	List<List<String>> components = readDependencies();
+        	for (List<String> cparts : components) {
+        		// determine if this component needs to be checked
+        		String grpId = cparts.get(0);
+        		String artId = cparts.get(1);
+        		String vsn = cparts.get(3);
+        		String scope = cparts.get(4);
+        		if ("compile".equals(scope) || artId.startsWith("dsm-")) {
+        			// Query the deployed system for this component
+        			Component depComp = getComponent(h, grpId, artId);
+        			if (depComp != null) {
+        				// version differences will only matter if other components also depend on this one
+        				String graph = depComp.getGraph();
+        				if (graph.indexOf("-") > 0 || ! graph.equals(String.valueOf(depComp.getCompId()))) {
+        					// do versions conflict?
+        					if (! version.equals(vsn)) {
+        						throw new IOException("Module dependency: '" + artId + "' conflicts with an existing component");
+        					} else {
+        						cparts.add("ignore");
+        					}
+        				} else {
+        					cparts.add("update");
+        				}
+        			} else {
+        				if (artId.startsWith("dsm-")) {
+        					throw new IOException("Module dependency: '" + artId + "' must be installed first");
+        				} else {
+        					cparts.add("install");
+        				}
+        			}
+        		} else {
+        			cparts.add("ignore");
+        		}
+        	}
+        	
+        	// Next step, remove any modules that are no longer needed
+        	List<Component> allComps = h.createQuery("SELECT * FROM installation").
+        		                       map(new BeanMapper<Component>(Component.class)).list();
+        	for (Component comp: allComps) {
+        		String graph = comp.getGraph();
+        		// we only need to examine potentially orphaned components
+        		// i.e. those only referenced by module being updated
+        		if (comp.getCompId() != curComp.getCompId() && graph.equals(String.valueOf(curComp.getCompId()))) {
+        			// OK, see it they are on current list of components
+        			boolean found = false;
+        			for (List<String> cparts : components) {
+        				if (cparts.get(0).equals(comp.getCompId()) && cparts.get(1).equals(comp.getArtifactId())) {
+        					found = true;
+        					break;
+        				}
+        			}
+        			if (! found) {
+        				// we can remove this component - it will no longer be needed
+        				System.out.println("Removing orphaned component: " + comp.getArtifactId());
+        				File delFile = new File(libDestDir, comp.getArtifactId() + "=" + comp.getVersionStr() + ".jar");
+        				delFile.delete();
+        				h.execute("DELETE FROM installation WHERE compid = :cid", comp.getCompId());
+        			}
+        		}
+        	}
+        	
+        	// reinstall module jar and update its Component entry
+    		File modJar = getModuleArtifact();
+    		String checksum = checksum(modJar);
+        	if ("jar".equals(packaging)) {
+        		safeCopy(modJar, libDestDir, false);
+        	}
+			// update DB to reflect this change
+			h.execute("UPDATE installation SET versionstr = :vsn, checksum = :csum, updated = :upd WHERE groupid = :gid AND artifactid = :aid",
+					  version, checksum, new Timestamp(System.currentTimeMillis()), groupId, artifactId);
+    	
+        	// Install dependent jars that aren't already there, updating their reference graph in any case
+        	File libSrcDir = new File(baseDir, LIB_DIR);
+        	for (List<String> cparts : components) {
+        		String grpId = cparts.get(0);
+        		String artId = cparts.get(1);
+        		String vsn = cparts.get(3);
+        		String status = cparts.get(5);
+        		File jarFile = new File(libSrcDir, artId + "-" + vsn + ".jar");
+        		if ("update".equals(status)) {
+        			// just update version of component
+        			safeCopy(jarFile, libDestDir, true);
+        			updateVersion(h, grpId, artId, version, checksum(jarFile));
+        		} else if ("install".equals(status)) {
+        			// copy jar to lib & add to installation table
+        			safeCopy(jarFile, libDestDir, false);
+        			h.execute("INSERT INTO installation (compid, comptype, groupid, artifactid, versionstr, checksum, graph, updated) " +
+        					"VALUES (nextval('installation_seq'), ?, ?, ?, ?, ?, ?, ?)",
+        					1, grpId, artId, vsn, checksum(jarFile), String.valueOf(curComp.getCompId()), new Timestamp(System.currentTimeMillis()));
+        		}
+        	}
+        	System.out.println("Copied components");
+    	}
+    	
+    	// in either case, update the resource data
+    	List<String> excludes = Arrays.asList(exclusions);
+       	for (File file : baseDir.listFiles()) {
+    		if (! excludes.contains(file.getName()) && file.isDirectory()) {
+    			safeCopy(file, destFile, true);
+    		}
+    	}
+    }
+    
+    private boolean dbInitialized(Handle h) throws SQLException {
+   	 	DatabaseMetaData md = h.getConnection().getMetaData();
+   	 	return md.getTables(null, null, "installation", null).next();
+    }
+    
+    private Component getComponent(Handle h, String grpId, String artId) throws SQLException {
+    	return h.createQuery("SELECT * FROM installation WHERE groupid = :gid AND artifactid = :aid").
+    		   bind("gid", grpId).bind("aid", artId).
+    		   map(new BeanMapper<Component>(Component.class)).first();
+    }
+    
+    private void updateReferenceGraph(Handle h, String grpId, String artId, int node) throws SQLException {
+    	Component comp = getComponent(h, grpId, artId);
+    	if (comp != null) {
+    		h.execute("UPDATE installation SET graph = :rc WHERE groupid = :gid AND artifactid = :aid",
+    				  comp.getGraph() + "-" + String.valueOf(node), grpId, artId);
+    	}
+    }
+    
+    private void updateVersion(Handle h, String grpId, String artId, String version, String checksum) throws SQLException {
+		h.execute("UPDATE installation SET versionstr = :vsn, checksum = :csum, updated = :upd WHERE groupid = :gid AND artifactid = :aid",
+				  version, checksum, new Timestamp(System.currentTimeMillis()), grpId, artId);
+    }
+    
+    private File getModuleArtifact() throws IOException {
+    	File libSrcDir = new File(baseDir, LIB_DIR);
+    	File buildDir = new File(baseDir, BUILD_DIR);
+    	File modArt = null;
+    	// prefer the locally built (customized) version if present
+    	if (buildDir.isDirectory()) {
+    		modArt = new File(buildDir, artifactId + "-" + version + "." + packaging);
+    	}
+    	// use packaged version otherwise
+    	if (modArt == null || ! modArt.exists()) {
+    		if (libSrcDir.isDirectory()) {
+    			modArt = new File(libSrcDir, artifactId + "-" + version + "." + packaging);
+    		}
+    	}
+    	return modArt;
+    }
+    
+    private void safeCopy(File src, File dest, boolean overwrite) throws IOException {
     	File destFile = new File(dest, src.getName());
     	if (src.isDirectory()) {
-    		destFile.mkdir();
+    		if (! overwrite) {
+    			destFile.mkdir();
+    		}
     		for (File file : src.listFiles()) {
-    			safeCopy(file, destFile);
+    			safeCopy(file, destFile, overwrite);
+    		}
+    	} else if (overwrite) {
+    		if (src.exists() && destFile.exists()) {
+    			Files.copy(src, destFile);
+    		} else {
+    			System.out.println("Error - expected file to be present: " + destFile.getName());
     		}
     	} else {
     		if (src.exists() && ! destFile.exists()) {
@@ -346,9 +539,9 @@ public final class Installer
     	}
     }
     
-    private void readPOM(File base) throws IOException, ParserConfigurationException,
+    private void readPOM() throws IOException, ParserConfigurationException,
     	SAXException, XPathExpressionException {
-    	File pomFile = new File(base, POM_FILE);
+    	File pomFile = new File(baseDir, POM_FILE);
     	if (pomFile.exists()) {
     		DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
     		Document pomDoc = builder.parse(pomFile);
@@ -365,6 +558,8 @@ public final class Installer
     	} else {
     		System.out.println("No POM file at expected location: " + pomFile.getAbsolutePath());
     	}
+    	// did we read from POM successfully?
+    	checkState(artifactId != null, "Bad POM file - unable to process");
     }
     
     private String findPomValue(Document doc, XPathExpression expr) throws XPathExpressionException {
@@ -375,10 +570,9 @@ public final class Installer
 	    return null;
     }
     
-    private List<List<String>> readDependencies(File root, String module) throws IOException {
+    private List<List<String>> readDependencies() throws IOException {
     	List<List<String>> compList = new ArrayList<List<String>>();
-    	File comps = new File(root, DEPS_FILE);
-
+    	File comps = new File(baseDir, DEPS_FILE);
     	BufferedReader reader = new BufferedReader(new FileReader(comps));
     	String lineIn = null;
     	while ((lineIn = reader.readLine()) != null) {
@@ -392,14 +586,9 @@ public final class Installer
     	return compList;
     }
     
-    private void cleanDB(Handle h, File modRoot) throws BrowseException, IOException, SQLException {
+    private void cleanDB(Handle h) throws BrowseException, IOException, SQLException {
     	clearBrowse();
-    	unloadDDL(modRoot);
-    }
-    
-    private boolean dbInitialized(Handle h) throws SQLException {
-   	 	DatabaseMetaData md = h.getConnection().getMetaData();
-   	 	return md.getTables(null, null, "installation", null).next();
+    	unloadDDL();
     }
     
     private void initDB(Handle h) throws IOException, SQLException {
@@ -408,22 +597,23 @@ public final class Installer
    	 	// table itself: everything else will be loaded when a module is installed
    	 	h.execute("CREATE SEQUENCE installation_seq");
    	 	h.execute("CREATE TABLE installation (" +
-   	 	          "component_id INTEGER PRIMARY KEY, " +
-   	 			  "component_type INTEGER, " +
-   	 	          "group_id VARCHAR, " +
-   	 			  "artifact_id VARCHAR, " +
-   	 	          "version_str VARCHAR, " +
-   	 			  "ref_count INTEGER, " +
+   	 	          "compid INTEGER PRIMARY KEY, " +
+   	 			  "comptype INTEGER, " +
+   	 	          "groupid VARCHAR, " +
+   	 			  "artifactid VARCHAR, " +
+   	 	          "versionstr VARCHAR, " +
+   	 			  "checksum VARCHAR, " +
+   	 			  "graph VARCHAR, " +
    	 	          "updated TIMESTAMP)");
-    	//h.execute("CREATE USER dspace WITH CREATEDB PASSWORD '" + dbPassword + "';");
-    	//h.execute("CREATE DATABASE dspace ENCODING UTF8 OWNER dspace;");
+    	//"CREATE USER dspace WITH CREATEDB PASSWORD '" + dbPassword + "';");
+    	//"CREATE DATABASE dspace ENCODING UTF8 OWNER dspace;");
     }
     
-    private void loadDDL(File base) throws IOException, SQLException {
+    private void loadDDL() throws IOException, SQLException {
     	 String dbName = ConfigurationManager.getProperty("db.name");
     	 checkState(dbName != null, "no database name defined");
 
-    	 String path = base.getAbsolutePath() + File.separator + DDL_DIR + File.separator + dbName;
+    	 String path = baseDir.getAbsolutePath() + File.separator + DDL_DIR + File.separator + dbName;
     	 File ddlFile = new File(path, DDL_UPFILE);
     	 // not all modules have DDLs
     	 //checkState(ddlFile.exists(), "no DDL file present");
@@ -432,11 +622,11 @@ public final class Installer
     	 }
     }
     
-    private void unloadDDL(File base) throws IOException, SQLException {
+    private void unloadDDL() throws IOException, SQLException {
    	    String dbName = ConfigurationManager.getProperty("db.name");
    	    checkState(dbName != null, "no database name defined");
 
-    	String path = base.getAbsolutePath() + File.separator + DDL_DIR + File.separator + dbName;
+    	String path = baseDir.getAbsolutePath() + File.separator + DDL_DIR + File.separator + dbName;
     	File ddlFile = new File(path, DDL_DOWNFILE);
     	//checkState(ddlFile.exists(), "no DDL file present");
     	if (ddlFile.exists()) {
@@ -458,8 +648,8 @@ public final class Installer
         browse.clearDatabase();
     }
     
-    private void loadRegistries(File base) throws Exception {
-   	 	File regDir = new File(base, REG_DIR);
+    private void loadRegistries() throws Exception {
+   	 	File regDir = new File(baseDir, REG_DIR);
    	 	if (regDir.isDirectory()) {
    	 		Context context = null;
    	 		try {
@@ -487,5 +677,23 @@ public final class Installer
    	 			context.complete();
    	 		}
    	 	}
+    }
+    
+    private String checksum(File file) throws IOException, NoSuchAlgorithmException {
+        MessageDigest md = MessageDigest.getInstance("MD5");
+        FileInputStream fis = new FileInputStream(file);
+        byte[] dataBytes = new byte[1024];
+ 
+        int nread = 0; 
+        while ((nread = fis.read(dataBytes)) != -1) {
+          md.update(dataBytes, 0, nread);
+        };
+        fis.close();
+        byte[] mdbytes = md.digest();
+        StringBuffer sb = new StringBuffer();
+        for (int i = 0; i < mdbytes.length; i++) {
+          sb.append(Integer.toString((mdbytes[i] & 0xff) + 0x100, 16).substring(1));
+        }
+        return sb.toString();
     }
 }

@@ -72,7 +72,7 @@ public class CommandLauncher {
               		} else {
               			String cName = cmdLineArgs.get(0);
               			if ("install".equals(cName) || "update".equals(cName)) {
-              				System.out.println("Use '" + cName + " <module>' to " + cName + " a module to your deployed system");
+              				System.out.println("Use '" + cName + " <module>' to " + cName + " a module on your live system");
               			} else {
               				Command cmd = Command.findByName(ctx, cName);
               				if (cmd != null) {

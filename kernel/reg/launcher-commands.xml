@@ -62,7 +62,7 @@
         <description>Initialise the search and browse indexes</description>
         <step passuserargs="false">
             <class>org.dspace.browse.IndexBrowse</class>
-            <argument>-f</argument>
+            <argument>full</argument>
             <argument>-r</argument>
         </step>
         <step passuserargs="false">
@@ -110,14 +110,6 @@
         <description>Load entries into a registry</description>
         <step>
             <class>org.dspace.administer.RegistryLoader</class>
-        </step>
-    </command>
-
-    <command>
-        <name>structure-builder</name>
-        <description>Build DSpace community and collection structure</description>
-        <step>
-            <class>org.dspace.administer.StructBuilder</class>
         </step>
     </command>
     

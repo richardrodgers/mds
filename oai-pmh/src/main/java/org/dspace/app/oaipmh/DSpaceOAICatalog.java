@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.dspace.authorize.AuthorizeManager;
+import org.dspace.content.BoundedIterator;
 import org.dspace.content.Collection;
 import org.dspace.content.Community;
 import org.dspace.content.DSpaceObject;
@@ -583,7 +584,8 @@ public class DSpaceOAICatalog extends AbstractCatalog {
         try {
             context = new Context();
             StringBuffer spec = null;
-            for (Collection coll : Collection.findAll(context)) {
+            for (BoundedIterator<Collection> collIter = Collection.findAll(context); collIter.hasNext(); ) {
+            	Collection coll = collIter.next();
                 spec = new StringBuffer("<set><setSpec>hdl_");
                 spec.append(coll.getHandle().replace('/', '_'));
                 spec.append("</setSpec>");
@@ -602,7 +604,8 @@ public class DSpaceOAICatalog extends AbstractCatalog {
                 sets.add(spec.toString());
             }
 
-            for (Community comm : Community.findAll(context))  {
+            for (BoundedIterator<Community> commIter = Community.findAll(context); commIter.hasNext(); )  {
+            	Community comm = commIter.next();
                 spec = new StringBuffer("<set><setSpec>hdl_");
                 spec.append(comm.getHandle().replace('/', '_'));
                 spec.append("</setSpec>");

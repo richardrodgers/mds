@@ -155,7 +155,7 @@ public class DSIndexer {
             		Item item = (Item)dso;
             		if (item.isArchived() && !item.isWithdrawn()) {
             			/** If the item is in the repository now, add it to the index*/
-            			if (config.service.isDocumentStale(handle, ((Item)dso).getLastModified()) || force)	{
+            			if (force || config.service.isDocumentStale(handle, ((Item)dso).getLastModified()))	{
             				log.info("Writing Item: " + handle + " to Index");
             				task = buildItemTask((Item)dso, config);
             			}

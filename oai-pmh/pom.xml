@@ -1,7 +1,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.dspace</groupId>
-    <artifactId>oai-pmh</artifactId>
+    <artifactId>dsm-oai-pmh</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>war</packaging>
     <name>DSpace OAI :: API and Implementation</name>
@@ -17,10 +17,61 @@
         <version>12</version>
     </parent>
 
+    <!--
+       Runtime and Compile Time dependencies for DSpace.
+    -->
+    <build>
+      <plugins>
+	    <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <version>2.4</version>
+            <executions>
+              <execution>
+                <id>resolve</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>resolve</goal>
+                </goals>
+                <configuration>
+                  <includeScope>compile</includeScope>
+                  <outputFile>deps.txt</outputFile>
+                </configuration>
+              </execution>
+            </executions>
+        </plugin>
+        <plugin>
+          <artifactId>maven-assembly-plugin</artifactId>
+          <version>2.3</version>
+          <dependencies>
+            <dependency>
+              <groupId>org.dspace</groupId>
+              <artifactId>mdsa</artifactId>
+              <version>1.0-SNAPSHOT</version>
+            </dependency>
+          </dependencies>
+          <executions>
+            <execution>
+              <id>make-assembly</id>
+              <phase>package</phase>
+              <goals>
+                <goal>single</goal>
+              </goals>
+              <configuration>
+                <descriptorRefs>
+                  <descriptorRef>mds-assembly</descriptorRef>
+                </descriptorRefs>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+	  </plugins>
+	</build>
+
     <dependencies>
        <dependency>
           <groupId>org.dspace</groupId>
-          <artifactId>kernel</artifactId>
+          <artifactId>dsm-kernel</artifactId>
           <version>1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
@@ -30,13 +81,18 @@
         </dependency>
   		<dependency>
           <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-api</artifactId>
-          <version>1.6.4</version>
+          <artifactId>jcl-over-slf4j</artifactId>
+          <version>1.6.6</version>
+        </dependency>
+        <dependency>
+          <groupId>joda-time</groupId>
+          <artifactId>joda-time</artifactId>
+          <version>2.1</version>
         </dependency>
   		<dependency>
           <groupId>javax.servlet</groupId>
-          <artifactId>servlet-api</artifactId>
-          <version>2.3</version>
+          <artifactId>javax.servlet-api</artifactId>
+          <version>3.0.1</version>
           <scope>provided</scope>
         </dependency>
     </dependencies>
