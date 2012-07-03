@@ -258,6 +258,12 @@ public final class Installer
     				destFile.mkdirs();
     			}
     		}
+    		// create modules (src) directory if it doesn't exist
+    		File modsFile = new File(baseDir, MODULES_DIR);
+    		if (! modsFile.exists()) {
+    			modsFile.mkdir();
+    		}
+    		
     	}
     	
     	// first install the module jar itself - this is a special case,
