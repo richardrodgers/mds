@@ -28,9 +28,9 @@ SRB storage support was added early in DSpace, but SRB has not been developed/su
 
 Initial replacement of dbcp, but much further work could be done to leverage advanced features of BoneCP (pool partitioning, etc).
 
-### Java Dates -> Joda time ###
+### DCDate -> Joda time ###
 
-Almost nothing has been done beyond declaring the dependency and a few date comparisons rewritten. But an examination of a class like DCDate (in which 2 expensive Calendar objects and 7 non-threadsafe DateFormat objects are created in the constructor) suggest many strides could be made.
+DCDate (in which 2 expensive Calendar objects and 7 non-threadsafe DateFormat objects are created in the constructor) removed and at its former call sites are Joda time replacements.
 
 ### Apache commons-cli -> args4j ###
 
