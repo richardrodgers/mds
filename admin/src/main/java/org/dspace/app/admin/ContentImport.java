@@ -39,6 +39,11 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathFactory;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
@@ -55,8 +60,6 @@ import com.google.common.base.Strings;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.apache.xpath.XPathAPI;
 
 import org.dspace.administer.RegistryLoader;
 import org.dspace.authorize.AuthorizeException;
@@ -146,6 +149,8 @@ public class ContentImport {
 	// name of remote data description file
 	private static final String FETCHFILE = "fetch.txt";
     private static final Logger log = LoggerFactory.getLogger(ContentImport.class);
+    private static XPathFactory factory;
+    private static XPath xpath;
     enum Action {add, replace, delete}
     @Argument(index=0, usage="action to take: add, replace, or delete", required=true)
     private Action action;
@@ -875,7 +880,7 @@ public class ContentImport {
         	}
         	Document document = RegistryLoader.loadXML(mdFile.getPath());
         	
-            NodeList mdSets = XPathAPI.selectNodeList(document, "/metadata/mdvalues");
+            NodeList mdSets = xPathFind(document, "/metadata/mdvalues");
             for (int i = 0; i < mdSets.getLength(); i++) {
             	Node mdSet = mdSets.item(i);
             	String schema = null;
@@ -885,7 +890,7 @@ public class ContentImport {
             	} 
              
             	// Get the nodes corresponding to metadata values
-            	NodeList mvNodes = XPathAPI.selectNodeList(mdSet, "mdvalue");
+            	NodeList mvNodes = xPathFind(mdSet, "mdvalue");
 
             	for (int j = 0; j < mvNodes.getLength(); j++) {
             		Node n = mvNodes.item(j);
@@ -1051,5 +1056,19 @@ public class ContentImport {
             }
         }
         return value;
+    }
+    
+    private static NodeList xPathFind(Node element, String match) {
+    	if (factory == null) {
+    		factory = XPathFactory.newInstance();
+    		xpath = factory.newXPath();
+    	}
+    	try {
+    		XPathExpression exp = xpath.compile(match);
+    		return (NodeList)exp.evaluate(element, XPathConstants.NODESET);
+    	} catch (Exception e) {
+    		log.error("Error evaluating expression: '" + match + "'", e);
+    	}
+    	return null;
     }
 }

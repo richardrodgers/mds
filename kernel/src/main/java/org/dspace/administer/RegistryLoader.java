@@ -16,11 +16,14 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.apache.xpath.XPathAPI;
 
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.BitstreamFormat;
@@ -68,6 +71,9 @@ public class RegistryLoader
 	
     /** log4j category */
     private static Logger log = LoggerFactory.getLogger(RegistryLoader.class);
+    
+    private static XPathFactory factory;
+    private static XPath xpath;
     
     /**
      * For invoking via the command line
@@ -190,7 +196,7 @@ public class RegistryLoader
 
         // Get the nodes corresponding to formats
     	String path = LoaderType.BITSTREAM_FORMATS.getElement() + "/bitstream-type";
-        NodeList typeNodes = XPathAPI.selectNodeList(document, path);
+        NodeList typeNodes = xPathFind(document, path);
 
         // Add each one as a new format to the registry
         for (int i = 0; i < typeNodes.getLength(); i++) {
@@ -276,7 +282,7 @@ public class RegistryLoader
 
         // Get the nodes corresponding to schemas
         String path = LoaderType.METADATA_TYPES.getElement() + "/dc-schema";
-        NodeList schemaNodes = XPathAPI.selectNodeList(document, path);
+        NodeList schemaNodes = xPathFind(document, path);
 
         // Add each schema
         for (int i = 0; i < schemaNodes.getLength(); i++)  {
@@ -285,8 +291,7 @@ public class RegistryLoader
         }
         
         // Get the nodes corresponding to fields
-        NodeList typeNodes = XPathAPI.selectNodeList(document,
-                "/dspace-dc-types/dc-type");
+        NodeList typeNodes = xPathFind(document, "/dspace-dc-types/dc-type");
 
         // Add each one as a new field to the schema
         for (int i = 0; i < typeNodes.getLength(); i++) {
@@ -389,7 +394,7 @@ public class RegistryLoader
     	    	
         // Get the nodes corresponding to commands
     	String path = LoaderType.COMMANDS.getElement() + "/command";
-        NodeList cmdNodes = XPathAPI.selectNodeList(document, path);
+        NodeList cmdNodes = xPathFind(document, path);
         
         // Add each one as a new format to the registry
         for (int i = 0; i < cmdNodes.getLength(); i++)  {
@@ -408,7 +413,7 @@ public class RegistryLoader
         String description = getElementData(node, "description");
         
         // Get the nodes corresponding to command steps
-        NodeList stepNodes = XPathAPI.selectNodeList(node, "step");
+        NodeList stepNodes = xPathFind(node, "step");
         
         // Add each one as a new command to the registry
         Stack<Step> stack = new Stack<Step>();
@@ -494,7 +499,7 @@ public class RegistryLoader
     	    	
         // Get the nodes corresponding to commands
     	String path = LoaderType.REGISTRY_REFS.getElement() + "/reference";
-        NodeList cmdNodes = XPathAPI.selectNodeList(document, path);
+        NodeList cmdNodes = xPathFind(document, path);
         
         // Add each one as a new format to the registry
         for (int i = 0; i < cmdNodes.getLength(); i++)  {
@@ -565,7 +570,7 @@ public class RegistryLoader
             throws TransformerException
     {
         // Grab the child node
-        Node childNode = XPathAPI.selectSingleNode(parentElement, childName);
+        Node childNode = xPathFind(parentElement, childName).item(0);
 
         if (childNode == null) {
             // No child node, so no values
@@ -615,7 +620,7 @@ public class RegistryLoader
             String childName) throws TransformerException
     {
         // Grab the child node
-        NodeList childNodes = XPathAPI.selectNodeList(parentElement, childName);
+        NodeList childNodes = xPathFind(parentElement, childName);
 
         String[] data = new String[childNodes.getLength()];
 
@@ -628,5 +633,19 @@ public class RegistryLoader
         }
 
         return data;
+    }
+    
+    private static NodeList xPathFind(Node element, String match) {
+    	if (factory == null) {
+    		factory = XPathFactory.newInstance();
+    		xpath = factory.newXPath();
+    	}
+    	try {
+    		XPathExpression exp = xpath.compile(match);
+    		return (NodeList)exp.evaluate(element, XPathConstants.NODESET);
+    	} catch (Exception e) {
+    		log.error("Error evaluating expression: '" + match + "'", e);
+    	}
+    	return null;
     }
 }

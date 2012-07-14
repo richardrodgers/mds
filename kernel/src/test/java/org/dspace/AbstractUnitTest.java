@@ -18,7 +18,6 @@ import java.util.Properties;
 import java.util.TimeZone;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
-import org.dspace.administer.RegistryImportException;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.browse.BrowseException;
 import org.dspace.content.NonUniqueMetadataException;
@@ -31,7 +30,6 @@ import mockit.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.dspace.administer.MetadataImporter;
 import org.dspace.administer.RegistryLoader;
 import org.dspace.browse.IndexBrowse;
 import org.dspace.browse.MockBrowseCreateDAOOracle;
@@ -172,8 +170,8 @@ public class AbstractUnitTest
                 String base = testProps.getProperty("test.folder") + File.separator + "config"+ File.separator +"registries"+ File.separator;
 
                 RegistryLoader.loadBitstreamFormats(ctx, base + "bitstream-formats.xml");
-                MetadataImporter.loadRegistry(base + "dublin-core-types.xml", true);
-                MetadataImporter.loadRegistry(base + "sword-metadata.xml", true);
+                RegistryLoader.loadRegistryFile(ctx, base + "dublin-core-types.xml");
+                RegistryLoader.loadRegistryFile(ctx, base + "sword-metadata.xml");
                 ctx.commit();
 
                 //create eperson if required
@@ -210,11 +208,6 @@ public class AbstractUnitTest
         {
             log.error("Error creating the browse indexes", ex);
             fail("Error creating the browse indexes");
-        }
-        catch (RegistryImportException ex)
-        {
-            log.error("Error loading default data", ex);
-            fail("Error loading default data");
         }
         catch (NonUniqueMetadataException ex)
         {
