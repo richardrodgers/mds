@@ -124,6 +124,20 @@ CREATE TABLE DSpaceObject
 -- indexing TODO
 
 -------------------------------------------------------
+-- DSpaceObject Scoped Attribute
+-------------------------------------------------------
+CREATE TABLE Attribute
+(
+  attribute_id       INTEGER PRIMARY KEY,
+  dso_id             INTEGER REFERENCES DSpaceObject(dso_id),
+  scope              VARCHAR(128),
+  name               VARCHAR,
+  value              VARCHAR
+);
+
+-- Indexing TODO
+
+-------------------------------------------------------
 -- BitstreamFormatRegistry table
 -------------------------------------------------------
 CREATE TABLE BitstreamFormatRegistry

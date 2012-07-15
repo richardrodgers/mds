@@ -85,6 +85,11 @@ This simplifies the method implementations, and results in easier-to-use code.
 
 All DSpaceObjects are assigned a global unique identifier (i.e. independent of relational DB IDs, CNRI handles, etc). This internal or object identifier has many functions and has been proposed/prototyped in many development efforts (e.g. as part of the DSpace 2.0 work).
 
+### Scoped Object Attributes  ###
+
+A new DSpaceObject API has been added: _scoped attributes_. These are persistent (DB-resident), name-spaced (relative to a scope) sets of name/value pairs that can be assigned to any DSO. These attributes are _not_ considered part of the formal data model (like metadata), and are therefore not stored in an AIP, nor even expected to persist beyond particular contexts of use. They can, however, be used by workflow, submission, curation tasks, etc to securely and persistently associate simple data with DSOs. They are automatically purged on object deletion,
+but may also be removed via the API.
+
 ### Pluggable Search ###
 
 The search code has been refactored to allow different, pluggable _providers_ such as in-process Lucene, SOLR, etc. The code has also been modified to allow indexing of any DSpaceObject metadata: e.g. BitStream generic metadata. Finally, the refactor allows _multiple_ simultaneous indexes, so that one could, e.g. have an administrative index (e.g. Lucene), along with a pubic index (e.g. SOLR).

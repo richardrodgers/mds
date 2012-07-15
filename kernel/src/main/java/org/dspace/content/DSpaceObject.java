@@ -9,7 +9,9 @@ package org.dspace.content;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.UUID;
 
@@ -117,6 +119,8 @@ public abstract class DSpaceObject
      * Destroys the DSpaceObject belonging to this subclass.
      */
     protected void destroyDSO() throws SQLException {
+    	// first remove any attributes 
+        DatabaseManager.updateQuery(context, "DELETE FROM attribute WHERE dso_id = ?", getDSOiD());
     	DatabaseManager.delete(context, "dspaceobject", getDSOiD());
     }
     
@@ -370,7 +374,7 @@ public abstract class DSpaceObject
     }
     
     protected void deleteMetadata() throws AuthorizeException, SQLException {
-        DatabaseManager.updateQuery(context, "DELETE FROM MetadataValue WHERE dso_id= ? ",
+        DatabaseManager.updateQuery(context, "DELETE FROM MetadataValue WHERE dso_id = ? ",
         		getDSOiD());
     }
 
@@ -472,6 +476,97 @@ public abstract class DSpaceObject
     public void decacheMe() throws SQLException {
         // Remove item and it's submitter from cache
         context.removeCached(this, getID());
+    }
+    
+    /**
+     * Sets a scoped attribute on this object. If attribute does not exist,
+     * it is created; if it does, its value is reset.
+     * 
+     * @param scope - the attribute scope
+     * @param name - the name of the attribute
+     * @param value - the attribute value
+     */
+    public void setAttribute(String scope, String name, String value) throws SQLException {
+    	// does attribute exist?
+        TableRowIterator tri = DatabaseManager.queryTable(context, "attribute",
+                "SELECT * FROM attribute WHERE dso_id = ? AND scope = ? AND name = ?",
+                getDSOiD(), scope, name);
+        TableRow attrRow = null;
+        try {
+        	if (tri.hasNext()) {
+        		attrRow = tri.next();
+        	} else {
+        		// otherwise, create it
+        		attrRow = DatabaseManager.create(context, "attribute");
+        		attrRow.setColumn("dso_id", getDSOiD());
+        		attrRow.setColumn("scope", scope);
+        		attrRow.setColumn("name", name);
+        	}
+        	attrRow.setColumn("value", value);
+    		DatabaseManager.update(context, attrRow);
+    	} finally {
+            // close the TableRowIterator to free up resources
+            if (tri != null) {
+                tri.close();
+            }
+        }   
+    }
+    
+    /**
+     * Returns the value of the attribute with passed name, or <code>null</code>
+     * if the attribute does not exist in the passed scope.
+     * 
+     * @param scope - the attribute scope
+     * @param name - the name of the attribute
+     * @return - the attribute value, or null if undefined
+     */
+    public String getAttribute(String scope, String name) throws SQLException {
+        TableRowIterator tri = DatabaseManager.queryTable(context, "attribute",
+                "SELECT * FROM attribute WHERE dso_id = ? AND scope = ? AND name = ?",
+                getDSOiD(), scope, name);
+        try {
+        	return tri.hasNext() ? tri.next().getStringColumn("value") : null;
+        } finally {
+            // close the TableRowIterator to free up resources
+            if (tri != null) {
+                tri.close();
+            }
+        }   
+    }
+    
+    /**
+     * Clears all attributes in the passed scope.
+     * 
+     * @param scope - the attribute scope
+     */
+    public void clearAttributes(String scope) throws SQLException {
+        DatabaseManager.updateQuery(context, "DELETE FROM attribute WHERE dso_id = ? AND scope = ?",
+        							getDSOiD(), scope);
+    }
+    
+    /**
+     * Obtains a set of all the attribute names in the given scope.
+     * If there are no attributes, an empty set is returned
+     * 
+     * @param scope - the attribute scope
+     * @return the set of attribute names in the passed scope.
+     */
+    public Set<String> getAttributeNames(String scope) throws SQLException {
+        TableRowIterator tri = DatabaseManager.queryTable(context, "attribute",
+                "SELECT * FROM attribute WHERE dso_id = ? AND scope = ?",
+                getDSOiD(), scope);
+        Set<String> keySet = new HashSet<String>();
+        try {
+        	while (tri.hasNext()) {
+        		keySet.add(tri.next().getStringColumn("name"));
+        	}
+        } finally {
+            // close the TableRowIterator to free up resources
+            if (tri != null) {
+                tri.close();
+            }
+        }
+        return keySet;
     }
     
     // lazy load of metadata
