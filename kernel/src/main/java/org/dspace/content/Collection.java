@@ -65,9 +65,6 @@ public class Collection extends DSpaceObject
     /** The logo bitstream */
     private Bitstream logo;
 
-    /** The item template */
-    private Item template;
-
     /** Our Handle */
     private String handle;
 
@@ -101,13 +98,6 @@ public class Collection extends DSpaceObject
             logo = null;
         } else {
             logo = Bitstream.find(context, tableRow.getIntColumn("logo_bitstream_id"));
-        }
-
-        // Get the template item
-        if (tableRow.isColumnNull("template_item_id")) {
-            template = null;
-        } else {
-            template = Item.find(context, tableRow.getIntColumn("template_item_id"));
         }
 
         // Get the relevant groups
@@ -258,31 +248,6 @@ public class Collection extends DSpaceObject
         TableRowIterator tri = DatabaseManager.queryTable(context, "collection",
                 "SELECT * FROM collection ORDER BY name");
         return new BoundedIterator<Collection>(context, tri);
-
-        /*
-        List<Collection> collections = new ArrayList<Collection>();
-        try {
-            while (tri.hasNext()) {
-                TableRow row = tri.next();
-
-                // First check the cache
-                Collection fromCache = (Collection) context.fromCache(
-                        Collection.class, row.getIntColumn("collection_id"));
-
-                if (fromCache != null) {
-                    collections.add(fromCache);
-                } else  {
-                    collections.add(new Collection(context, row));
-                }
-            }
-        } finally {
-            // close the TableRowIterator to free up resources
-            if (tri != null) {
-                tri.close();
-            }
-        }
-        return collections;
-        */
     }
 
     /**
@@ -688,75 +653,6 @@ public class Collection extends DSpaceObject
     }
 
     /**
-     * Get the template item for this collection. <code>null</code> is
-     * returned if the collection does not have a template. Submission
-     * mechanisms may copy this template to provide a convenient starting point
-     * for a submission.
-     * 
-     * @return the item template, or <code>null</code>
-     */
-    public Item getTemplateItem() throws SQLException {
-        return template;
-    }
-
-    /**
-     * Create an empty template item for this collection. If one already exists,
-     * no action is taken. Caution: Make sure you call <code>update</code> on
-     * the collection after doing this, or the item will have been created but
-     * the collection record will not refer to it.
-     * 
-     * @throws SQLException
-     * @throws AuthorizeException
-     */
-    public void createTemplateItem() throws SQLException, AuthorizeException {
-        // Check authorisation
-        AuthorizeManager.authorizeManageTemplateItem(context, this);
-
-        if (template == null) {
-            template = Item.create(context);
-            tableRow.setColumn("template_item_id", template.getID());
-
-            log.info(LogManager.getHeader(context, "create_template_item",
-                    "collection_id=" + getID() + ",template_item_id="
-                            + template.getID()));
-        }
-        modified = true;
-    }
-
-    /**
-     * Remove the template item for this collection, if there is one. Note that
-     * since this has to remove the old template item ID from the collection
-     * record in the database, the colletion record will be changed, including
-     * any other changes made; in other words, this method does an
-     * <code>update</code>.
-     * 
-     * @throws SQLException
-     * @throws AuthorizeException
-     * @throws IOException
-     */
-    public void removeTemplateItem() throws SQLException, AuthorizeException,
-            IOException {
-        // Check authorisation
-        AuthorizeManager.authorizeManageTemplateItem(context, this);
-
-        tableRow.setColumnNull("template_item_id");
-        DatabaseManager.update(context, tableRow);
-        
-        if (template != null)  {
-            log.info(LogManager.getHeader(context, "remove_template_item",
-                    "collection_id=" + getID() + ",template_item_id="
-                            + template.getID()));
-            // temporary turn off auth system, we have already checked the permission on the top of the method
-            // check it again will fail because we have already broken the relation between the collection and the item
-            context.turnOffAuthorisationSystem();
-            template.delete();
-            context.restoreAuthSystemState();
-            template = null;
-        }
-        context.addEvent(new Event(Event.MODIFY, Constants.COLLECTION, getID(), "remove_template_item"));
-    }
-
-    /**
      * Add an item to the collection. This simply adds a relationship between
      * the item and the collection - it does nothing like set an issue date,
      * remove a personal workspace item etc. This has instant effect;
@@ -891,9 +787,6 @@ public class Collection extends DSpaceObject
         DatabaseManager.updateQuery(context,
                 "DELETE FROM subscription WHERE collection_id= ? ", 
                 getID());
-
-        // Remove Template Item
-        removeTemplateItem();
         
         // Remove items
         BoundedIterator<Item> items = getAllItems();
@@ -965,8 +858,6 @@ public class Collection extends DSpaceObject
                 myItem.delete();
             }
         // }
-
-
 
         // Remove any WorkspaceItems
         WorkspaceItem[] wsarray = WorkspaceItem.findByCollection(context,

@@ -489,7 +489,7 @@ public abstract class DSpaceObject
     public void setAttribute(String scope, String name, String value) throws SQLException {
     	// does attribute exist?
         TableRowIterator tri = DatabaseManager.queryTable(context, "attribute",
-                "SELECT * FROM attribute WHERE dso_id = ? AND scope = ? AND name = ?",
+                "SELECT * FROM attribute WHERE dso_id = ? AND scope = ? AND attr_name = ?",
                 getDSOiD(), scope, name);
         TableRow attrRow = null;
         try {
@@ -500,9 +500,9 @@ public abstract class DSpaceObject
         		attrRow = DatabaseManager.create(context, "attribute");
         		attrRow.setColumn("dso_id", getDSOiD());
         		attrRow.setColumn("scope", scope);
-        		attrRow.setColumn("name", name);
+        		attrRow.setColumn("attr_name", name);
         	}
-        	attrRow.setColumn("value", value);
+        	attrRow.setColumn("attr_value", value);
     		DatabaseManager.update(context, attrRow);
     	} finally {
             // close the TableRowIterator to free up resources
@@ -521,17 +521,11 @@ public abstract class DSpaceObject
      * @return - the attribute value, or null if undefined
      */
     public String getAttribute(String scope, String name) throws SQLException {
-        TableRowIterator tri = DatabaseManager.queryTable(context, "attribute",
-                "SELECT * FROM attribute WHERE dso_id = ? AND scope = ? AND name = ?",
-                getDSOiD(), scope, name);
-        try {
-        	return tri.hasNext() ? tri.next().getStringColumn("value") : null;
-        } finally {
-            // close the TableRowIterator to free up resources
-            if (tri != null) {
-                tri.close();
-            }
-        }   
+        try (TableRowIterator tri = DatabaseManager.queryTable(context, "attribute",
+                "SELECT * FROM attribute WHERE dso_id = ? AND scope = ? AND attr_name = ?",
+                getDSOiD(), scope, name)) {
+        	return tri.hasNext() ? tri.next().getStringColumn("attr_value") : null;
+        }
     }
     
     /**
@@ -552,19 +546,13 @@ public abstract class DSpaceObject
      * @return the set of attribute names in the passed scope.
      */
     public Set<String> getAttributeNames(String scope) throws SQLException {
-        TableRowIterator tri = DatabaseManager.queryTable(context, "attribute",
+    	Set<String> keySet = new HashSet<String>();
+        try (TableRowIterator tri = DatabaseManager.queryTable(context, "attribute",
                 "SELECT * FROM attribute WHERE dso_id = ? AND scope = ?",
-                getDSOiD(), scope);
-        Set<String> keySet = new HashSet<String>();
-        try {
+                getDSOiD(), scope)) {
         	while (tri.hasNext()) {
         		keySet.add(tri.next().getStringColumn("name"));
         	}
-        } finally {
-            // close the TableRowIterator to free up resources
-            if (tri != null) {
-                tri.close();
-            }
         }
         return keySet;
     }

@@ -63,9 +63,6 @@ public class Item extends DSpaceObject
     /** log4j category */
     private static final Logger log = LoggerFactory.getLogger(Item.class);
 
-    /** The e-person who submitted this item */
-    private EPerson submitter;
-
     /** The bundles in this item - kept in sync with DB */
     private List<Bundle> bundles;
 
@@ -166,25 +163,6 @@ public class Item extends DSpaceObject
      */
     public static BoundedIterator<Item> findAll(Context context) throws SQLException {
         String myQuery = "SELECT * FROM item WHERE in_archive='1'";
-        TableRowIterator rows = DatabaseManager.queryTable(context, "item", myQuery);
-        return new BoundedIterator<Item>(context, rows);
-    }
-
-    /**
-     * Find all the items in the archive by a given submitter. The order is
-     * indeterminate. Only items with the "in archive" flag set are included.
-     *
-     * @param context
-     *            DSpace context object
-     * @param eperson
-     *            the submitter
-     * @return an iterator over the items submitted by eperson
-     * @throws SQLException
-     */
-    public static BoundedIterator<Item> findBySubmitter(Context context, EPerson eperson)
-            throws SQLException {
-        String myQuery = "SELECT * FROM item WHERE in_archive='1' AND submitter_id="
-                + eperson.getID();
         TableRowIterator rows = DatabaseManager.queryTable(context, "item", myQuery);
         return new BoundedIterator<Item>(context, rows);
     }
@@ -302,39 +280,6 @@ public class Item extends DSpaceObject
         // just get the collection ID for internal use
     private int getOwningCollectionID() {
         return tableRow.getIntColumn("owning_collection");
-    }
-
-    /**
-     * Get the e-person that originally submitted this item
-     *
-     * @return the submitter
-     */
-    public EPerson getSubmitter() throws SQLException {
-        if (submitter == null && !tableRow.isColumnNull("submitter_id")) {
-            submitter = EPerson.find(context, tableRow
-                    .getIntColumn("submitter_id"));
-        }
-        return submitter;
-    }
-
-    /**
-     * Set the e-person that originally submitted this item. This is a public
-     * method since it is handled by the WorkspaceItem class in the ingest
-     * package. <code>update</code> must be called to write the change to the
-     * database.
-     *
-     * @param sub
-     *            the submitter
-     */
-    public void setSubmitter(EPerson sub) {
-        submitter = sub;
-
-        if (submitter != null) {
-            tableRow.setColumn("submitter_id", submitter.getID());
-        } else {
-            tableRow.setColumnNull("submitter_id");
-        }
-        modified = true;
     }
 
     /**
@@ -1033,9 +978,6 @@ public class Item extends DSpaceObject
     {
         // Remove item and it's submitter from cache
         context.removeCached(this, getID());
-        if (submitter != null) {
-            context.removeCached(submitter, submitter.getID());
-        }
         // Remove bundles & bitstreams from cache if they have been loaded
         if (bundles != null) {
             for (Bundle bundle : getBundles()) {

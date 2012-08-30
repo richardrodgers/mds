@@ -35,7 +35,6 @@ import org.dspace.authorize.ResourcePolicy;
 import org.dspace.authority.MetadataAuthorityManager;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
-import org.dspace.eperson.EPerson;
 import org.dspace.eperson.Group;
 
 /**
@@ -70,7 +69,7 @@ public class ItemTest  extends AbstractDSpaceObjectTest
             context.turnOffAuthorisationSystem();
             this.it = Item.create(context);
             it.setArchived(true);
-            it.setSubmitter(context.getCurrentUser());
+            //it.setSubmitter(context.getCurrentUser());
             it.update();
             this.dspaceObject = it;
             //we need to commit the changes so we don't block the table for testing
@@ -149,37 +148,6 @@ public class ItemTest  extends AbstractDSpaceObjectTest
         }
         all.close();
         assertTrue("testFindAll 1",added);
-    }
-
-    /**
-     * Test of findBySubmitter method, of class Item.
-     */
-    @Test
-    public void testFindBySubmitter() throws Exception 
-    {
-        BoundedIterator<Item> all = Item.findBySubmitter(context, context.getCurrentUser());
-        assertThat("testFindBySubmitter 0", all, notNullValue());
-
-        boolean added = false;
-        while(all.hasNext())
-        {
-            Item tmp = all.next();
-            if(tmp.equals(it))
-            {
-                added = true;
-            }
-        }
-        all.close();
-        assertTrue("testFindBySubmitter 1",added);
-
-        context.turnOffAuthorisationSystem();
-        all = Item.findBySubmitter(context, EPerson.create(context));
-        context.restoreAuthSystemState();
-
-        assertThat("testFindBySubmitter 2", all, notNullValue());
-        assertFalse("testFindBySubmitter 3", all.hasNext());
-        assertThat("testFindBySubmitter 4", all.next(), nullValue());
-        all.close();
     }
 
     /**
@@ -399,37 +367,6 @@ public class ItemTest  extends AbstractDSpaceObjectTest
         List<MDValue> md = it.getMetadata(schema, element, qualifier, lang);
         assertThat("testClearMetadata 0",md,notNullValue());
         assertTrue("testClearMetadata 1",md.size() == 0);
-    }
-
-    /**
-     * Test of getSubmitter method, of class Item.
-     */
-    @Test
-    public void testGetSubmitter() throws Exception
-    {
-        assertThat("testGetSubmitter 0", it.getSubmitter(), notNullValue());
-
-        //null by default
-        context.turnOffAuthorisationSystem();
-        Item tmp = Item.create(context);
-        context.restoreAuthSystemState();
-        assertThat("testGetSubmitter 1", tmp.getSubmitter(), nullValue());
-    }
-
-    /**
-     * Test of setSubmitter method, of class Item.
-     */
-    @Test
-    public void testSetSubmitter() throws SQLException, AuthorizeException
-    {
-        context.turnOffAuthorisationSystem();
-        EPerson sub = EPerson.create(context);
-        context.restoreAuthSystemState();
-        
-        it.setSubmitter(sub);
-
-        assertThat("testSetSubmitter 0", it.getSubmitter(), notNullValue());
-        assertThat("testSetSubmitter 1", it.getSubmitter().getID(), equalTo(sub.getID()));
     }
 
     /**

@@ -724,7 +724,9 @@ public class WorkflowManager
         try
         {
             // Get submitter
-            EPerson ep = i.getSubmitter();
+        	int submitterId = Integer.parseInt(i.getAttribute("ingest", "submitter"));
+        	EPerson ep =  EPerson.find(c, submitterId);
+            //EPerson ep = i.getSubmitter();
             // Get the Locale
             Locale supportedLocale = I18nUtil.getEPersonLocale(ep);
             Email email = ConfigurationManager.getEmail(I18nUtil.getEmailFilename(supportedLocale, "submit_archive"));
@@ -1047,7 +1049,6 @@ public class WorkflowManager
             throws SQLException
     {
         EPerson e = wi.getSubmitter();
-
         return e;
     }
 
@@ -1126,11 +1127,12 @@ public class WorkflowManager
 
         // Create provenance description
         String provmessage = "";
-
-        if (myitem.getSubmitter() != null)
+    	int submitterId = Integer.parseInt(myitem.getAttribute("ingest", "submitter"));
+    	EPerson submitter = EPerson.find(c, submitterId);
+        if (submitter != null)
         {
-            provmessage = "Submitted by " + myitem.getSubmitter().getFullName()
-                    + " (" + myitem.getSubmitter().getEmail() + ") on "
+            provmessage = "Submitted by " + submitter.getFullName()
+                    + " (" + submitter.getEmail() + ") on "
                     + now + "\n";
         }
         else

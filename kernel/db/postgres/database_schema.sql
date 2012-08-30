@@ -75,6 +75,8 @@ CREATE FUNCTION getnextid(VARCHAR(40)) RETURNS INTEGER AS
 -- tables.  Each table must have a corresponding
 -- sequence called 'tablename_seq'.
 -------------------------------------------------------
+CREATE SEQUENCE dspaceobject_seq;
+CREATE SEQUENCE attribute_seq;
 CREATE SEQUENCE bitstreamformatregistry_seq;
 CREATE SEQUENCE fileextension_seq;
 CREATE SEQUENCE bitstream_seq;
@@ -103,11 +105,13 @@ CREATE SEQUENCE epersongroup2workspaceitem_seq;
 CREATE SEQUENCE metadataschemaregistry_seq;
 CREATE SEQUENCE metadatafieldregistry_seq;
 CREATE SEQUENCE metadatavalue_seq;
-CREATE SEQUENCE dspaceobject_seq;
 CREATE SEQUENCE group2group_seq;
 CREATE SEQUENCE group2groupcache_seq;
 CREATE SEQUENCE harvested_collection_seq;
 CREATE SEQUENCE harvested_item_seq;
+CREATE SEQUENCE xresmap_seq;
+CREATE SEQUENCE mdtemplate_seq;
+CREATE SEQUENCE mdtemplatevalue_seq;
 CREATE SEQUENCE command_seq;
 
 -------------------------------------------------------
@@ -128,11 +132,11 @@ CREATE TABLE DSpaceObject
 -------------------------------------------------------
 CREATE TABLE Attribute
 (
-  attribute_id       INTEGER PRIMARY KEY,
+  attribute_id       INTEGER PRIMARY KEY DEFAULT NEXTVAL('attribute_seq'),
   dso_id             INTEGER REFERENCES DSpaceObject(dso_id),
   scope              VARCHAR(128),
-  name               VARCHAR,
-  value              VARCHAR
+  attr_name          VARCHAR,
+  attr_value         VARCHAR
 );
 
 -- Indexing TODO
@@ -389,7 +393,6 @@ CREATE TABLE Collection
   dso_id            INTEGER REFERENCES DSpaceObject(dso_id),
   name              VARCHAR(128),
   logo_bitstream_id INTEGER REFERENCES Bitstream(bitstream_id),
-  template_item_id  INTEGER REFERENCES Item(item_id),
   workflow_step_1   INTEGER REFERENCES EPersonGroup( eperson_group_id ),
   workflow_step_2   INTEGER REFERENCES EPersonGroup( eperson_group_id ),
   workflow_step_3   INTEGER REFERENCES EPersonGroup( eperson_group_id ),
@@ -399,7 +402,6 @@ CREATE TABLE Collection
 
 CREATE INDEX collection_dso_fk_idx ON Collection(dso_id);
 CREATE INDEX collection_logo_fk_idx ON Collection(logo_bitstream_id);
-CREATE INDEX collection_template_fk_idx ON Collection(template_item_id);
 CREATE INDEX collection_workflow1_fk_idx ON Collection(workflow_step_1);
 CREATE INDEX collection_workflow2_fk_idx ON Collection(workflow_step_2);
 CREATE INDEX collection_workflow3_fk_idx ON Collection(workflow_step_3);
@@ -698,16 +700,49 @@ CREATE TABLE ctask_data
 );
 
 -------------------------------------------------------
+-- xresmap table
+-------------------------------------------------------
+CREATE TABLE xresmap
+(
+    xresmap_id    INTEGER PRIMARY KEY DEFAULT NEXTVAL('xresmap_seq'),
+    res_class     VARCHAR,
+    mapping       VARCHAR,
+    res_key       VARCHAR,
+    resource      VARCHAR
+);
+
+------------------------------------------------------
+-- mdtemplate table
+------------------------------------------------------
+CREATE TABLE mdtemplate
+(
+  mdtemplate_id      INTEGER PRIMARY KEY DEFAULT NEXTVAL('mdtemplate_seq'),
+  description        TEXT,
+);
+
+------------------------------------------------------
+-- mdtemplatevalue table
+------------------------------------------------------
+CREATE TABLE mdtemplatevalue
+(
+  mdtemplate_value_id  INTEGER PRIMARY KEY DEFAULT NEXTVAL('mdtemplatevalue_seq'),
+  mdtemplate_id        INTEGER REFERENCES mdtemplate(mdtemplate_id),
+  metadata_field_id    INTEGER REFERENCES MetadataFieldRegistry(metadata_field_id),
+  text_value           TEXT,
+  text_lang            VARCHAR(24)
+);
+
+-------------------------------------------------------
 -- Command table
 -------------------------------------------------------
 CREATE TABLE command
 (
-  command_id           INTEGER PRIMARY KEY,
+  command_id           INTEGER PRIMARY KEY DEFAULT NEXTVAL('command_seq'),
   name                 VARCHAR UNIQUE,
   description          VARCHAR,
   class_name           VARCHAR,
   arguments            VARCHAR,
-  launchable	       BOOL,
+  launchable	         BOOL,
   fwd_user_args        BOOL,
   successor            INTEGER 
 );

@@ -25,6 +25,8 @@ import org.dspace.core.Context;
 import org.dspace.core.LogManager;
 import org.dspace.eperson.EPerson;
 import org.dspace.eperson.Group;
+import org.dspace.mxres.MetadataTemplate;
+import org.dspace.mxres.ResourceMap;
 import org.dspace.storage.rdbms.DatabaseManager;
 import org.dspace.storage.rdbms.TableRow;
 import org.dspace.storage.rdbms.TableRowIterator;
@@ -143,7 +145,9 @@ public class WorkspaceItem implements InProgressSubmission
 
         // Create an item
         Item i = Item.create(c);
-        i.setSubmitter(c.getCurrentUser());
+        //i.setSubmitter(c.getCurrentUser());
+        i.setAttribute("ingest", "submitter", String.valueOf(c.getCurrentUser().getID()));
+        i.setAttribute("workspace", "collection", coll.getHandle());
 
         // Now create the policies for the submitter and workflow
         // users to modify item and contents
@@ -237,14 +241,15 @@ public class WorkspaceItem implements InProgressSubmission
             }
         //}
 
-        // Copy template if appropriate
-        Item templateItem = coll.getTemplateItem();
+        // Copy template if desired and available
+        MetadataTemplate mdt = new ResourceMap<>(MetadataTemplate.class, c).findResource(i, "workspace");
+        //Item templateItem = coll.getTemplateItem();
 
-        if (template && (templateItem != null))
+        if (template && (mdt != null))
         {
-            List<MDValue> md = templateItem.getMetadata(MDValue.ANY, MDValue.ANY, MDValue.ANY, MDValue.ANY);
+            //List<MDValue> md = mdt.getTemplateValues();
 
-            for (MDValue mdv : md)
+            for (MDValue mdv : mdt.getTemplateValues())
             {
                 i.addMetadata(mdv.getSchema(), mdv.getElement(), mdv.getQualifier(),
                 			  mdv.getLanguage(), mdv.getValue());
@@ -567,10 +572,10 @@ public class WorkspaceItem implements InProgressSubmission
          * original submitter or an administrator can delete a workspace item.
 
          */
+    	int submitterId = Integer.parseInt(item.getAttribute("ingest", "submitter"));
         if (!AuthorizeManager.isAdmin(ourContext)
                 && ((ourContext.getCurrentUser() == null) || (ourContext
-                        .getCurrentUser().getID() != item.getSubmitter()
-                        .getID())))
+                        .getCurrentUser().getID() != submitterId)))
         {
             // Not an admit, not the submitter
             throw new AuthorizeException("Must be an administrator or the "
@@ -637,7 +642,8 @@ public class WorkspaceItem implements InProgressSubmission
 
     public EPerson getSubmitter() throws SQLException
     {
-        return item.getSubmitter();
+    	int submitterId = Integer.parseInt(item.getAttribute("ingest", "submitter"));
+    	return EPerson.find(ourContext, submitterId);
     }
 
     public boolean hasMultipleFiles()

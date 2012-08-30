@@ -398,7 +398,8 @@ public class WorkflowItem implements InProgressSubmission
 
     public EPerson getSubmitter() throws SQLException
     {
-        return item.getSubmitter();
+    	int submitterId = Integer.parseInt(item.getAttribute("ingest", "submitter"));
+    	return EPerson.find(ourContext, submitterId);
     }
 
     public boolean hasMultipleFiles()

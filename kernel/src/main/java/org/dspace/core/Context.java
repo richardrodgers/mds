@@ -45,6 +45,9 @@ import org.dspace.storage.rdbms.DatabaseManager;
  */
 public class Context
 {
+	/** option flags */
+	public static final short READ_ONLY = 0x01;
+	
     private static final Logger log = LoggerFactory.getLogger(Context.class);
 
     /** Database connection */
@@ -82,6 +85,9 @@ public class Context
 
     /** Event dispatcher name */
     private String dispName = null;
+    
+    /** Options */
+    private short options = 0;
 
     /**
      * Construct a new context object. A database connection is opened. No user
@@ -92,8 +98,28 @@ public class Context
      */
     public Context() throws SQLException
     {
-        // Obtain a non-auto-committing connection
     	log.debug("CTOR");
+    	init();
+    }
+    
+    /**
+     * Construct a new context object with passed options.
+     *  A database connection is opened. No user is authenticated.
+     * 
+     * @param options a short word with option flags (e.g. READ_ONLY)
+     * @exception SQLException
+     *                if there was an error obtaining a database connection
+     */
+    public Context(short options) throws SQLException
+    {
+    	log.debug("CTOR-O");
+    	this.options = options;
+    	init();
+    }
+    
+    private void init() throws SQLException
+    {
+        // Obtain a non-auto-committing connection
         connection = DatabaseManager.getConnection();
         connection.setAutoCommit(false);
 
@@ -106,7 +132,7 @@ public class Context
         specialGroups = new ArrayList<Integer>();
 
         authStateChangeHistory = new Stack<Boolean>();
-        authStateClassCallHistory = new Stack<String>();
+        authStateClassCallHistory = new Stack<String>();	
     }
 
     /**
@@ -299,7 +325,10 @@ public class Context
         try
         {
             // Commit any changes made as part of the transaction
-            commit();
+        	if (! isReadOnly())
+        	{
+        		commit();
+        	}
         }
         finally
         {
@@ -320,6 +349,13 @@ public class Context
      */
     public void commit() throws SQLException
     {
+    	/* 
+    	 * invalid condition if in read-only mode: no valid
+    	 * transactions can be committed: no recourse but to bail
+    	 */
+    	if (isReadOnly()) {
+    	    throw new IllegalStateException("Attempt to commit transaction in read-only context");
+    	}
         // Commit any changes made as part of the transaction
         Dispatcher dispatcher = null;
 
@@ -375,6 +411,13 @@ public class Context
      */
     public void addEvent(Event event)
     {
+    	/* 
+    	 * invalid condition if in read-only mode: events - which
+    	 * indicate mutation - are firing: no recourse but to bail
+    	 */
+    	if (isReadOnly()) {
+    	    throw new IllegalStateException("Attempt to mutate object in read-only context");
+    	}
         if (events == null)
         {
             events = new ArrayList<Event>();
@@ -411,7 +454,10 @@ public class Context
         {
             if (!connection.isClosed())
             {
-                connection.rollback();
+            	if (! isReadOnly())
+            	{
+            		connection.rollback();
+            	}
             }
         }
         catch (SQLException se)
@@ -450,6 +496,17 @@ public class Context
         // Only return true if our DB connection is live
         return (connection != null);
     }
+    
+    /**
+     * Reports whether context supports updating DSpaceObjects, or only reading.
+     * 
+     * @return <code>true</code> if the context is read-only, otherwise
+     *         <code>false</code>
+     */
+    public boolean isReadOnly()
+    {
+    	return (options & READ_ONLY) > 0;
+    }
 
     /**
      * Store an object in the object cache.
@@ -479,8 +536,11 @@ public class Context
      */
     public void cache(Object o, int id)
     {
-        String key = o.getClass().getName() + id;
-        objectCache.put(key, o);
+    	// bypass cache if in read-only mode
+    	if (! isReadOnly()) {
+    	    String key = o.getClass().getName() + id;
+    	    objectCache.put(key, o);
+    	}
     }
 
     /**

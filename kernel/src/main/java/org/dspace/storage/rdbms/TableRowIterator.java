@@ -23,7 +23,7 @@ import java.util.List;
  * @author Peter Breton
  * @version $Revision: 5915 $
  */
-public class TableRowIterator
+public class TableRowIterator implements AutoCloseable
 {
     private static final Logger log = LoggerFactory.getLogger(TableRowIterator.class);
     /**
