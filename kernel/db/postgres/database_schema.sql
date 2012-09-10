@@ -717,7 +717,7 @@ CREATE TABLE xresmap
 CREATE TABLE mdtemplate
 (
   mdtemplate_id      INTEGER PRIMARY KEY DEFAULT NEXTVAL('mdtemplate_seq'),
-  description        TEXT,
+  description        TEXT
 );
 
 ------------------------------------------------------
