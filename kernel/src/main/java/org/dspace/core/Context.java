@@ -43,7 +43,7 @@ import org.dspace.storage.rdbms.DatabaseManager;
  * 
  * @version $Revision: 5915 $
  */
-public class Context
+public class Context implements AutoCloseable
 {
 	/** option flags */
 	public static final short READ_ONLY = 0x01;
@@ -307,6 +307,18 @@ public class Context
     public String getExtraLogInfo()
     {
         return extraLogInfo;
+    }
+
+    /**
+     * Frees the database connection, abandoning any uncommitted transaction.
+     * Enables use in automatic resource management contexts.
+     *
+     * @see  AutoCloseable
+     */
+    public void close() throws SQLException {
+        if (isValid()) {
+            abort();
+        }
     }
 
     /**

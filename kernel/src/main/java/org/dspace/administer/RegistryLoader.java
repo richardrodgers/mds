@@ -87,9 +87,7 @@ public class RegistryLoader
     		System.err.println("Missing registry load file name");
     		System.exit(1);
     	}
-    	Context context = null;
-    	try {
-    		context = new Context();
+    	try (Context context = new Context()) {
     	   	// Can't update registries anonymously, so we need to turn off
             // authorisation
         	context.turnOffAuthorisationSystem();
@@ -97,11 +95,7 @@ public class RegistryLoader
             context.complete();
             System.exit(0);
     	} catch (Exception e) {
-    		log.error(LogManager.getHeader(context, "error_loading_registries", ""), e);
-    	} finally {
-    		if (context != null && context.isValid()) {
-    			context.abort();
-    		}
+    		log.error("error_loading_registries: " +  e.getMessage());
     	}
         System.exit(1);
     }

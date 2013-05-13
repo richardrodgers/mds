@@ -10,7 +10,10 @@ package org.dspace.core;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -365,6 +368,54 @@ public class Email
         }
 
         Transport.send(message);
+    }
+
+      /**
+     * Get the template for an email message. The message is suitable for
+     * inserting values using <code>java.text.MessageFormat</code>.
+     * 
+     * @param emailFile
+     *            full name for the email template, for example "/dspace/config/emails/register".
+     * 
+     * @return the email object, with the content and subject filled out from
+     *         the template
+     * 
+     * @throws IOException
+     *             if the template couldn't be found, or there was some other
+     *             error reading the template
+     */
+    public static Email getEmail(String emailFile) throws IOException {
+        String charset = null;
+        String subject = "";
+        StringBuffer contentBuffer = new StringBuffer();
+
+        // Read in template
+        try (BufferedReader reader = new BufferedReader(new FileReader(emailFile))) {
+            String line = null;
+            while ((line = reader.readLine()) != null) {
+                if (line.toLowerCase().startsWith("subject:")) {
+                    // Extract the first subject line - everything to the right
+                    // of the colon, trimmed of whitespace
+                    subject = line.substring(8).trim();
+                } else if (line.toLowerCase().startsWith("charset:")) {
+                    // Extract the character set from the email
+                    charset = line.substring(8).trim();
+                } else if (!line.startsWith("#")) {
+                    // Add non-comment lines to the content
+                    contentBuffer.append(line).append("\n");
+                }
+            }
+        }
+        // Create an email
+        Email email = new Email();
+        email.setSubject(subject);
+        email.setContent(contentBuffer.toString());
+
+        if (charset != null) {
+            email.setCharset(charset);
+        }
+
+        return email;
     }
 
     /**

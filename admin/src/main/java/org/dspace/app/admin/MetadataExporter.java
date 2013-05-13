@@ -5,7 +5,7 @@
  *
  * http://www.dspace.org/license/
  */
-package org.dspace.administer;
+package org.dspace.app.admin;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
@@ -27,6 +27,9 @@ import org.dspace.content.MetadataField;
 import org.dspace.content.MetadataSchema;
 import org.dspace.core.Context;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * @author Graham Triggs
  *
@@ -42,8 +45,7 @@ import org.dspace.core.Context;
  *   </schema>
  * </metadata-schemas>
  */
-public class MetadataExporter
-{
+public class MetadataExporter {
 	// output file 
 	@Option(name="-f", usage="output xml file for registry", required=true)
 	private String file;
@@ -59,10 +61,8 @@ public class MetadataExporter
      * @throws SAXException 
      * @throws IOException 
      * @throws SQLException 
-     * @throws RegistryExportException 
      */
-    public static void main(String[] args) throws SQLException, IOException, SAXException, RegistryExportException
-    {
+    public static void main(String[] args) throws SQLException, IOException, SAXException {
         MetadataExporter me = new MetadataExporter();
         CmdLineParser parser = new CmdLineParser(me);
         try {
@@ -76,8 +76,7 @@ public class MetadataExporter
         System.exit(1);
     }
 
-    public static void saveRegistry(String file, String schema) throws SQLException, IOException, SAXException, RegistryExportException
-    {
+    public static void saveRegistry(String file, String schema) throws SQLException, IOException, SAXException {
         // create a context
         Context context = new Context();
         context.turnOffAuthorisationSystem();
@@ -97,27 +96,19 @@ public class MetadataExporter
         MetadataField[] mdFields = null;
 
         // If a single schema has been specified
-        if (schema != null && !"".equals(schema))
-        {
+        if (schema != null && !"".equals(schema)) {
             // Get the id of that schema
             MetadataSchema mdSchema = MetadataSchema.find(context, schema);
-            if (mdSchema == null)
-            {
-                throw new RegistryExportException("no schema to export");
-            }
-            
+            checkNotNull(mdSchema, "no schema to export");
             // Get the metadata fields only for the specified schema
             mdFields = MetadataField.findAllInSchema(context, mdSchema.getSchemaID());
-        }
-        else
-        {
+        } else {
             // Get the metadata fields for all the schemas
             mdFields = MetadataField.findAll(context);
         }
         
         // Output the metadata fields
-        for (MetadataField mdField : mdFields)
-        {
+        for (MetadataField mdField : mdFields) {
             saveType(context, xmlSerializer, mdField);
         }
         
@@ -135,24 +126,17 @@ public class MetadataExporter
      * @param schema
      * @throws SQLException
      * @throws SAXException
-     * @throws RegistryExportException
      */
-    public static void saveSchema(Context context, XMLSerializer xmlSerializer, String schema) throws SQLException, SAXException, RegistryExportException
-    {
-        if (schema != null && !"".equals(schema))
-        {
+    public static void saveSchema(Context context, XMLSerializer xmlSerializer, String schema) throws SQLException, SAXException {
+        if (schema != null && !"".equals(schema)) {
             // Find a single named schema
             MetadataSchema mdSchema = MetadataSchema.find(context, schema);
-            
             saveSchema(xmlSerializer, mdSchema);
-        }
-        else
-        {
+        } else {
             // Find all schemas
             MetadataSchema[] mdSchemas = MetadataSchema.findAll(context);
             
-            for (MetadataSchema mdSchema : mdSchemas)
-            {
+            for (MetadataSchema mdSchema : mdSchemas){
                 saveSchema(xmlSerializer, mdSchema);
             }
         }
@@ -164,27 +148,20 @@ public class MetadataExporter
      * @param xmlSerializer
      * @param mdSchema
      * @throws SAXException
-     * @throws RegistryExportException
      */
-    private static void saveSchema(XMLSerializer xmlSerializer, MetadataSchema mdSchema) throws SAXException, RegistryExportException
-    {
+    private static void saveSchema(XMLSerializer xmlSerializer, MetadataSchema mdSchema) throws SAXException  {
         // If we haven't got a schema, it's an error
-        if (mdSchema == null)
-        {
-            throw new RegistryExportException("no schema to export");
-        }
+        checkNotNull(mdSchema, "no schema to export");
         
         String name      = mdSchema.getName();
         String namespace = mdSchema.getNamespace();
         
-        if (name == null || "".equals(name))
-        {
+        if (name == null || "".equals(name))  {
             System.out.println("name is null, skipping");
             return;
         }
 
-        if (namespace == null || "".equals(namespace))
-        {
+        if (namespace == null || "".equals(namespace)) {
             System.out.println("namespace is null, skipping");
             return;
         }
@@ -216,13 +193,9 @@ public class MetadataExporter
      * @throws SQLException
      * @throws IOException 
      */
-    private static void saveType(Context context, XMLSerializer xmlSerializer, MetadataField mdField) throws SAXException, RegistryExportException, SQLException, IOException
-    {
+    private static void saveType(Context context, XMLSerializer xmlSerializer, MetadataField mdField) throws SAXException, SQLException, IOException  {
         // If we haven't been given a field, it's an error
-        if (mdField == null)
-        {
-            throw new RegistryExportException("no field to export");
-        }
+        checkNotNull(mdField, "no field to export");
         
         // Get the data from the metadata field
         String schemaName = getSchemaName(context, mdField);
@@ -231,10 +204,7 @@ public class MetadataExporter
         String scopeNote = mdField.getScopeNote();
 
         // We must have a schema and element
-        if (schemaName == null || element == null)
-        {
-            throw new RegistryExportException("incomplete field information");
-        }
+        checkArgument(schemaName != null && element != null, "incomplete field information");
 
         // Output the parent tag
         xmlSerializer.startElement("dc-type", null);
@@ -250,26 +220,20 @@ public class MetadataExporter
         xmlSerializer.endElement("element");
 
         // Output the qualifier, if present
-        if (qualifier != null)
-        {
+        if (qualifier != null) {
             xmlSerializer.startElement("qualifier", null);
             xmlSerializer.characters(qualifier.toCharArray(), 0, qualifier.length());
             xmlSerializer.endElement("qualifier");
-        }
-        else
-        {
+        } else {
             xmlSerializer.comment("unqualified");
         }
         
         // Output the scope note, if present
-        if (scopeNote != null)
-        {
+        if (scopeNote != null) {
             xmlSerializer.startElement("scope_note", null);
             xmlSerializer.characters(scopeNote.toCharArray(), 0, scopeNote.length());
             xmlSerializer.endElement("scope_note");
-        }
-        else
-        {
+        } else {
             xmlSerializer.comment("no scope note");
         }
         
@@ -281,25 +245,16 @@ public class MetadataExporter
      * Caches the name after looking up the id.
      */
     static Map<Integer, String> schemaMap = new HashMap<Integer, String>();
-    private static String getSchemaName(Context context, MetadataField mdField) throws SQLException, RegistryExportException
-    {
+    private static String getSchemaName(Context context, MetadataField mdField) throws SQLException {
         // Get name from cache
         String name = schemaMap.get(Integer.valueOf(mdField.getSchemaID()));
 
-        if (name == null)
-        {
+        if (name == null) {
             // Name not retrieved before, so get the schema now
             MetadataSchema mdSchema = MetadataSchema.find(context, mdField.getSchemaID());
-            if (mdSchema != null)
-            {
-                name = mdSchema.getName();
-                schemaMap.put(Integer.valueOf(mdSchema.getSchemaID()), name);
-            }
-            else
-            {
-                // Can't find the schema
-                throw new RegistryExportException("Can't get schema name for field");
-            }
+            checkNotNull(mdSchema, "Can't get schema name for field");
+            name = mdSchema.getName();
+            schemaMap.put(Integer.valueOf(mdSchema.getSchemaID()), name);
         }
         return name;
     }

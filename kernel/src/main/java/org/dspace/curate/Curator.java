@@ -20,6 +20,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.Collection;
 import org.dspace.content.Community;
 import org.dspace.content.DSpaceObject;
@@ -80,9 +81,7 @@ public class Curator
     /**
      * No-arg constructor
      */
-    public Curator()
-    {
-    }
+    public Curator() {}
 
     /**
      * Add a task to the set to be performed. Caller should make no assumptions
@@ -91,25 +90,18 @@ public class Curator
      * @param taskName - logical name of task
      * @return this curator - to support concatenating invocation style
      */
-    public Curator addTask(String taskName)
-    {
+    public Curator addTask(String taskName) {
     	ResolvedTask task = resolver.resolveTask(taskName);
-        if (task != null)
-        {
-            try
-            {
+        if (task != null) {
+            try {
                 task.init(this);
                 trMap.put(taskName, new TaskRunner(task));
                 // performance order currently FIFO - to be revisited
                 perfList.add(taskName);
-            }
-            catch (IOException ioE)
-            {
+            } catch (IOException ioE) {
                log.error("Task: '" + taskName + "' initialization failure: " + ioE.getMessage()); 
             }
-        }
-        else
-        {
+        } else {
             log.error("Task: '" + taskName + "' does not resolve");
         }
         return this;
@@ -121,8 +113,7 @@ public class Curator
      * @param taskName - logical name of the task
      * @return true if task has been configured, else false
      */
-     public boolean hasTask(String taskName)
-     {
+     public boolean hasTask(String taskName) {
          return perfList.contains(taskName);
      }
       
@@ -132,8 +123,7 @@ public class Curator
      * @param taskName - logical name of the task
      * @return this curator - to support concatenating invocation style
      */
-    public Curator removeTask(String taskName)
-    {
+    public Curator removeTask(String taskName) {
         trMap.remove(taskName);
         perfList.remove(taskName);
         return this;
@@ -144,8 +134,7 @@ public class Curator
      * 
      * @return name list - the list of task names
      */
-    public List<String> getTasks()
-    {
+    public List<String> getTasks() {
     	return new ArrayList<String>(perfList);
     }
     
@@ -155,8 +144,7 @@ public class Curator
      * @param mode one of INTERACTIVE, BATCH, ANY
      * @return this curator - to support concatenating invocation style
      */
-    public Curator setInvoked(Invoked mode)
-    {
+    public Curator setInvoked(Invoked mode) {
         iMode = mode;
         return this;
     }
@@ -166,8 +154,7 @@ public class Curator
      * 
      * @return mode - the invocation moede
      */
-    public Invoked getInvoked()
-    {
+    public Invoked getInvoked() {
         return iMode;
     }
 
@@ -178,8 +165,7 @@ public class Curator
      *                 causes reporting to standard out. 
      * @return this curator - to support concatenating invocation style
      */
-    public Curator setReporter(String reporter)
-    {
+    public Curator setReporter(String reporter) {
         this.reporter = reporter;
         return this;
     }
@@ -193,8 +179,7 @@ public class Curator
      * @param limit the maximum number of objects to allow in the cache
      * @return this curator - to support concatenating invocation style
      */
-    public Curator setCacheLimit(int limit)
-    {
+    public Curator setCacheLimit(int limit)  {
     	cacheLimit = limit;
     	return this;
     }
@@ -204,8 +189,7 @@ public class Curator
      * 
      * @return limit - the cache limit, or MAX_VALUE if unset
      */
-    public int getCacheLimit()
-    {
+    public int getCacheLimit() {
     	return cacheLimit;
     }
     
@@ -221,8 +205,7 @@ public class Curator
      * @param scope the transaction scope to apply
      * @return this curator - to support concatenating invocation style
      */
-    public Curator setTransactionScope(TxScope scope)
-    {
+    public Curator setTransactionScope(TxScope scope) {
     	txScope = scope;
     	return this;
     }
@@ -232,8 +215,7 @@ public class Curator
      * 
      * @return scope - the current transaction scope
      */
-    public TxScope getTransactionScope()
-    {
+    public TxScope getTransactionScope() {
     	return txScope;
     }
     
@@ -245,11 +227,9 @@ public class Curator
      * @return object instance or null if no 
      *         managed object mapped to passed key
      */
-    public Object obtainResource(String key)
-    {
+    public Object obtainResource(String key) {
     	ManagedResource mr = null;
-    	if (mrMap != null && (mr = mrMap.get(key)) != null)
-    	{
+    	if (mrMap != null && (mr = mrMap.get(key)) != null)	{
     		return mr.getResource();
     	}
     	return null;
@@ -264,11 +244,9 @@ public class Curator
      * @param policy - the instructions on how to manage it
      *                 'flush' and 'close' only policies supported
      */
-    public void enrollResource(Object resource, String policy)
-    {
+    public void enrollResource(Object resource, String policy) {
     	if (policy != null && (policy.contains(POLICY_FLUSH) ||
-    			               policy.contains(POLICY_CLOSE)))
-    	{		
+    			               policy.contains(POLICY_CLOSE)))	{		
     		// security through obscurity
     		manageResource(UUID.randomUUID().toString(), resource, policy);
     	}
@@ -284,24 +262,19 @@ public class Curator
      *       - only 'close' and 'flush' currently supported policies
      * @return boolean true if object put under management, else false
      */
-    protected boolean manageResource(String key, Object resource, String policy)
-    {
-    	if (mrMap == null)
-    	{
+    protected boolean manageResource(String key, Object resource, String policy)  {
+    	if (mrMap == null)	{
     		mrMap = new HashMap<String, ManagedResource>();
     	}
-    	if (mrMap.containsKey(key))
-    	{
+    	if (mrMap.containsKey(key))	{
     		// cannot manage, another object already mapped to key
     		log.info("Cannot manage resource - key: " + key + " already assigned");
     		return false;
     	}
     	// ensure policy makes sense for this object
-    	if (policy != null)
-    	{
+    	if (policy != null)	{
     		if ((policy.contains(POLICY_CLOSE) && ! (resource instanceof Closeable)) ||
-    			(policy.contains(POLICY_FLUSH) && ! (resource instanceof Flushable)))
-    		{
+    			(policy.contains(POLICY_FLUSH) && ! (resource instanceof Flushable))) {
     			log.info("Cannot manage resourceo with key: " + key + " - invalid policy");
     			return false;
     		}
@@ -319,36 +292,25 @@ public class Curator
      * @param id an object identifier
      * @throws IOException
      */
-    public void curate(Context c, String id) throws IOException
-    {
-        if (id == null)
-        {
+    public void curate(Context c, String id) throws AuthorizeException, IOException {
+        if (id == null) {
            throw new IOException("Cannot perform curation task(s) on a null object identifier!");            
         }
-        try
-        {
+        try {
             //Save the context on current execution thread
             curationCtx.set(c);        
             DSpaceObject dso = HandleManager.resolveToObject(c, id);
-            if (dso != null)
-            {
+            if (dso != null) {
                 curate(dso);
-            }
-            else
-            {
-                for (String taskName : perfList)
-                {
+            } else {
+                for (String taskName : perfList) {
                     trMap.get(taskName).run(c, id);
                 }
             }
             finish();
-        }
-        catch (SQLException sqlE)
-        {
+        } catch (SQLException sqlE) {
             throw new IOException(sqlE.getMessage(), sqlE);
-        }
-        finally
-        {
+        } finally {
             curationCtx.remove();
         }
     }
@@ -365,15 +327,12 @@ public class Curator
      * @param dso the DSpace object
      * @throws IOException
      */
-    public void curate(DSpaceObject dso) throws IOException
-    {
-        if (dso == null)
-        {
+    public void curate(DSpaceObject dso) throws AuthorizeException, IOException {
+        if (dso == null) {
             throw new IOException("Cannot perform curation task(s) on a null DSpaceObject!");
         }
         int type = dso.getType();
-        for (String taskName : perfList)
-        {
+        for (String taskName : perfList) {
             TaskRunner tr = trMap.get(taskName);
             // do we need to iterate over the object ?
             if (type == Constants.ITEM || tr.task.isDistributive())
@@ -402,28 +361,20 @@ public class Curator
      * @param selector the object selector
      * @throws IOException
      */
-    public void curate(ObjectSelector selector) throws IOException
-    {
-        if (selector == null)
-        {
+    public void curate(ObjectSelector selector) throws AuthorizeException, IOException {
+        if (selector == null) {
             throw new IOException("Cannot perform curation task(s) with a null selector!");
         }
-        try
-        {
+        try {
             //Save the context on current execution thread
             curationCtx.set(selector.getContext());         
-            while (selector.hasNext())
-            {
+            while (selector.hasNext()) {
             	curate(selector.next());
             }            
             finish();
-        }
-        catch (SQLException sqlE)
-        {
+        } catch (SQLException sqlE) {
             throw new IOException(sqlE.getMessage(), sqlE);
-        }
-        finally
-        {
+        } finally {
             curationCtx.remove();
         }    	
     }
@@ -438,10 +389,8 @@ public class Curator
      *                be created automatically.
      * @throws IOException
      */
-    public void queue(Context c, String id, String queueId) throws IOException
-    {
-        if (taskQ == null)
-        {
+    public void queue(Context c, String id, String queueId) throws IOException {
+        if (taskQ == null) {
         	String tqClass = ConfigurationManager.getProperty("curate", "taskqueue.impl");
         	if (tqClass != null) {
         		try {
@@ -452,13 +401,10 @@ public class Curator
         		}
         	}
         }
-        if (taskQ != null)
-        {
+        if (taskQ != null) {
             taskQ.enqueue(queueId, new TaskQueueEntry(c.getCurrentUser().getName(),
                                     System.currentTimeMillis(), perfList, id));
-        }
-        else
-        {
+        } else {
             log.error("curate - no TaskQueue implemented");
         }
     }
@@ -472,15 +418,12 @@ public class Curator
      *                be created automatically.
      * @throws IOException
      */
-    public void queue(ObjectSelector selector, String queueId) throws IOException
-    {
+    public void queue(ObjectSelector selector, String queueId) throws IOException {
     	Context c = selector.getContext();
-    	while(selector.hasNext())
-    	{
+    	while(selector.hasNext()) {
     		DSpaceObject dso = selector.next();
     		String objId = dso.getHandle();
-    		if (objId == null)
-    		{
+    		if (objId == null) {
     			// workflow object
     			objId = String.valueOf(dso.getID());
     		}
@@ -491,8 +434,7 @@ public class Curator
     /**
      * Removes all configured tasks from the Curator.
      */
-    public void clear()
-    {
+    public void clear() {
         trMap.clear();
         perfList.clear();
     }
@@ -500,12 +442,9 @@ public class Curator
     /**
      * Releases any managed resources
      */
-    public void complete() throws IOException
-    {
-    	if (mrMap != null)
-    	{
-    		for (ManagedResource mr : mrMap.values())
-    		{
+    public void complete() throws IOException {
+    	if (mrMap != null) {
+    		for (ManagedResource mr : mrMap.values()) {
     			mr.release();
     		}
     		mrMap.clear();
@@ -519,11 +458,9 @@ public class Curator
      * 
      * @param message the message to output to the reporting stream.
      */
-    public void report(String message)
-    {
+    public void report(String message)  {
         // Stub for now
-        if ("-".equals(reporter))
-        {
+        if ("-".equals(reporter)) {
             System.out.println(message);
         }
     }
@@ -534,8 +471,7 @@ public class Curator
      * @param taskName the task name
      * @return the status code - one of CURATE_ values
      */
-    public int getStatus(String taskName)
-    {
+    public int getStatus(String taskName)  {
         TaskRunner tr = trMap.get(taskName);
         return (tr != null) ? tr.statusCode : CURATE_NOTASK;
     }
@@ -546,8 +482,7 @@ public class Curator
      * @param taskName the task name
      * @return the result string, or <code>null</code> if task has not set it.
      */
-    public String getResult(String taskName)
-    {
+    public String getResult(String taskName) {
         TaskRunner tr = trMap.get(taskName);
         return (tr != null) ? tr.result : null;
     }
@@ -558,11 +493,9 @@ public class Curator
      * @param taskName the task name
      * @param result a string indicating results of performing task.
      */
-    public void setResult(String taskName, String result)
-    {
+    public void setResult(String taskName, String result) {
         TaskRunner tr = trMap.get(taskName);
-        if (tr != null)
-        {
+        if (tr != null) {
             tr.setResult(result);
         }
     }
@@ -576,13 +509,11 @@ public class Curator
      * 
      * @return curation thread's Context object (or a new, anonymous Context if no curation Context exists)
      */
-    public static Context curationContext() throws SQLException
-    {
+    public static Context curationContext() throws SQLException {
     	// Return curation context or new context if undefined/invalid
     	Context curCtx = curationCtx.get();
         
-        if(curCtx==null || !curCtx.isValid())
-        {
+        if(curCtx==null || ! curCtx.isValid()) {
             //Create a new context (represents an Anonymous User)
             curCtx = new Context();
             //Save it to current execution thread
@@ -596,8 +527,7 @@ public class Curator
      * @param dso a DSpace object
      * @return true if a container, false otherwise
      */
-    public static boolean isContainer(DSpaceObject dso)
-    {
+    public static boolean isContainer(DSpaceObject dso) {
         return (dso.getType() == Constants.COMMUNITY ||
                 dso.getType() == Constants.COLLECTION);
     }
@@ -606,8 +536,7 @@ public class Curator
      * Ensures instance has been completed.
      */
     @Override
-    protected void finalize() throws Throwable
-    {
+    protected void finalize() throws Throwable {
     	complete();
     	super.finalize();
     }
@@ -615,14 +544,11 @@ public class Curator
     /**
      * Completes curation operation
      */
-    private void finish() throws SQLException
-    {
+    private void finish() throws SQLException {
     	// if curation scoped, commit transaction
-        if (txScope.equals(TxScope.CURATION))
-        {
+        if (txScope.equals(TxScope.CURATION)) {
         	Context ctx = curationCtx.get();
-        	if (ctx != null)
-        	{
+        	if (ctx != null) {
         		ctx.commit();
         	}
         }
@@ -635,27 +561,23 @@ public class Curator
      * @return true if successful, false otherwise
      * @throws IOException 
      */
-    private boolean doSite(TaskRunner tr, Site site) throws IOException
-    {
+    private boolean doSite(TaskRunner tr, Site site) throws AuthorizeException, IOException {
         Context ctx = null;
         BoundedIterator<Community> cIter = null;
-        try
-        {
+        try {
             //get access to the curation thread's current context
             ctx = curationContext();
             
             // Site-wide Tasks really should have an EPerson performer associated with them,
             // otherwise they are run as an "anonymous" user with limited access rights.
-            if(ctx.getCurrentUser()==null && !ctx.ignoreAuthorization())
-            {
+            if(ctx.getCurrentUser()==null && !ctx.ignoreAuthorization()) {
                 log.warn("You are running one or more Site-Wide curation tasks in ANONYMOUS USER mode," +
                          " as there is no EPerson 'performer' associated with this task. To associate an EPerson 'performer' " +
                          " you should ensure tasks are called via the Curator.curate(Context, ID) method.");
             }
             
             //Run task for the Site object itself
-            if (! tr.run(site))
-            {
+            if (! tr.run(site)) {
                 return false;
             }
             
@@ -667,9 +589,7 @@ public class Curator
                     return false;
                 }
             }
-        }
-        catch (SQLException sqlE)
-        {
+        } catch (SQLException sqlE) {
             throw new IOException(sqlE);
         } finally {
         	if (cIter != null) {
@@ -685,9 +605,9 @@ public class Curator
      * @param tr TaskRunner
      * @param comm Community
      * @return true if successful, false otherwise
-     * @throws IOException 
+     * @throws AuthorizeException, IOException 
      */
-    private boolean doCommunity(TaskRunner tr, Community comm) throws IOException {
+    private boolean doCommunity(TaskRunner tr, Community comm) throws AuthorizeException, IOException {
     	BoundedIterator<Community> scIter = null;
     	BoundedIterator<Collection> colIter = null;
         try  {
@@ -726,8 +646,7 @@ public class Curator
      * @return true if successful, false otherwise
      * @throws IOException 
      */
-    private boolean doCollection(TaskRunner tr, Collection coll) throws IOException
-    {
+    private boolean doCollection(TaskRunner tr, Collection coll) throws AuthorizeException, IOException  {
     	BoundedIterator<Item> iter = null;
         try {
             if (! tr.run(coll)) {
@@ -753,24 +672,17 @@ public class Curator
      * Record a 'visit' to a DSpace object and enforce any policies set
      * on this curator.
      */
-    private void visit(DSpaceObject dso) throws IOException
-    {
+    private void visit(DSpaceObject dso) throws IOException {
     	Context curCtx = curationCtx.get();
-    	if (curCtx != null)
-    	{
-    		try
-    		{
-    			if (txScope.equals(TxScope.OBJECT))
-    			{
+    	if (curCtx != null) {
+    		try {
+    			if (txScope.equals(TxScope.OBJECT)) {
     				curCtx.commit();
     			}
-    			if (curCtx.getCacheSize() % cacheLimit == 0)
-    			{
+    			if (curCtx.getCacheSize() % cacheLimit == 0) {
     				curCtx.clearCache();
     			}
-    		}
-    		catch (SQLException sqlE)
-    		{
+    		} catch (SQLException sqlE) {
     			throw new IOException(sqlE.getMessage(), sqlE);
     		}
     	}
@@ -782,17 +694,13 @@ public class Curator
         int statusCode = CURATE_UNSET;
         String result = null;
 
-        public TaskRunner(ResolvedTask task)
-        {
+        public TaskRunner(ResolvedTask task) {
             this.task = task;
         }
         
-        public boolean run(DSpaceObject dso) throws IOException
-        {
-            try
-            {    
-                if (dso == null)
-                {
+        public boolean run(DSpaceObject dso) throws AuthorizeException, IOException {
+            try {    
+                if (dso == null) {
                     throw new IOException("DSpaceObject is null");
                 }
                 statusCode = task.perform(dso);
@@ -801,21 +709,16 @@ public class Curator
                 visit(dso);
                 task.record(id, curationCtx.get(), statusCode, result);
                 return ! suspend(statusCode);
-            }
-            catch(IOException ioe)
-            {
+            } catch(IOException ioe) {
                 //log error & pass exception upwards
                 log.error("Error executing curation task '" + task.getName() + "'", ioe);
                 throw ioe;
             }
         }
         
-        public boolean run(Context c, String id) throws IOException
-        {
-            try
-            {
-                if (c == null || id == null)
-                {
+        public boolean run(Context c, String id) throws AuthorizeException, IOException {
+            try {
+                if (c == null || id == null) {
                     throw new IOException("Context or identifier is null");
                 }
                 statusCode = task.perform(c, id);
@@ -823,29 +726,22 @@ public class Curator
                 visit(null);
                 task.record(id, c, statusCode, result);
                 return ! suspend(statusCode);
-            }
-            catch(IOException ioe)
-            {
+            } catch(IOException ioe) {
                 //log error & pass exception upwards
                 log.error("Error executing curation task '" + task.getName() + "'", ioe);
                 throw ioe;
             }
         }
 
-        public void setResult(String result)
-        {
+        public void setResult(String result) {
             this.result = result;
         }
         
-        private boolean suspend(int code)
-        {
+        private boolean suspend(int code) {
         	Invoked mode = task.getMode();
-            if (mode != null && (mode.equals(Invoked.ANY) || mode.equals(iMode)))
-            {
-                for (int i : task.getCodes())
-                {
-                    if (code == i)
-                    {
+            if (mode != null && (mode.equals(Invoked.ANY) || mode.equals(iMode))) {
+                for (int i : task.getCodes()) {
+                    if (code == i) {
                         return true;
                     }
                 }
@@ -858,46 +754,37 @@ public class Curator
          * @param id ID of DSpace Object
          * @return log message text
          */
-        private String logMessage(String id) 
-        {
+        private String logMessage(String id)  {
             StringBuilder mb = new StringBuilder();
             mb.append("Curation task: ").append(task.getName()).
                append(" performed on: ").append(id).
                append(" with status: ").append(statusCode);
-            if (result != null)
-            {
+            if (result != null)  {
                 mb.append(". Result: '").append(result).append("'");
             }
             return mb.toString();
         }
     }
     
-    private class ManagedResource
-    {
+    private class ManagedResource {
     	private Object resource = null;
     	private String policy = null;
     	
-    	public ManagedResource(Object resource, String policy)
-    	{
+    	public ManagedResource(Object resource, String policy) {
     		this.resource = resource;
     		this.policy = policy;
     	}
     	
-    	public Object getResource()
-    	{
+    	public Object getResource() {
     		return resource;
     	}
     	
-    	public void release() throws IOException
-    	{
-    		if (policy != null)
-    		{
-    			if (policy.contains(POLICY_FLUSH))
-    			{
+    	public void release() throws IOException {
+    		if (policy != null) {
+    			if (policy.contains(POLICY_FLUSH)) {
     				((Flushable)resource).flush();
     			}
-    			if (policy.contains(POLICY_CLOSE))
-    			{
+    			if (policy.contains(POLICY_CLOSE)) {
     				((Closeable)resource).close();
     			}
     		}

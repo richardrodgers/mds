@@ -9,6 +9,7 @@ package org.dspace.curate;
 
 import java.io.IOException;
 
+import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.DSpaceObject;
 import org.dspace.core.Context;
 
@@ -18,8 +19,7 @@ import org.dspace.core.Context;
  *
  * @author richardrodgers
  */
-public interface CurationTask
-{
+public interface CurationTask {
     /**
      * Initialize task - parameters inform the task of it's invoking curator.
      * Since the curator can provide services to the task, this represents
@@ -38,7 +38,7 @@ public interface CurationTask
      * @return status code
      * @throws IOException
      */
-    int perform(DSpaceObject dso) throws IOException;
+    int perform(DSpaceObject dso) throws AuthorizeException, IOException;
 
     /**
      * Perform the curation task for passed id
@@ -48,5 +48,5 @@ public interface CurationTask
      * @return status code
      * @throws Exception
      */
-    int perform(Context ctx, String id) throws IOException;
+    int perform(Context ctx, String id) throws AuthorizeException, IOException;
 }

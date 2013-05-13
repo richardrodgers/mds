@@ -5,7 +5,7 @@
  *
  * http://www.dspace.org/license/
  */
-package org.dspace.administer;
+package org.dspace.app.admin;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -32,10 +32,7 @@ import org.dspace.storage.rdbms.DatabaseManager;
  * @author richadrodgers
  */
 
-public class CommunityFiliator
-{
-	// context object
-	private Context context;
+public class CommunityFiliator {
 	
 	enum Action {set, remove, move}
 	@Argument(usage="action to take - set, remove, or move")
@@ -59,14 +56,14 @@ public class CommunityFiliator
         	System.err.println(clE.getMessage());
         	parser.printUsage(System.err);
         }
+        filiator.doAction();
     }
     
     public void doAction() throws Exception {   
-        // ve are superuser!
-        context.turnOffAuthorisationSystem();
 
-        try
-        {
+        try (Context context = new Context()) {
+            // ve are superuser!
+            context.turnOffAuthorisationSystem();
             // validate and resolve the parent and child IDs into commmunities/collections
             Community parent = resolveCommunity(context, parentId);
 
@@ -95,22 +92,17 @@ public class CommunityFiliator
                     defiliate(context, parent, child);
                 }
             }
+            context.complete();
         }  catch (SQLException sqlE) {
             System.out.println("Error - SQL exception: " + sqlE.toString());
         } catch (AuthorizeException authE) {
             System.out.println("Error - Authorize exception: " + authE.toString());
         } catch (IOException ioE) {
             System.out.println("Error - IO exception: " + ioE.toString());
-        } finally {
-        	if (context != null) {
-        		context.complete();
-        	}
-        }   
+        } 
     }
     
-    private CommunityFiliator() throws Exception {
-    	context = new Context();
-    }
+    private CommunityFiliator() {}
     
     public static void move(Context c, Community parent, Collection child) 
         throws SQLException, AuthorizeException, IOException {

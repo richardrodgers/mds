@@ -15,6 +15,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.DSpaceObject;
 import org.dspace.core.Context;
 import org.dspace.core.ConfigurationManager;
@@ -142,8 +143,7 @@ public class ResolvedTask
      * @return status code
      * @throws IOException
      */
-    public int perform(DSpaceObject dso) throws IOException
-    {
+    public int perform(DSpaceObject dso) throws AuthorizeException, IOException {
     	return unscripted() ? cTask.perform(dso) : sTask.performDso(dso);
     }
 
@@ -155,8 +155,7 @@ public class ResolvedTask
      * @return status code
      * @throws Exception
      */
-    public int perform(Context ctx, String id) throws IOException
-    {
+    public int perform(Context ctx, String id) throws AuthorizeException, IOException {
     	return unscripted() ? cTask.perform(ctx, id) : sTask.performId(ctx, id);	
     }
     

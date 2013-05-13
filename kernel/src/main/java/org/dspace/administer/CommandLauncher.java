@@ -16,13 +16,13 @@ import org.dspace.core.Context;
 
 /**
  * DSpace command launcher. Reads command data from DB.
- * Adapted from ScriptLauncher (authors: Stuart Lewis & Mark Diggory)
+ * Adapted from ScriptLauncher (author: Stuart Lewis)
  *
  * @author richardrodgers
  */
 public class CommandLauncher {
 	
-	private static final String[] builtins = { "list", "help", "install", "update" };
+    private static final String[] builtins = { "list", "help", "install", "update" };
     /**
      * Execute the DSpace command launcher
      *
@@ -44,8 +44,8 @@ public class CommandLauncher {
                 System.err.println("Error in launcher: Missing class name for dsrun");
                 exitCode = 1;
             } else {
-            	String className = cmdLineArgs.remove(0);
-            	invokeCommand(className, cmdLineArgs);
+                String className = cmdLineArgs.remove(0);
+                invokeCommand(className, cmdLineArgs);
             }
         } else if ("install".equals(cmdName) || "update".equals(cmdName)) {
         	// Installer built-in simply because it is needed before DB exists
@@ -54,54 +54,52 @@ public class CommandLauncher {
         	cmdLineArgs.add(0, cmdName);
         	invokeCommand("org.dspace.administer.Installer", cmdLineArgs);
         } else {
-        	Context ctx = null;
-        	try {
-        		ctx = new Context();
-              	ctx.turnOffAuthorisationSystem();
-              	if ("list".equals(cmdName)) {
-                	// display list of commands accessible from launcher
+        	try (Context ctx = new Context()) {
+              ctx.turnOffAuthorisationSystem();
+              if ("list".equals(cmdName)) {
+                  // display list of commands accessible from launcher
                 	System.out.println("Available commands:");
                 	for (String cn : listCommands(ctx)) {
-                		System.out.println(cn);
+                	    System.out.println(cn);
                 	}
-              	} else if ("help".equals(cmdName)) {
+              } else if ("help".equals(cmdName)) {
                 	// Display a helpful message for a command
               		if (cmdLineArgs.size() == 0) {
-              			System.out.println("Use 'help <command>' for information on a command");
-              			System.out.println("Use 'list' to see all available commands");
+              		    System.out.println("Use 'help <command>' for information on a command");
+              		    System.out.println("Use 'list' to see all available commands");
               		} else {
-              			String cName = cmdLineArgs.get(0);
-              			if ("install".equals(cName) || "update".equals(cName)) {
-              				System.out.println("Use '" + cName + " <module>' to " + cName + " a module on your live system");
-              			} else {
-              				Command cmd = Command.findByName(ctx, cName);
-              				if (cmd != null) {
-              					System.out.println(cName + ": " + cmd.getDescription());
-              					System.out.println("class: " + cmd.getClassName());
-              					String argList = cmd.getArguments();
-              					if (argList.length() > 0) {
-              						System.out.println("arguments: " + argList);
-              					}
-              				} else {
-              					System.out.println("Unknown command: " + cName);
-              					exitCode = 1;
-              				}
-              			}
+              		    String cName = cmdLineArgs.get(0);
+              			  if ("install".equals(cName) || "update".equals(cName)) {
+              				    System.out.println("Use '" + cName + " <module>' to " + cName + " a module on your live system");
+              			  } else {
+              				    Command cmd = Command.findByName(ctx, cName);
+              				    if (cmd != null) {
+              					      System.out.println(cName + ": " + cmd.getDescription());
+              					      System.out.println("class: " + cmd.getClassName());
+              					      String argList = cmd.getArguments();
+              					      if (argList.length() > 0) {
+              						        System.out.println("arguments: " + argList);
+              					      }
+              				    } else {
+              					      System.out.println("Unknown command: " + cName);
+              					      exitCode = 1;
+              				    }
+              			  }
               		}
-              	} else {
-            		Command	command = Command.findByName(ctx, cmdName);
-            		if (command == null) {
-            			System.out.println("Unknown command: " + cmdName);
-            			exitCode = 1;
-            		} else {
-            			do {
-            				List<String> effectiveArgs = buildArgList(command, cmdLineArgs);
-            				invokeCommand(command.getClassName(), effectiveArgs);
-            				command = command.getSuccessor(ctx);
-            			} while (command != null);
-            		}
-              	}
-              	ctx.complete();
+              } else {
+            		  Command	command = Command.findByName(ctx, cmdName);
+            		  if (command == null) {
+            			    System.out.println("Unknown command: " + cmdName);
+            			    exitCode = 1;
+            		  } else {
+            			    do {
+            				      List<String> effectiveArgs = buildArgList(command, cmdLineArgs);
+            				      invokeCommand(command.getClassName(), effectiveArgs);
+            				      command = command.getSuccessor(ctx);
+            			    } while (command != null);
+            		  }
+              }
+              ctx.complete();
         	} catch (ClassNotFoundException cfnE) {
         		System.err.println("Error in command: Invalid class name: " + cfnE.getMessage());
         		exitCode = 1;
@@ -109,11 +107,7 @@ public class CommandLauncher {
         		Throwable cause = e.getCause();
         		System.err.println("Exception: " + cause.getMessage());
         		exitCode = 1;
-        	} finally {
-        		if (ctx != null && ctx.isValid()) {
-        			ctx.abort();
-        		}
-        	}
+        	} 
         }
         System.exit(exitCode);
     }
