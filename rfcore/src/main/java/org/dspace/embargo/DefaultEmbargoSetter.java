@@ -24,7 +24,7 @@ import org.dspace.authorize.ResourcePolicy;
 import org.dspace.content.Item;
 import org.dspace.content.Bitstream;
 import org.dspace.content.Bundle;
-import org.dspace.core.ConfigurationManager;
+import org.dspace.core.ConfigManager;
 import org.dspace.core.Context;
 import org.dspace.core.Constants;
 //import org.dspace.license.CreativeCommons;
@@ -49,7 +49,7 @@ public class DefaultEmbargoSetter implements EmbargoSetter
 	
     public DefaultEmbargoSetter() {
         super();
-        termsOpen = ConfigurationManager.getProperty("embargo.terms.open");
+        termsOpen = ConfigManager.getProperty("embargo", "terms.open");
     }
     
     /**

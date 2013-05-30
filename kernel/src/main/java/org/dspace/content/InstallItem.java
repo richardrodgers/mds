@@ -9,7 +9,6 @@ package org.dspace.content;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.Date;
 import java.util.List;
 
 import org.joda.time.DateTimeZone;
@@ -19,7 +18,7 @@ import org.joda.time.format.ISODateTimeFormat;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
-import org.dspace.embargo.EmbargoManager;
+import org.dspace.core.LifecycleMux;
 import org.dspace.event.Event;
 import org.dspace.handle.HandleManager;
 
@@ -27,10 +26,8 @@ import org.dspace.handle.HandleManager;
  * Support to install an Item in the archive.
  * 
  * @author dstuve
- * @version $Revision: 6863 $
  */
-public class InstallItem
-{
+public class InstallItem {
 	// ISO8601 date formatters
 	private static final DateTimeFormatter iso8601 = 
 			ISODateTimeFormat.dateTimeNoMillis().withZone(DateTimeZone.UTC);
@@ -47,8 +44,7 @@ public class InstallItem
      * @return the fully archived Item
      */
     public static Item installItem(Context c, InProgressSubmission is)
-            throws SQLException, IOException, AuthorizeException
-    {
+            throws SQLException, IOException, AuthorizeException {
         return installItem(c, is, null);
     }
 
@@ -70,26 +66,19 @@ public class InstallItem
         String handle;
         
         // if no previous handle supplied, create one
-        if (suppliedHandle == null)
-        {
+        if (suppliedHandle == null) {
             // create a new handle for this item
             handle = HandleManager.createHandle(c, item);
-        }
-        else
-        {
+        } else {
             // assign the supplied handle to this item
             handle = HandleManager.createHandle(c, item, suppliedHandle);
         }
 
         populateHandleMetadata(item, handle);
 
-        // this is really just to flush out fatal embargo metadata
-        // problems before we set inArchive.
-        Date liftDate = EmbargoManager.getEmbargoDate(c, item);
+        populateMetadata(c, item);
 
-        populateMetadata(c, item, liftDate != null);
-
-        return finishItem(c, item, is, liftDate);
+        return finishItem(c, item, is);
 
     }
 
@@ -116,16 +105,13 @@ public class InstallItem
         String handle;
 
         // if no handle supplied
-        if (suppliedHandle == null)
-        {
+        if (suppliedHandle == null) {
             // create a new handle for this item
             handle = HandleManager.createHandle(c, item);
             //only populate handle metadata for new handles
             // (existing handles should already be in the metadata -- as it was restored by ingest process)
             populateHandleMetadata(item, handle);
-        }
-        else
-        {
+        } else {
             // assign the supplied handle to this item
             handle = HandleManager.createHandle(c, item, suppliedHandle);
         }
@@ -151,7 +137,7 @@ public class InstallItem
 		String provDescription = "Restored into DSpace on "+ now + " (GMT).";
 		item.addMetadata("dc", "description", "provenance", "en", provDescription);
 
-        return finishItem(c, item, is, null);
+        return finishItem(c, item, is);
     }
 
     private static void populateHandleMetadata(Item item, String handle)
@@ -172,17 +158,15 @@ public class InstallItem
     }
 
 
-    private static void populateMetadata(Context c, Item item, boolean embargoed)
+    private static void populateMetadata(Context c, Item item)
         throws SQLException, IOException, AuthorizeException  {
         // create accession date
     	long now = System.currentTimeMillis();
         item.addMetadata("dc", "date", "accessioned", null, iso8601.print(now));
 
-        // add date available if not under embargo, otherwise it will
+        // add date available - later deleted if under embargo, where it will
         // be set when the embargo is lifted.
-        if (! embargoed) {
-            item.addMetadata("dc", "date", "available", null, iso8601.print(now));
-        }
+        item.addMetadata("dc", "date", "available", null, iso8601.print(now));
 
         // create issue date if not present
         List<MDValue> currentDateIssued = item.getMetadata(MetadataSchema.DC_SCHEMA, "date", "issued", MDValue.ANY);
@@ -205,7 +189,7 @@ public class InstallItem
 
     // final housekeeping when adding new Item to archive
     // common between installing and "restoring" items.
-    private static Item finishItem(Context c, Item item, InProgressSubmission is, Date embargoLiftDate)
+    private static Item finishItem(Context c, Item item, InProgressSubmission is)
         throws SQLException, IOException, AuthorizeException  {
         // create collection2item mapping
         is.getCollection().addItem(item);
@@ -230,10 +214,8 @@ public class InstallItem
         // the defaults from the collection
         item.inheritCollectionDefaultPolicies(is.getCollection());
 
-        // set embargo lift date and take away read access if indicated.
-        if (embargoLiftDate != null) {
-            EmbargoManager.setEmbargo(c, item, embargoLiftDate);
-        }
+        // perform any lifecycle actions at installation (e.g. set embargo)
+        LifecycleMux.postEvent(new LifecycleEvent(item, "install"));
 
         return item;
     }
@@ -247,8 +229,7 @@ public class InstallItem
      * @return provenance description
      */
     public static String getBitstreamProvenanceMessage(Item myitem)
-    						throws SQLException
-    {
+    						throws SQLException {
         // Get non-internal format bitstreams
         List<Bitstream> bitstreams = myitem.getNonInternalBitstreams();
 

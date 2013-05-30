@@ -30,7 +30,7 @@ import org.dspace.content.DSpaceObject;
 import org.dspace.content.Item;
 import org.dspace.content.BoundedIterator;
 import org.dspace.content.MetadataSchema;
-import org.dspace.core.ConfigurationManager;
+import org.dspace.core.ConfigManager;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.handle.HandleManager;
@@ -381,8 +381,8 @@ public class EmbargoManager
     {
         if (terms_schema == null)
         {
-            String terms = ConfigurationManager.getProperty("embargo.field.terms");
-            String lift = ConfigurationManager.getProperty("embargo.field.lift");
+            String terms = ConfigManager.getProperty("embargo", "mdfield.terms");
+            String lift = ConfigManager.getProperty("embargo", "mdfield.lift");
             if (terms == null || lift == null)
             {
                 throw new IllegalStateException("Missing one or more of the required DSpace configuration properties for EmbargoManager, check your configuration file.");
@@ -394,13 +394,13 @@ public class EmbargoManager
             lift_element = getElementOf(lift);
             lift_qualifier = getQualifierOf(lift);
             
-        	String setterClass = ConfigurationManager.getProperty("embargo.setter");
+        	String setterClass = ConfigManager.getProperty("embargo", "implclass.setter");
         	if (setterClass == null)
         	{
         		throw new IllegalStateException("No EmbargoSetter implementation defined in DSpace configuration.");
         	}
         	
-        	String lifterClass = ConfigurationManager.getProperty("embargo.lifter");
+        	String lifterClass = ConfigManager.getProperty("embargo", "implclass.lifter");
         	if (lifterClass == null)
         	{
         		throw new IllegalStateException("No EmbargoLifter implementation defined in DSpace configuration.");
