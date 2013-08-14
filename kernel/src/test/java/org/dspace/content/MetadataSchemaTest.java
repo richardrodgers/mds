@@ -11,6 +11,7 @@ import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
 import mockit.NonStrictExpectations;
 import java.sql.SQLException;
+import java.util.List;
 import org.dspace.AbstractUnitTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -347,9 +348,9 @@ public class MetadataSchemaTest extends AbstractUnitTest
     @Test
     public void testFindAll() throws Exception
     {
-        MetadataSchema[] found = MetadataSchema.findAll(context);
+        List<MetadataSchema> found = MetadataSchema.findAll(context);
         assertThat("testFindAll 0",found, notNullValue());
-        assertTrue("testFindAll 1",found.length >= 1);
+        assertTrue("testFindAll 1",found.size() >= 1);
 
         boolean added = false;
         for(MetadataSchema msc: found)

@@ -21,8 +21,9 @@ import org.dspace.core.Context;
  * @author richardrodgers
  */
 public class CommandLauncher {
-	
-    private static final String[] builtins = { "list", "help", "install", "update" };
+	  // built-in commands are not defined in the DB, 
+    // but are either internal (1st two) or known to exist on the classpath
+    private static final String[] builtins = { "list", "help", "install", "update", "vizadmin" };
     /**
      * Execute the DSpace command launcher
      *
@@ -53,6 +54,9 @@ public class CommandLauncher {
         	// push the argument back to the command
         	cmdLineArgs.add(0, cmdName);
         	invokeCommand("org.dspace.administer.Installer", cmdLineArgs);
+        } else if ("vizadmin".equals(cmdName)) {
+            // launch the visual admin console
+            invokeCommand("org.dspace.administer.VizAdmin", cmdLineArgs);
         } else {
         	try (Context ctx = new Context()) {
               ctx.turnOffAuthorisationSystem();
@@ -71,6 +75,8 @@ public class CommandLauncher {
               		    String cName = cmdLineArgs.get(0);
               			  if ("install".equals(cName) || "update".equals(cName)) {
               				    System.out.println("Use '" + cName + " <module>' to " + cName + " a module on your live system");
+                      } else if ("vizadmin".equals(cName)) {
+                          System.out.println("Use '" + cName + "' to launch an administration console");
               			  } else {
               				    Command cmd = Command.findByName(ctx, cName);
               				    if (cmd != null) {
@@ -105,7 +111,11 @@ public class CommandLauncher {
         		exitCode = 1;
         	} catch (Exception e) {
         		Throwable cause = e.getCause();
-        		System.err.println("Exception: " + cause.getMessage());
+            if (cause != null) {
+        		    System.err.println("Exception: " + cause.getMessage());
+            } else {
+              e.printStackTrace();
+            }
         		exitCode = 1;
         	} 
         }

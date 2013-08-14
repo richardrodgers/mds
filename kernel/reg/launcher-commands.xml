@@ -10,18 +10,22 @@
     </command>
 
     <command>
-        <name>community-filiator</name>
-        <description>Tool to manage community and sub-community relationships</description>
+        <name>create-administrator</name>
+        <description>Create a DSpace administrator account interactively</description>
         <step>
-            <class>org.dspace.administer.CommunityFiliator</class>
+            <class>org.dspace.administer.EPersonManager</class>
+            <argument>prompt</argument>
+            <argument>-a</argument>
         </step>
     </command>
 
     <command>
-        <name>create-administrator</name>
-        <description>Create a DSpace administrator account</description>
+        <name>create-administrator-ni</name>
+        <description>Create a DSpace administrator account from command-line arguments</description>
         <step>
-            <class>org.dspace.administer.CreateAdministrator</class>
+            <class>org.dspace.administer.EPersonManager</class>
+            <argument>add</argument>
+            <argument>-a</argument>
         </step>
     </command>
     

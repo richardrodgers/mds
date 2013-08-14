@@ -1,6 +1,6 @@
 # Admin Application Module #
 
-This is a very rudimentary example of an mds _application module_, which is a maven project providing applications that run on an mds kernel. In this case, only one application has been implemented, namely the *ContentImport* command-line tool for batch loading content into an instance. This tool also offers a very simple means of putting real data into an instance for testing and evaluation.
+This is a very rudimentary example of an mds _application module_, which is a maven project providing applications that run on an mds kernel. In this case, only a few command-line applications have been implemented, namely the *ContentImport* tool for batch loading content into an instance, the *CommunityFiliator* tool for managing community hierarchies, and the *MetadataExporter* tool for exporting metadata registry data. These tool offer very simple means of putting or getting real data into an instance for testing and evaluation.
 
 ## Content Import ##
 

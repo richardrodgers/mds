@@ -67,7 +67,7 @@ public class MetadataValueTest extends AbstractUnitTest
             this.mf = MetadataField.findByElement(context,
                     MetadataSchema.DC_SCHEMA_ID, element, qualifier);
             this.mv = new MetadataValue(mf);
-            this.mv.setItemId(Item.create(context).getID());
+            this.mv.setDsoId(Item.create(context).getDSOiD());
             context.commit();
             context.restoreAuthSystemState();
         }
@@ -126,20 +126,20 @@ public class MetadataValueTest extends AbstractUnitTest
      * Test of getItemId method, of class MetadataValue.
      */
     @Test
-    public void testGetItemId() 
+    public void testDsoId() 
     {
-        assertTrue("testGetItemId 0", mv.getItemId() >= 0);
+        assertTrue("testGetDsoId 0", mv.getDsoId() >= 0);
     }
 
     /**
      * Test of setItemId method, of class MetadataValue.
      */
     @Test
-    public void testSetItemId()
+    public void testSetDsoId()
     {
-        int itemId = 55;
-        mv.setItemId(itemId);
-        assertThat("testSetItemId 0", mv.getItemId(), equalTo(itemId));
+        int dsoId = 55;
+        mv.setDsoId(dsoId);
+        assertThat("testSetDsoId 0", mv.getDsoId(), equalTo(dsoId));
     }
 
     /**
@@ -209,46 +209,6 @@ public class MetadataValueTest extends AbstractUnitTest
         String value = "value";
         mv.setValue(value);
         assertThat("testSetValue 0",mv.getValue(), equalTo(value));
-    }
-
-    /**
-     * Test of getAuthority method, of class MetadataValue.
-     */
-    @Test
-    public void testGetAuthority() 
-    {
-        assertThat("testGetAuthority 0",mv.getAuthority(), nullValue());
-    }
-
-    /**
-     * Test of setAuthority method, of class MetadataValue.
-     */
-    @Test
-    public void testSetAuthority()
-    {
-        String value = "auth_val";
-        mv.setAuthority(value);
-        assertThat("testSetAuthority 0",mv.getAuthority(), equalTo(value));
-    }
-
-    /**
-     * Test of getConfidence method, of class MetadataValue.
-     */
-    @Test
-    public void testGetConfidence() 
-    {
-        assertThat("testGetConfidence 0",mv.getConfidence(), equalTo(0));
-    }
-
-    /**
-     * Test of setConfidence method, of class MetadataValue.
-     */
-    @Test
-    public void testSetConfidence() 
-    {
-        int value = 5;
-        mv.setConfidence(value);
-        assertThat("testSetConfidence 0",mv.getConfidence(), equalTo(value));
     }
 
     /**

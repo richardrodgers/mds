@@ -1,10 +1,24 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <dspace-commands>
-    <command>
-        <name>import</name>
-        <description>Import content - communities, collections, and items - into DSpace</description>
-        <step>
-            <class>org.dspace.app.admin.ContentImport</class>
-        </step>
-    </command>
+  <command>
+    <name>community-filiator</name>
+    <description>Tool to manage community and sub-community relationships</description>
+    <step>
+      <class>org.dspace.app.admin.CommunityFiliator</class>
+    </step>
+  </command>
+  <command>
+    <name>export-registry</name>
+      <description>Export metadata registry content to an XML file</description>
+      <step>
+        <class>org.dspace.app.admin.ExportMetadata</class>
+      </step>
+  </command> 
+  <command>
+    <name>import</name>
+      <description>Import content - communities, collections, and items - into DSpace</description>
+      <step>
+        <class>org.dspace.app.admin.ContentImport</class>
+      </step>
+  </command> 
 </dspace-commands>

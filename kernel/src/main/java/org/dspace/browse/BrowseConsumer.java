@@ -144,7 +144,7 @@ public class BrowseConsumer implements Consumer
             // NOTE: Removed items are necessarily handled inline (ugh).
 
             // browse updates wrote to the DB, so we have to commit.
-            ctx.getDBConnection().commit();
+            ctx.commit();
 
         }
         

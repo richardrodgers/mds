@@ -9,8 +9,6 @@ package org.dspace.content;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1066,37 +1064,15 @@ public class Collection extends DSpaceObject
      *
      * @return  total items
      */
-     public int countItems()
-        throws SQLException {
-         int itemcount = 0;
-         PreparedStatement statement = null;
-         ResultSet rs = null;
-
-         try {
-             String query = "SELECT count(*) FROM collection2item, item WHERE "
-                    + "collection2item.collection_id =  ? "
-                    + "AND collection2item.item_id = item.item_id "
-                    + "AND in_archive ='1' AND item.withdrawn='0' ";
-
-            statement = context.getDBConnection().prepareStatement(query);
-            statement.setInt(1,getID());
-
-            rs = statement.executeQuery();
-            if (rs != null) {
-                rs.next();
-                itemcount = rs.getInt(1);
-            }
-         } finally  {
-             if (rs != null) {
-                 try { rs.close(); } catch (SQLException sqle) { }
-             }
-
-             if (statement != null) {
-                 try { statement.close(); } catch (SQLException sqle) { }
-             }
-         }
-
-        return itemcount;
+     public int countItems() throws SQLException {
+        TableRow tr = DatabaseManager.querySingle(context,
+                "SELECT COUNT(*) AS count " +
+                "FROM collection2item, item WHERE " +
+                "collection2item.collection_id =  ? " +
+                "AND collection2item.item_id = item.item_id " +
+                "AND item.in_archive = '1' AND item.withdrawn= '0' ",
+                 getID());
+        return (int)tr.getLongColumn("count");
      }
      
     public DSpaceObject getAdminObject(int action) throws SQLException {

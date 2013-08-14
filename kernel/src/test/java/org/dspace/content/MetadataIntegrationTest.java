@@ -85,12 +85,12 @@ public class MetadataIntegrationTest  extends AbstractIntegrationTest
         field2.create(context);
 
         MetadataValue value1 = new MetadataValue(field1);
-        value1.setItemId(it.getID());
+        value1.setDsoId(it.getDSOiD());
         value1.setValue("value1");
         value1.create(context);
 
         MetadataValue value2 = new MetadataValue(field2);
-        value2.setItemId(it.getID());
+        value2.setDsoId(it.getDSOiD());
         value2.setValue("value2");
         value2.create(context);
         
@@ -101,8 +101,8 @@ public class MetadataIntegrationTest  extends AbstractIntegrationTest
         assertThat("testCreateSchema 1", field1.getSchemaID(), equalTo(schema.getSchemaID()));
         assertThat("testCreateSchema 2", field2.getSchemaID(), equalTo(schema.getSchemaID()));
 
-        MetadataField[] fields = MetadataField.findAllInSchema(context, schema.getSchemaID());
-        assertTrue("testCreateSchema 3", fields.length == 2);
+        List<MetadataField> fields = MetadataField.findAllInSchema(context, schema.getSchemaID());
+        assertTrue("testCreateSchema 3", fields.size() == 2);
         boolean exist = true;
         for(MetadataField f : fields)
         {

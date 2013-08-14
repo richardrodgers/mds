@@ -10,6 +10,7 @@ package org.dspace.content;
 import org.dspace.authorize.AuthorizeManager;
 import mockit.NonStrictExpectations;
 import java.sql.SQLException;
+import java.util.List;
 import org.dspace.AbstractUnitTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -277,9 +278,9 @@ public class MetadataFieldTest extends AbstractUnitTest
     @Test
     public void testFindAll() throws Exception
     {
-        MetadataField[] found = MetadataField.findAll(context);
+        List<MetadataField> found = MetadataField.findAll(context);
         assertThat("testFindAll 0",found, notNullValue());
-        assertTrue("testFindAll 1",found.length >= 1);
+        assertTrue("testFindAll 1",found.size() >= 1);
 
         boolean added = false;
         for(MetadataField mdf: found)
@@ -298,10 +299,10 @@ public class MetadataFieldTest extends AbstractUnitTest
     @Test
     public void testFindAllInSchema() throws Exception 
     {
-        MetadataField[] found = MetadataField.findAllInSchema(context, MetadataSchema.DC_SCHEMA_ID);
+        List<MetadataField> found = MetadataField.findAllInSchema(context, MetadataSchema.DC_SCHEMA_ID);
         assertThat("testFindAllInSchema 0",found, notNullValue());
-        assertTrue("testFindAllInSchema 1",found.length >= 1);
-        assertTrue("testFindAllInSchema 2",found.length <= MetadataField.findAll(context).length);
+        assertTrue("testFindAllInSchema 1",found.size() >= 1);
+        assertTrue("testFindAllInSchema 2",found.size() <= MetadataField.findAll(context).size());
 
         boolean added = false;
         for(MetadataField mdf: found)

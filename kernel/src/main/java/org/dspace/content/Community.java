@@ -100,8 +100,7 @@ public class Community extends DSpaceObject
      */
     public static Community find(Context context, int id) throws SQLException  {
         // First check the cache
-        Community fromCache = (Community) context
-                .fromCache(Community.class, id);
+        Community fromCache = (Community) context.fromCache(Community.class, id);
 
         if (fromCache != null) {
             return fromCache;
@@ -116,7 +115,6 @@ public class Community extends DSpaceObject
         } else {
             log.debug(LogManager.getHeader(context, "find_community",
                                            "community_id=" + id));
-
             return new Community(context, row);
         }
     }

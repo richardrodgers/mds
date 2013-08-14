@@ -175,7 +175,7 @@ public class MockDatabaseManager
         Statement statement = null;
         try
         {
-            statement = context.getDBConnection().createStatement();
+            statement = context.getHandle().getConnection().createStatement();
             statement
                     .execute("SET REFERENTIAL_INTEGRITY FALSE");
             statement.close();
@@ -212,7 +212,7 @@ public class MockDatabaseManager
         Statement statement = null;
         try
         {
-            statement = context.getDBConnection().createStatement();
+            statement = context.getHandle().getConnection().createStatement();
             statement.execute("SET REFERENTIAL_INTEGRITY TRUE");
             statement.close();
         }
@@ -267,7 +267,7 @@ public class MockDatabaseManager
             log.debug(sb.toString());
         }
 
-        PreparedStatement statement = context.getDBConnection().prepareStatement(query);
+        PreparedStatement statement = context.getHandle().getConnection().prepareStatement(query);
         try
         {
             loadParameters(statement, parameters);
@@ -327,7 +327,7 @@ public class MockDatabaseManager
             log.debug("Running query \"" + query + "\"  with parameters: " + sb.toString());
         }
 
-        PreparedStatement statement = context.getDBConnection().prepareStatement(query);
+        PreparedStatement statement = context.getHandle().getConnection().prepareStatement(query);
         try
         {
             loadParameters(statement,parameters);
@@ -457,7 +457,7 @@ public class MockDatabaseManager
 
         try
         {
-        	statement = context.getDBConnection().prepareStatement(query);
+        	statement = context.getHandle().getConnection().prepareStatement(query);
         	loadParameters(statement,parameters);
 
         	return statement.executeUpdate();
@@ -713,7 +713,7 @@ public class MockDatabaseManager
             // SQL function in H2 database
             String myQuery = "SELECT NEXTVAL('" + table + "_seq') AS result";
 
-            statement = context.getDBConnection().createStatement();
+            statement = context.getHandle().getConnection().createStatement();
             rs = statement.executeQuery(myQuery);
 
             rs.next();
@@ -782,7 +782,7 @@ public class MockDatabaseManager
             insertSQL.put(table, sql);
         }
 
-        execute(context.getDBConnection(), sql.toString(), info, row);
+        execute(context.getHandle().getConnection(), sql.toString(), info, row);
     }
 
     /**
@@ -830,7 +830,7 @@ public class MockDatabaseManager
             sql.append(" where ").append(pk.getName()).append(" = ?");
             columns.add(pk);
 
-            return executeUpdate(context.getDBConnection(), sql.toString(), columns, row);
+            return executeUpdate(context.getHandle().getConnection(), sql.toString(), columns, row);
         }
 
         return 1;

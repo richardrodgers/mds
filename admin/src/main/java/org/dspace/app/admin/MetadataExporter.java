@@ -7,21 +7,20 @@
  */
 package org.dspace.app.admin;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import org.xml.sax.SAXException;
+
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
-
-import org.apache.xml.serialize.Method;
-import org.apache.xml.serialize.OutputFormat;
-import org.apache.xml.serialize.XMLSerializer;
 
 import org.dspace.content.MetadataField;
 import org.dspace.content.MetadataSchema;
@@ -62,7 +61,8 @@ public class MetadataExporter {
      * @throws IOException 
      * @throws SQLException 
      */
-    public static void main(String[] args) throws SQLException, IOException, SAXException {
+    public static void main(String[] args)
+        throws SQLException, IOException, XMLStreamException {
         MetadataExporter me = new MetadataExporter();
         CmdLineParser parser = new CmdLineParser(me);
         try {
@@ -76,25 +76,21 @@ public class MetadataExporter {
         System.exit(1);
     }
 
-    public static void saveRegistry(String file, String schema) throws SQLException, IOException, SAXException {
+    public static void saveRegistry(String file, String schema) 
+        throws SQLException, IOException, XMLStreamException {
         // create a context
-        Context context = new Context();
+        Context context = new Context(Context.READ_ONLY);
         context.turnOffAuthorisationSystem();
 
-        OutputFormat xmlFormat = new OutputFormat(Method.XML, "UTF-8", true);
-        xmlFormat.setLineWidth(120);
-        xmlFormat.setIndent(4);
-        
-        XMLSerializer xmlSerializer = new XMLSerializer(new BufferedWriter(new FileWriter(file)), xmlFormat);
-        //        XMLSerializer xmlSerializer = new XMLSerializer(System.out, xmlFormat);
-        xmlSerializer.startDocument();
-        xmlSerializer.startElement("dspace-dc-types", null);
+        XMLOutputFactory factory = XMLOutputFactory.newInstance();
+        XMLStreamWriter writer = factory.createXMLStreamWriter(new FileOutputStream(file), "UTF-8");
+        writer.writeStartDocument("UTF-8", "1.0");
+        writer.writeStartElement("dspace-dc-types");
         
         // Save the schema definition(s)
-        saveSchema(context, xmlSerializer, schema);
+        saveSchema(context, writer, schema);
 
-        MetadataField[] mdFields = null;
-
+        List<MetadataField> mdFields = null;
         // If a single schema has been specified
         if (schema != null && !"".equals(schema)) {
             // Get the id of that schema
@@ -109,11 +105,11 @@ public class MetadataExporter {
         
         // Output the metadata fields
         for (MetadataField mdField : mdFields) {
-            saveType(context, xmlSerializer, mdField);
+            saveType(context, writer, mdField);
         }
-        
-        xmlSerializer.endElement("dspace-dc-types");
-        xmlSerializer.endDocument();
+
+        writer.writeEndDocument();
+        writer.close();
         
         // abort the context, as we shouldn't have changed it!!
         context.abort();
@@ -127,17 +123,17 @@ public class MetadataExporter {
      * @throws SQLException
      * @throws SAXException
      */
-    public static void saveSchema(Context context, XMLSerializer xmlSerializer, String schema) throws SQLException, SAXException {
+    public static void saveSchema(Context context, XMLStreamWriter writer, String schema) 
+           throws SQLException, XMLStreamException {
         if (schema != null && !"".equals(schema)) {
             // Find a single named schema
             MetadataSchema mdSchema = MetadataSchema.find(context, schema);
-            saveSchema(xmlSerializer, mdSchema);
+            saveSchema(writer, mdSchema);
         } else {
             // Find all schemas
-            MetadataSchema[] mdSchemas = MetadataSchema.findAll(context);
-            
+            List<MetadataSchema> mdSchemas = MetadataSchema.findAll(context);     
             for (MetadataSchema mdSchema : mdSchemas){
-                saveSchema(xmlSerializer, mdSchema);
+                saveSchema(writer, mdSchema);
             }
         }
     }
@@ -149,7 +145,8 @@ public class MetadataExporter {
      * @param mdSchema
      * @throws SAXException
      */
-    private static void saveSchema(XMLSerializer xmlSerializer, MetadataSchema mdSchema) throws SAXException  {
+    private static void saveSchema(XMLStreamWriter writer, MetadataSchema mdSchema) 
+        throws XMLStreamException  {
         // If we haven't got a schema, it's an error
         checkNotNull(mdSchema, "no schema to export");
         
@@ -167,19 +164,16 @@ public class MetadataExporter {
         }
 
         // Output the parent tag
-        xmlSerializer.startElement("dc-schema", null);
+        writer.writeStartElement("dc-schema");
         
         // Output the schema name
-        xmlSerializer.startElement("name", null);
-        xmlSerializer.characters(name.toCharArray(), 0, name.length());
-        xmlSerializer.endElement("name");
-
+        writeElement(writer, "name", name);
+       
         // Output the schema namespace
-        xmlSerializer.startElement("namespace", null);
-        xmlSerializer.characters(namespace.toCharArray(), 0, namespace.length());
-        xmlSerializer.endElement("namespace");
+        writeElement(writer, "namespace", namespace);
 
-        xmlSerializer.endElement("dc-schema");
+        // close dc-schema
+        writer.writeEndElement();
     }
     
     /**
@@ -193,7 +187,8 @@ public class MetadataExporter {
      * @throws SQLException
      * @throws IOException 
      */
-    private static void saveType(Context context, XMLSerializer xmlSerializer, MetadataField mdField) throws SAXException, SQLException, IOException  {
+    private static void saveType(Context context, XMLStreamWriter writer, MetadataField mdField)
+        throws SQLException, IOException, XMLStreamException  {
         // If we haven't been given a field, it's an error
         checkNotNull(mdField, "no field to export");
         
@@ -207,44 +202,43 @@ public class MetadataExporter {
         checkArgument(schemaName != null && element != null, "incomplete field information");
 
         // Output the parent tag
-        xmlSerializer.startElement("dc-type", null);
+        writer.writeStartElement("dc-type");
 
         // Output the schema name
-        xmlSerializer.startElement("schema", null);
-        xmlSerializer.characters(schemaName.toCharArray(), 0, schemaName.length());
-        xmlSerializer.endElement("schema");
+        writeElement(writer, "schema", schemaName);
 
         // Output the element
-        xmlSerializer.startElement("element", null);
-        xmlSerializer.characters(element.toCharArray(), 0, element.length());
-        xmlSerializer.endElement("element");
+        writeElement(writer, "element", element);
 
         // Output the qualifier, if present
         if (qualifier != null) {
-            xmlSerializer.startElement("qualifier", null);
-            xmlSerializer.characters(qualifier.toCharArray(), 0, qualifier.length());
-            xmlSerializer.endElement("qualifier");
+            writeElement(writer, "qualifier", qualifier);
         } else {
-            xmlSerializer.comment("unqualified");
+            writer.writeComment("unqualified");
         }
         
         // Output the scope note, if present
         if (scopeNote != null) {
-            xmlSerializer.startElement("scope_note", null);
-            xmlSerializer.characters(scopeNote.toCharArray(), 0, scopeNote.length());
-            xmlSerializer.endElement("scope_note");
+            writeElement(writer, "scope_note", scopeNote);
         } else {
-            xmlSerializer.comment("no scope note");
+            writer.writeComment("no scope note");
         }
         
-        xmlSerializer.endElement("dc-type");
+        // close dc-type
+        writer.writeEndElement();
+    }
+
+    private static void writeElement(XMLStreamWriter writer, String name, String value) throws XMLStreamException {
+        writer.writeStartElement(name);
+        writer.writeCharacters(value);
+        writer.writeEndElement();
     }
     
     /**
      * Helper method to retrieve a schema name for the field.
      * Caches the name after looking up the id.
      */
-    static Map<Integer, String> schemaMap = new HashMap<Integer, String>();
+    static Map<Integer, String> schemaMap = new HashMap<>();
     private static String getSchemaName(Context context, MetadataField mdField) throws SQLException {
         // Get name from cache
         String name = schemaMap.get(Integer.valueOf(mdField.getSchemaID()));

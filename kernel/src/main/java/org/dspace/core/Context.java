@@ -17,8 +17,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Stack;
 
+import org.skife.jdbi.v2.Handle;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.dspace.eperson.EPerson;
 import org.dspace.eperson.Group;
 import org.dspace.event.Dispatcher;
@@ -40,8 +43,6 @@ import org.dspace.storage.rdbms.DatabaseManager;
  * <P>
  * The context object is also used as a cache for CM API objects.
  * 
- * 
- * @version $Revision: 5915 $
  */
 public class Context implements AutoCloseable
 {
@@ -50,8 +51,8 @@ public class Context implements AutoCloseable
 	
     private static final Logger log = LoggerFactory.getLogger(Context.class);
 
-    /** Database connection */
-    private Connection connection;
+    /** Database handle */
+    private Handle handle;
 
     /** Current user - null means anonymous access */
     private EPerson currentUser;
@@ -120,8 +121,8 @@ public class Context implements AutoCloseable
     private void init() throws SQLException
     {
         // Obtain a non-auto-committing connection
-        connection = DatabaseManager.getConnection();
-        connection.setAutoCommit(false);
+        handle = DatabaseManager.getHandle();
+        handle.getConnection().setAutoCommit(false);
 
         currentUser = null;
         currentLocale = I18nUtil.DEFAULTLOCALE;
@@ -136,14 +137,22 @@ public class Context implements AutoCloseable
     }
 
     /**
+     * Get the database handle associated with the context
+     * 
+     * @return the database handle
+     */
+    public Handle getHandle() {
+        return handle;
+    }
+
+    /**
      * Get the database connection associated with the context
      * 
      * @return the database connection
      */
-    public Connection getDBConnection()
-    {
-        return connection;
-    }
+    //public Connection getDBConnection() {
+    //    return handle.getConnection();
+    //}
 
     /**
      * Set the current user. Authentication must have been performed by the
@@ -278,8 +287,7 @@ public class Context implements AutoCloseable
      *            if <code>true</code>, authorisation should be ignored for this
      *            session.
      */
-    public void setIgnoreAuthorization(boolean b)
-    {
+    public void setIgnoreAuthorization(boolean b) {
         ignoreAuth = b;
     }
 
@@ -345,8 +353,9 @@ public class Context implements AutoCloseable
         finally
         {
             // Free the connection
-            DatabaseManager.freeConnection(connection);
-            connection = null;
+            handle.close();
+            //DatabaseManager.freeConnection(connection);
+            handle = null;
             clearCache();
         }
     }
@@ -382,12 +391,12 @@ public class Context implements AutoCloseable
                 }
 
                 dispatcher = EventManager.getDispatcher(dispName);
-                connection.commit();
+                handle.commit();
                 dispatcher.dispatch(this);
             }
             else
             {
-                connection.commit();
+                handle.commit();
             }
 
         }
@@ -406,13 +415,8 @@ public class Context implements AutoCloseable
      * Select an event dispatcher, <code>null</code> selects the default
      * 
      */
-    public void setDispatcher(String dispatcher)
-    {
-        if (log.isDebugEnabled())
-        {
-            log.debug(this.toString() + ": setDispatcher(\"" + dispatcher
-                    + "\")");
-        }
+    public void setDispatcher(String dispatcher) {
+        log.debug(this.toString() + ": setDispatcher(\"" + dispatcher + "\")");
         dispName = dispatcher;
     }
 
@@ -421,8 +425,7 @@ public class Context implements AutoCloseable
      * 
      * @param event
      */
-    public void addEvent(Event event)
-    {
+    public void addEvent(Event event) {
     	/* 
     	 * invalid condition if in read-only mode: events - which
     	 * indicate mutation - are firing: no recourse but to bail
@@ -430,8 +433,7 @@ public class Context implements AutoCloseable
     	if (isReadOnly()) {
     	    throw new IllegalStateException("Attempt to mutate object in read-only context");
     	}
-        if (events == null)
-        {
+        if (events == null) {
             events = new ArrayList<Event>();
         }
 
@@ -448,8 +450,7 @@ public class Context implements AutoCloseable
      *
      * @return List of all available events.
      */
-    public List<Event> getEvents()
-    {
+    public List<Event> getEvents() {
         return events;
     }
 
@@ -464,11 +465,11 @@ public class Context implements AutoCloseable
     {
         try
         {
-            if (!connection.isClosed())
+            if (!handle.getConnection().isClosed())
             {
             	if (! isReadOnly())
             	{
-            		connection.rollback();
+            		handle.rollback();
             	}
             }
         }
@@ -480,16 +481,16 @@ public class Context implements AutoCloseable
         {
             try
             {
-                if (!connection.isClosed())
+                if (!handle.getConnection().isClosed())
                 {
-                    DatabaseManager.freeConnection(connection);
+                    handle.close();
                 }
             }
             catch (Exception ex)
             {
                 log.error("Exception aborting context", ex);
             }
-            connection = null;
+            handle = null;
             events = null;
             clearCache();
         }
@@ -503,10 +504,9 @@ public class Context implements AutoCloseable
      * @return <code>true</code> if the context is still valid, otherwise
      *         <code>false</code>
      */
-    public boolean isValid()
-    {
+    public boolean isValid() {
         // Only return true if our DB connection is live
-        return (connection != null);
+        return (handle != null);
     }
     
     /**
@@ -515,8 +515,7 @@ public class Context implements AutoCloseable
      * @return <code>true</code> if the context is read-only, otherwise
      *         <code>false</code>
      */
-    public boolean isReadOnly()
-    {
+    public boolean isReadOnly()  {
     	return (options & READ_ONLY) > 0;
     }
 
@@ -531,8 +530,7 @@ public class Context implements AutoCloseable
      * @return the object from the cache, or <code>null</code> if it's not
      *         cached.
      */
-    public Object fromCache(Class<?> objectClass, int id)
-    {
+    public Object fromCache(Class<?> objectClass, int id) {
         String key = objectClass.getName() + id;
 
         return objectCache.get(key);
@@ -563,8 +561,7 @@ public class Context implements AutoCloseable
      * @param id
      *            the object's ID
      */
-    public void removeCached(Object o, int id)
-    {
+    public void removeCached(Object o, int id)  {
         String key = o.getClass().getName() + id;
         objectCache.remove(key);
     }
@@ -572,8 +569,7 @@ public class Context implements AutoCloseable
     /**
      * Remove all the objects from the object cache
      */
-    public void clearCache()
-    {
+    public void clearCache() {
         objectCache.clear();
     }
 
@@ -588,8 +584,7 @@ public class Context implements AutoCloseable
      * 
      * @return the number of items in the cache
      */
-    public int getCacheSize()
-    {
+    public int getCacheSize() {
         return objectCache.size();
     }
 
@@ -648,7 +643,7 @@ public class Context implements AutoCloseable
          * If a context is garbage-collected, we roll back and free up the
          * database connection if there is one.
          */
-        if (connection != null)
+        if (handle != null)
         {
             abort();
         }

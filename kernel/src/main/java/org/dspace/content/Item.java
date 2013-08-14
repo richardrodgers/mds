@@ -750,23 +750,19 @@ public class Item extends DSpaceObject
         }
     }
 
-    private transient MetadataField[] allMetadataFields = null;
+    private transient List<MetadataField> allMetadataFields = null;
     private MetadataField getMetadataField(MDValue mdv) throws SQLException, AuthorizeException
     {
         if (allMetadataFields == null) {
             allMetadataFields = MetadataField.findAll(context);
         }
 
-        if (allMetadataFields != null) {
-            int schemaID = getMetadataSchemaID(mdv);
-            for (MetadataField field : allMetadataFields)
-            {
-                if (field.getSchemaID() == schemaID &&
-                        Objects.equal(field.getElement(), mdv.getElement()) &&
-                        Objects.equal(field.getQualifier(), mdv.getQualifier()))
-                {
+        int schemaID = getMetadataSchemaID(mdv);
+        for (MetadataField field : allMetadataFields) {
+            if (field.getSchemaID() == schemaID &&
+                Objects.equal(field.getElement(), mdv.getElement()) &&
+                Objects.equal(field.getQualifier(), mdv.getQualifier())) {
                     return field;
-                }
             }
         }
 

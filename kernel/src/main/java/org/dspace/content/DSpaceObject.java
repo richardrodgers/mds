@@ -397,7 +397,7 @@ public abstract class DSpaceObject
      * 
      * @return internal DSpaceObject ID of object
      */
-    private int getDSOiD() {
+    int getDSOiD() {
     	return tableRow.getIntColumn("dso_id");
     }
     

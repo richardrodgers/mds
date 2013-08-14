@@ -9,10 +9,20 @@ package org.dspace.content;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.*;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+
+import org.skife.jdbi.v2.Query;
+import org.skife.jdbi.v2.StatementContext;
+import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
@@ -23,7 +33,7 @@ import org.dspace.storage.rdbms.TableRowIterator;
 /**
  * Database access class representing a Dublin Core metadata value.
  * It represents a value of a given <code>MetadataField</code> on an Item.
- * (The Item can have many values of the same field.)  It contains                                           element, qualifier, value and language.
+ * (The Item can have many values of the same field.)  It contains element, qualifier, value and language.
  * the field (which names the schema, element, and qualifier), language,
  * and a value.
  *
@@ -34,13 +44,13 @@ import org.dspace.storage.rdbms.TableRowIterator;
 public class MetadataValue
 {
     /** The reference to the metadata field */
-    private int fieldId = 0;
+    private int fieldId;
 
     /** The primary key for the metadata value */
-    private int valueId = 0;
+    private int valueId;
 
-    /** The reference to the DSpace item */
-    private int itemId;
+    /** The reference to the DSpace object */
+    private int dsoId;
 
     /** The value of the field */
     public String value;
@@ -51,44 +61,49 @@ public class MetadataValue
     /** The position of the record. */
     public int place = 1;
 
-    /** Authority key, if any */
-    public String authority = null;
-
-    /** Authority confidence value -- see Choices class for values */
-    public int confidence = 0;
-
     /** log4j logger */
     private static Logger log = LoggerFactory.getLogger(MetadataValue.class);
 
-    /** The row in the table representing this type */
-    private TableRow row;
+     /** DB table name */
+    private static final String TABLE_NAME = "MetadataValue";
+
+     /** BD -> Object mapper */
+    public static final ResultSetMapper<MetadataValue> MAPPER = new Mapper();
 
     /**
      * Construct the metadata object from the matching database row.
      *
      * @param row database row to use for contents
      */
-    public MetadataValue(TableRow row)
-    {
-        if (row != null)
-        {
+    public MetadataValue(TableRow row) {
+        if (row != null) {
             fieldId = row.getIntColumn("metadata_field_id");
             valueId = row.getIntColumn("metadata_value_id");
-            itemId = row.getIntColumn("item_id");
+            dsoId = row.getIntColumn("dso_id");
             value = row.getStringColumn("text_value");
             language = row.getStringColumn("text_lang");
             place = row.getIntColumn("place");
-            authority = row.getStringColumn("authority");
-            confidence = row.getIntColumn("confidence");
-            this.row = row;
         }
     }
 
     /**
      * Default constructor.
      */
-    public MetadataValue()
-    {
+    public MetadataValue() {
+    }
+
+    /**
+     * Constructor the metadata object from the matching database row.
+     *
+     * @param row database row to use for contents
+     */
+    public MetadataValue(int valueId, int dsoId, int fieldId, String value, String language, int place) {
+        this.valueId = valueId;
+        this.dsoId = dsoId;
+        this.fieldId = fieldId;
+        this.value = value;
+        this.language = language;
+        this.place = place;
     }
 
     /**
@@ -96,8 +111,7 @@ public class MetadataValue
      *
      * @param field initial value for field
      */
-    public MetadataValue(MetadataField field)
-    {
+    public MetadataValue(MetadataField field) {
         this.fieldId = field.getFieldID();
     }
 
@@ -106,8 +120,7 @@ public class MetadataValue
      *
      * @return metadata field ID
      */
-    public int getFieldId()
-    {
+    public int getFieldId() {
         return fieldId;
     }
 
@@ -116,8 +129,7 @@ public class MetadataValue
      *
      * @param fieldId new field ID
      */
-    public void setFieldId(int fieldId)
-    {
+    public void setFieldId(int fieldId) {
         this.fieldId = fieldId;
     }
 
@@ -126,9 +138,8 @@ public class MetadataValue
      *
      * @return item ID
      */
-    public int getItemId()
-    {
-        return itemId;
+    public int getDsoId() {
+        return dsoId;
     }
 
     /**
@@ -136,9 +147,8 @@ public class MetadataValue
      *
      * @param itemId new item ID
      */
-    public void setItemId(int itemId)
-    {
-        this.itemId = itemId;
+    public void setDsoId(int dsoId) {
+        this.dsoId = dsoId;
     }
 
     /**
@@ -146,8 +156,7 @@ public class MetadataValue
      *
      * @return language
      */
-    public String getLanguage()
-    {
+    public String getLanguage() {
         return language;
     }
 
@@ -156,8 +165,7 @@ public class MetadataValue
      *
      * @param language new language
      */
-    public void setLanguage(String language)
-    {
+    public void setLanguage(String language) {
         this.language = language;
     }
 
@@ -166,8 +174,7 @@ public class MetadataValue
      *
      * @return place ordering
      */
-    public int getPlace()
-    {
+    public int getPlace() {
         return place;
     }
 
@@ -176,8 +183,7 @@ public class MetadataValue
      *
      * @param place new place (relative order in series of values)
      */
-    public void setPlace(int place)
-    {
+    public void setPlace(int place) {
         this.place = place;
     }
 
@@ -186,8 +192,7 @@ public class MetadataValue
      *
      * @return value ID
      */
-    public int getValueId()
-    {
+    public int getValueId() {
         return valueId;
     }
 
@@ -196,8 +201,7 @@ public class MetadataValue
      *
      * @return metadata value
      */
-    public String getValue()
-    {
+    public String getValue() {
         return value;
     }
 
@@ -206,49 +210,8 @@ public class MetadataValue
      *
      * @param value new metadata value
      */
-    public void setValue(String value)
-    {
+    public void setValue(String value) {
         this.value = value;
-    }
-
-    /**
-     * Get the metadata authority
-     *
-     * @return metadata authority
-     */
-    public String getAuthority ()
-    {
-        return authority ;
-    }
-
-    /**
-     * Set the metadata authority
-     *
-     * @param value new metadata authority
-     */
-    public void setAuthority (String value)
-    {
-        this.authority  = value;
-    }
-
-    /**
-     * Get the metadata confidence
-     *
-     * @return metadata confidence
-     */
-    public int getConfidence()
-    {
-        return confidence;
-    }
-
-    /**
-     * Set the metadata confidence
-     *
-     * @param value new metadata confidence
-     */
-    public void setConfidence(int value)
-    {
-        this.confidence = value;
     }
 
     /**
@@ -259,17 +222,14 @@ public class MetadataValue
      * @throws SQLException
      * @throws AuthorizeException
      */
-    public void create(Context context) throws SQLException, AuthorizeException
-    {
+    public void create(Context context) throws SQLException, AuthorizeException {
         // Create a table row and update it with the values
-        row = DatabaseManager.row("MetadataValue");
-        row.setColumn("item_id", itemId);
+        TableRow row = DatabaseManager.row("MetadataValue");
+        row.setColumn("dso_id", dsoId);
         row.setColumn("metadata_field_id", fieldId);
         row.setColumn("text_value", value);
         row.setColumn("text_lang", language);
         row.setColumn("place", place);
-        row.setColumn("authority", authority);
-        row.setColumn("confidence", confidence);
         DatabaseManager.insert(context, row);
 
         // Remember the new row number
@@ -290,38 +250,10 @@ public class MetadataValue
      * @throws AuthorizeException
      */
     public static MetadataValue find(Context context, int valueId)
-            throws IOException, SQLException, AuthorizeException
-    {
-        // Grab rows from DB
-        TableRowIterator tri = DatabaseManager.queryTable(context, "MetadataValue",
-                "SELECT * FROM MetadataValue where metadata_value_id= ? ",
-                valueId);
-
-        TableRow row = null;
-        try
-        {
-            if (tri.hasNext())
-            {
-                row = tri.next();
-            }
-        }
-        finally
-        {
-            // close the TableRowIterator to free up resources
-            if (tri != null)
-            {
-                tri.close();
-            }
-        }
-
-        if (row == null)
-        {
-            return null;
-        }
-        else
-        {
-            return new MetadataValue(row);
-        }
+            throws IOException, SQLException, AuthorizeException {
+        return context.getHandle()
+               .createQuery("SELECT * FROM " + TABLE_NAME + " WHERE metadata_value_id = ? ")
+               .bind(0, valueId).map(MAPPER).first();
     }
 
     /**
@@ -335,33 +267,10 @@ public class MetadataValue
      * @throws AuthorizeException
      */
     public static List<MetadataValue> findByField(Context context, int fieldId)
-            throws IOException, SQLException, AuthorizeException
-    {
-        // Grab rows from DB
-        TableRowIterator tri = DatabaseManager.queryTable(context, "MetadataValue",
-                "SELECT * FROM MetadataValue WHERE metadata_field_id= ? ",
-                fieldId);
-
-        TableRow row = null;
-        List<MetadataValue> ret = new ArrayList<MetadataValue>();
-        try
-        {
-            while (tri.hasNext())
-            {
-                row = tri.next();
-                ret.add(new MetadataValue(row));
-            }
-        }
-        finally
-        {
-            // close the TableRowIterator to free up resources
-            if (tri != null)
-            {
-                tri.close();
-            }
-        }
-
-        return ret;
+            throws IOException, SQLException, AuthorizeException {
+        return context.getHandle()
+               .createQuery("SELECT * FROM " + TABLE_NAME + " WHERE metadata_field_id = ? ")
+               .bind(0, fieldId).map(MAPPER).list();
     }
 
     /**
@@ -371,16 +280,11 @@ public class MetadataValue
      * @throws SQLException
      * @throws AuthorizeException
      */
-    public void update(Context context) throws SQLException, AuthorizeException
-    {
-        row.setColumn("item_id", itemId);
-        row.setColumn("metadata_field_id", fieldId);
-        row.setColumn("text_value", value);
-        row.setColumn("text_lang", language);
-        row.setColumn("place", place);
-        row.setColumn("authority", authority);
-        row.setColumn("confidence", confidence);
-        DatabaseManager.update(context, row);
+    public void update(Context context) throws SQLException, AuthorizeException {
+
+        context.getHandle()
+        .createStatement("UPDATE " + TABLE_NAME + " SET dso_id = ?, metadata_field_id = ?, text_value = ?, text_lang = ?, place = ? WHERE metadata_value_id = ?")
+        .bind(0, dsoId).bind(1, fieldId).bind(2, value).bind(3, language).bind(4, place).bind(5, valueId).execute();
 
         log.info(LogManager.getHeader(context, "update_metadatavalue",
                 "metadata_value_id=" + getValueId()));
@@ -393,11 +297,10 @@ public class MetadataValue
      * @throws SQLException
      * @throws AuthorizeException
      */
-    public void delete(Context context) throws SQLException, AuthorizeException
-    {
+    public void delete(Context context) throws SQLException, AuthorizeException {
         log.info(LogManager.getHeader(context, "delete_metadata_value",
                 " metadata_value_id=" + getValueId()));
-        DatabaseManager.delete(context, row);
+        DatabaseManager.delete(context, TABLE_NAME, getValueId());
     }
 
     /**
@@ -411,39 +314,44 @@ public class MetadataValue
      *         MetadataValue as this object
      */
     @Override
-    public boolean equals(Object obj)
-    {
-        if (obj == null)
-        {
+    public boolean equals(Object obj) {
+        if (obj == null) {
             return false;
         }
-        if (getClass() != obj.getClass())
-        {
+        if (getClass() != obj.getClass()) {
             return false;
         }
         final MetadataValue other = (MetadataValue) obj;
-        if (this.fieldId != other.fieldId)
-        {
+        if (! Objects.equals(this.fieldId, other.fieldId)) {
             return false;
         }
-        if (this.valueId != other.valueId)
-        {
+        if (! Objects.equals(this.valueId, other.valueId)) {
             return false;
         }
-        if (this.itemId != other.itemId)
-        {
+        if (! Objects.equals(this.dsoId, other.dsoId)) {
             return false;
         }
         return true;
     }
 
     @Override
-    public int hashCode()
-    {
+    public int hashCode() {
         int hash = 7;
         hash = 47 * hash + this.fieldId;
         hash = 47 * hash + this.valueId;
-        hash = 47 * hash + this.itemId;
+        hash = 47 * hash + this.dsoId;
         return hash;
+    }
+
+     /**
+     * Maps database result sets to metadata value instances.
+     * ResultSetMapper interface contract
+     *
+     */
+    static class Mapper implements ResultSetMapper<MetadataValue> {
+        @Override
+        public MetadataValue map(int index, ResultSet rs, StatementContext sctx) throws SQLException {
+            return new MetadataValue(rs.getInt(0), rs.getInt(1), rs.getInt(2), rs.getString(3), rs.getString(4), rs.getInt(5));
+        }
     }
 }

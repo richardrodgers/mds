@@ -8,37 +8,38 @@
 package org.dspace.content;
 
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+
+import org.skife.jdbi.v2.Query;
+import org.skife.jdbi.v2.StatementContext;
+import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
 import org.dspace.storage.rdbms.DatabaseManager;
 import org.dspace.storage.rdbms.TableRow;
-import org.dspace.storage.rdbms.TableRowIterator;
 
 /**
  * DSpace object that represents a metadata field, which is
- * defined by a combination of schema, element, and qualifier.  Every
- * metadata element belongs in a field.
+ * defined by a combination of schema, element, and qualifier.
+ * Every metadata element belongs in a field.
  *
  * @author Martin Hald
- * @version $Revision: 5844 $
  * @see org.dspace.content.MetadataValue
  * @see org.dspace.content.MetadataSchema
  */
-public class MetadataField
-{
+public class MetadataField {
     private int fieldID = 0;
     private int schemaID = 0;
     private String element;
@@ -48,11 +49,17 @@ public class MetadataField
     /** log4j logger */
     private static Logger log = LoggerFactory.getLogger(MetadataField.class);
 
-    /** The row in the table representing this type */
-    private TableRow row;
+    /** DB table name */
+    private static final String TABLE_NAME = "MetadataFieldRegistry";
+
+     /** BD -> Object mapper */
+    public static final ResultSetMapper<MetadataField> MAPPER = new Mapper();
 
     // cache of field by ID (Integer)
-    private static Map<Integer, MetadataField> id2field = null;
+    private static Map<Integer, MetadataField> id2field = new HashMap<>();
+
+     // cache initialization flag
+    private static boolean cacheInitialized = false;
 
 
     /**
@@ -67,8 +74,7 @@ public class MetadataField
      *
      * @param schema schema to which the field belongs
      */
-    public MetadataField(MetadataSchema schema)
-    {
+    public MetadataField(MetadataSchema schema) {
         this.schemaID = schema.getSchemaID();
     }
 
@@ -81,8 +87,7 @@ public class MetadataField
      * @param scopeNote scope note of the field
      */
     public MetadataField(MetadataSchema schema, String element,
-            String qualifier, String scopeNote)
-    {
+            String qualifier, String scopeNote) {
         this.schemaID = schema.getSchemaID();
         this.element = element;
         this.qualifier = qualifier;
@@ -98,32 +103,13 @@ public class MetadataField
      * @param qualifier qualifier of the field
      * @param scopeNote scope note of the field
      */
-    public MetadataField(int schemaID, int fieldID, String element,
-            String qualifier, String scopeNote)
-    {
-        this.schemaID = schemaID;
+    public MetadataField(int fieldID, int schemaID, String element,
+            String qualifier, String scopeNote) {
         this.fieldID = fieldID;
+        this.schemaID = schemaID;
         this.element = element;
         this.qualifier = qualifier;
         this.scopeNote = scopeNote;
-    }
-
-    /**
-     * Constructor to load the object from the database.
-     *
-     * @param row database row from which to populate object.
-     */
-    public MetadataField(TableRow row)
-    {
-        if (row != null)
-        {
-            this.fieldID = row.getIntColumn("metadata_field_id");
-            this.schemaID = row.getIntColumn("metadata_schema_id");
-            this.element = row.getStringColumn("element");
-            this.qualifier = row.getStringColumn("qualifier");
-            this.scopeNote = row.getStringColumn("scope_note");
-            this.row = row;
-        }
     }
 
     /**
@@ -131,8 +117,7 @@ public class MetadataField
      *
      * @return element name
      */
-    public String getElement()
-    {
+    public String getElement() {
         return element;
     }
 
@@ -141,8 +126,7 @@ public class MetadataField
      *
      * @param element new value for element
      */
-    public void setElement(String element)
-    {
+    public void setElement(String element) {
         this.element = element;
     }
 
@@ -151,8 +135,7 @@ public class MetadataField
      *
      * @return metadata field id
      */
-    public int getFieldID()
-    {
+    public int getFieldID() {
         return fieldID;
     }
 
@@ -161,8 +144,7 @@ public class MetadataField
      *
      * @return qualifier
      */
-    public String getQualifier()
-    {
+    public String getQualifier() {
         return qualifier;
     }
 
@@ -171,8 +153,7 @@ public class MetadataField
      *
      * @param qualifier new value for qualifier
      */
-    public void setQualifier(String qualifier)
-    {
+    public void setQualifier(String qualifier) {
         this.qualifier = qualifier;
     }
 
@@ -181,8 +162,7 @@ public class MetadataField
      *
      * @return schema record key
      */
-    public int getSchemaID()
-    {
+    public int getSchemaID() {
         return schemaID;
     }
 
@@ -191,8 +171,7 @@ public class MetadataField
      *
      * @param schemaID new value for key
      */
-    public void setSchemaID(int schemaID)
-    {
+    public void setSchemaID(int schemaID) {
         this.schemaID = schemaID;
     }
 
@@ -201,8 +180,7 @@ public class MetadataField
      *
      * @return scope note
      */
-    public String getScopeNote()
-    {
+    public String getScopeNote() {
         return scopeNote;
     }
 
@@ -211,8 +189,7 @@ public class MetadataField
      *
      * @param scopeNote new value for scope note
      */
-    public void setScopeNote(String scopeNote)
-    {
+    public void setScopeNote(String scopeNote) {
         this.scopeNote = scopeNote;
     }
 
@@ -227,30 +204,27 @@ public class MetadataField
      * @throws NonUniqueMetadataException
      */
     public void create(Context context) throws IOException, AuthorizeException,
-            SQLException, NonUniqueMetadataException
-    {
+            SQLException, NonUniqueMetadataException {
         // Check authorisation: Only admins may create DC types
-        if (!AuthorizeManager.isAdmin(context))
-        {
+        if (!AuthorizeManager.isAdmin(context)) {
             throw new AuthorizeException(
                     "Only administrators may modify the metadata registry");
         }
 
         // Ensure the element and qualifier are unique within a given schema.
-        if (!unique(context, schemaID, element, qualifier))
-        {
+        if (findByElement(context, schemaID, element, qualifier) != null) {
             throw new NonUniqueMetadataException("Please make " + element + "."
                     + qualifier + " unique within schema #" + schemaID);
         }
 
         // Create a table row and update it with the values
-        row = DatabaseManager.row("MetadataFieldRegistry");
+        TableRow row = DatabaseManager.row("MetadataFieldRegistry");
         row.setColumn("metadata_schema_id", schemaID);
         row.setColumn("element", element);
         row.setColumn("qualifier", qualifier);
         row.setColumn("scope_note", scopeNote);
         DatabaseManager.insert(context, row);
-        decache();
+        cache(this);
 
         // Remember the new row number
         this.fieldID = row.getIntColumn("metadata_field_id");
@@ -271,51 +245,21 @@ public class MetadataField
      * @throws AuthorizeException
      */
     public static MetadataField findByElement(Context context, int schemaID,
-            String element, String qualifier) throws SQLException,
-            AuthorizeException
-    {
-        // Grab rows from DB
-        TableRowIterator tri;
-        if (qualifier == null)
-        {
-        	tri = DatabaseManager.queryTable(context,"MetadataFieldRegistry",
-                    "SELECT * FROM MetadataFieldRegistry WHERE metadata_schema_id= ? " + 
-                    "AND element= ?  AND qualifier is NULL ",
-                    schemaID, element);
-        } 
-        else
-        {
-        	tri = DatabaseManager.queryTable(context,"MetadataFieldRegistry",
-                    "SELECT * FROM MetadataFieldRegistry WHERE metadata_schema_id= ? " + 
-                    "AND element= ?  AND qualifier= ? ",
-                    schemaID, element, qualifier);
+            String element, String qualifier) throws SQLException, AuthorizeException {
+        StringBuilder query = new StringBuilder("SELECT * FROM ");
+        query.append(TABLE_NAME).append(" WHERE metadata_schema_id = ? AND element = ? AND qualifier ");
+        if (qualifier == null) {
+            query.append("is NULL");
+        } else { 
+            query.append("= ?");
         }
-        
-        TableRow row = null;
-        try
-        {
-            if (tri.hasNext())
-            {
-                row = tri.next();
-            }
-        }
-        finally
-        {
-            // close the TableRowIterator to free up resources
-            if (tri != null)
-            {
-                tri.close();
-            }
+        Query<Map<String, Object>> q = context.getHandle().createQuery(query.toString())
+            .bind(0, schemaID).bind(1, element);
+        if (qualifier != null) {
+            q.bind(2, qualifier);
         }
 
-        if (row == null)
-        {
-            return null;
-        }
-        else
-        {
-            return new MetadataField(row);
-        }
+        return q.map(MAPPER).first();
     }
 
     /**
@@ -325,34 +269,11 @@ public class MetadataField
      * @return an array of all the Dublin Core types
      * @throws SQLException
      */
-    public static MetadataField[] findAll(Context context) throws SQLException
-    {
-        List<MetadataField> fields = new ArrayList<MetadataField>();
-
-        // Get all the metadatafieldregistry rows
-        TableRowIterator tri = DatabaseManager.queryTable(context, "MetadataFieldRegistry",
-                               "SELECT mfr.* FROM MetadataFieldRegistry mfr, MetadataSchemaRegistry msr where mfr.metadata_schema_id= msr.metadata_schema_id ORDER BY msr.short_id,  mfr.element, mfr.qualifier");
-
-        try
-        {
-            // Make into DC Type objects
-            while (tri.hasNext())
-            {
-                fields.add(new MetadataField(tri.next()));
-            }
-        }
-        finally
-        {
-            // close the TableRowIterator to free up resources
-            if (tri != null)
-            {
-                tri.close();
-            }
-        }
-
-        // Convert list into an array
-        MetadataField[] typeArray = new MetadataField[fields.size()];
-        return (MetadataField[]) fields.toArray(typeArray);
+    public static List<MetadataField> findAll(Context context) throws SQLException {
+        return context.getHandle()
+               .createQuery("SELECT mfr.* FROM " + TABLE_NAME + " mfr, MetadataSchemaRegistry msr WHERE mfr.metadata_schema_id= msr.metadata_schema_id " +
+               " ORDER BY msr.short_id, mfr.element, mfr.qualifier")
+               .map(MAPPER).list();
     }
 
     /**
@@ -363,36 +284,12 @@ public class MetadataField
      * @return array of metadata fields
      * @throws SQLException
      */
-    public static MetadataField[] findAllInSchema(Context context, int schemaID)
-            throws SQLException
-    {
-        List<MetadataField> fields = new ArrayList<MetadataField>();
-
-        // Get all the metadatafieldregistry rows
-        TableRowIterator tri = DatabaseManager.queryTable(context,"MetadataFieldRegistry",
-                "SELECT * FROM MetadataFieldRegistry WHERE metadata_schema_id= ? " +
-                " ORDER BY element, qualifier", schemaID);
-
-        try
-        {
-            // Make into DC Type objects
-            while (tri.hasNext())
-            {
-                fields.add(new MetadataField(tri.next()));
-            }
-        }
-        finally
-        {
-            // close the TableRowIterator to free up resources
-            if (tri != null)
-            {
-                tri.close();
-            }
-        }
-
-        // Convert list into an array
-        MetadataField[] typeArray = new MetadataField[fields.size()];
-        return (MetadataField[]) fields.toArray(typeArray);
+    public static List<MetadataField> findAllInSchema(Context context, int schemaID)
+            throws SQLException {
+        return context.getHandle()
+               .createQuery("SELECT * FROM " + TABLE_NAME + " WHERE metadata_schema_id = ? " +
+               "ORDER BY element, qualifier")
+               .bind(0, schemaID).map(MAPPER).list();
     }
 
     /**
@@ -405,39 +302,24 @@ public class MetadataField
      * @throws IOException
      */
     public void update(Context context) throws SQLException,
-            AuthorizeException, NonUniqueMetadataException, IOException
-    {
+            AuthorizeException, NonUniqueMetadataException, IOException {
         // Check authorisation: Only admins may update the metadata registry
-        if (!AuthorizeManager.isAdmin(context))
-        {
+        if (!AuthorizeManager.isAdmin(context)) {
             throw new AuthorizeException(
                     "Only administrators may modiffy the Dublin Core registry");
         }
 
-        // Check to see if the schema ID was altered. If is was then we will
-        // query to ensure that there is not already a duplicate name field.
-        if (row.getIntColumn("metadata_schema_id") != schemaID)
-        {
-            if (MetadataField.hasElement(context, schemaID, element, qualifier))
-            {
-                throw new NonUniqueMetadataException(
-                        "Duplcate field name found in target schema");
-            }
-        }
-
         // Ensure the element and qualifier are unique within a given schema.
-        if (!unique(context, schemaID, element, qualifier))
-        {
+        if (hasElement(context, schemaID, element, qualifier)) {
             throw new NonUniqueMetadataException("Please make " + element + "."
-                    + qualifier);
+                    + qualifier + "unique");
         }
 
-        row.setColumn("metadata_schema_id", schemaID);
-        row.setColumn("element", element);
-        row.setColumn("qualifier", qualifier);
-        row.setColumn("scope_note", scopeNote);
-        DatabaseManager.update(context, row);
-        decache();
+         context.getHandle()
+        .createStatement("UPDATE " + TABLE_NAME + " SET metadata_schema_id = ?, element = ?, qualifier = ?, scope_note = ? WHERE metadata_schema_id = ?")
+        .bind(0, schemaID).bind(1, element).bind(2, qualifier).bind(3, scopeNote).bind(4, fieldID).execute();
+
+        cache(this);
 
         log.info(LogManager.getHeader(context, "update_metadatafieldregistry",
                 "metadata_field_id=" + getFieldID() + "element=" + getElement()
@@ -457,11 +339,8 @@ public class MetadataField
      * @throws AuthorizeException
      */
     private static boolean hasElement(Context context, int schemaID,
-            String element, String qualifier) throws SQLException,
-            AuthorizeException
-    {
-        return MetadataField.findByElement(context, schemaID, element,
-                qualifier) != null;
+            String element, String qualifier) throws SQLException, AuthorizeException {
+        return findByElement(context, schemaID, element, qualifier) != null;
     }
 
     /**
@@ -471,11 +350,9 @@ public class MetadataField
      * @throws SQLException
      * @throws AuthorizeException
      */
-    public void delete(Context context) throws SQLException, AuthorizeException
-    {
+    public void delete(Context context) throws SQLException, AuthorizeException {
         // Check authorisation: Only admins may create DC types
-        if (!AuthorizeManager.isAdmin(context))
-        {
+        if (!AuthorizeManager.isAdmin(context)) {
             throw new AuthorizeException(
                     "Only administrators may modify the metadata registry");
         }
@@ -483,85 +360,8 @@ public class MetadataField
         log.info(LogManager.getHeader(context, "delete_metadata_field",
                 "metadata_field_id=" + getFieldID()));
 
-        DatabaseManager.delete(context, row);
-        decache();
-    }
-
-    /**
-     * A sanity check that ensures a given element and qualifier are unique
-     * within a given schema. The check happens in code as we cannot use a
-     * database constraint.
-     *
-     * @param context dspace context
-     * @param schemaID
-     * @param element
-     * @param qualifier
-     * @return true if unique
-     * @throws AuthorizeException
-     * @throws SQLException
-     * @throws IOException
-     */
-    private boolean unique(Context context, int schemaID, String element,
-            String qualifier) throws IOException, SQLException,
-            AuthorizeException
-    {
-        int count = 0;
-        Connection con = null;
-        PreparedStatement statement = null;
-        ResultSet rs = null;
-
-        try
-        {
-            con = context.getDBConnection();
-            TableRow reg = DatabaseManager.row("MetadataFieldRegistry");
-
-            String qualifierClause = "";
-
-            if (qualifier == null)
-            {
-                qualifierClause = "and qualifier is null";
-            }
-            else
-            {
-                qualifierClause = "and qualifier = ?";
-            }
-
-            String query = "SELECT COUNT(*) FROM " + reg.getTable()
-                + " WHERE metadata_schema_id= ? "
-                + " and metadata_field_id != ? "
-                + " and element= ? " + qualifierClause;
-
-            statement = con.prepareStatement(query);
-            statement.setInt(1,schemaID);
-            statement.setInt(2,fieldID);
-            statement.setString(3,element);
-
-            if (qualifier != null)
-            {
-                statement.setString(4,qualifier);
-            }
-
-            rs = statement.executeQuery();
-
-            if (rs.next())
-            {
-                count = rs.getInt(1);
-            }
-        }
-        finally
-        {
-            if (rs != null)
-            {
-                try { rs.close(); } catch (SQLException sqle) { }
-            }
-
-            if (statement != null)
-            {
-                try { statement.close(); } catch (SQLException sqle) { }
-            }
-        }
-
-        return (count == 0);
+        DatabaseManager.delete(context, TABLE_NAME, getFieldID());
+        decache(this);
     }
 
     /**
@@ -572,14 +372,10 @@ public class MetadataField
      * @param qualifier
      * @return HTML FORM key
      */
-    public static String formKey(String schema, String element, String qualifier)
-    {
-        if (qualifier == null)
-        {
+    public static String formKey(String schema, String element, String qualifier) {
+        if (qualifier == null) {
             return schema + "_" + element;
-        }
-        else
-        {
+        } else {
             return schema + "_" + element + "_" + qualifier;
         }
     }
@@ -595,67 +391,43 @@ public class MetadataField
      * @return the metadata field object
      * @throws SQLException
      */
-    public static MetadataField find(Context context, int id)
-            throws SQLException
-    {
-        if (!isCacheInitialized())
-        {
+    public static MetadataField find(Context context, int id) throws SQLException {
+        if (! cacheInitialized) {
             initCache(context);
         }
+        return id2field.get(id);
+    }
 
-        // 'sanity check' first.
-        Integer iid = Integer.valueOf(id);
-        if (!id2field.containsKey(iid))
-        {
-            return null;
+    /**
+     * Maps database result sets to metadata fiels instances.
+     * ResultSetMapper interface contract
+     *
+     */
+    static class Mapper implements ResultSetMapper<MetadataField> {
+        @Override
+        public MetadataField map(int index, ResultSet rs, StatementContext sctx) throws SQLException {
+            return new MetadataField(rs.getInt(0), rs.getInt(1), rs.getString(2), rs.getString(3), rs.getString(4));
         }
-
-        return id2field.get(iid);
     }
 
-    // invalidate the cache e.g. after something modifies DB state.
-    private static void decache()
-    {
-        id2field = null;
+    // set a value in the cache e.g. after something modifies DB state.
+    private static void cache(MetadataField mdf) {
+        id2field.put(mdf.fieldID, mdf);
     }
 
-    private static boolean isCacheInitialized()
-    {
-        return id2field != null;
+    // remove a value from the cache e.g. after something modifies DB state.
+    private static void decache(MetadataField mdf) {
+        id2field.remove(mdf.fieldID);
     }
     
     // load caches if necessary
-    private static synchronized void initCache(Context context) throws SQLException
-    {
-        if (!isCacheInitialized())
-        {
-            Map<Integer, MetadataField> new_id2field = new HashMap<Integer, MetadataField>();
-            log.info("Loading MetadataField elements into cache.");
+    private static synchronized void initCache(Context context) throws SQLException {
+        log.info("Loading MetadataField elements into cache.");
 
-            // Grab rows from DB
-            TableRowIterator tri = DatabaseManager.queryTable(context,"MetadataFieldRegistry",
-                    "SELECT * from MetadataFieldRegistry");
-
-            try
-            {
-                while (tri.hasNext())
-                {
-                    TableRow row = tri.next();
-                    int fieldID = row.getIntColumn("metadata_field_id");
-                    new_id2field.put(Integer.valueOf(fieldID), new MetadataField(row));
-                }
-            }
-            finally
-            {
-                // close the TableRowIterator to free up resources
-                if (tri != null)
-                {
-                    tri.close();
-                }
-            }
-
-            id2field = new_id2field;
+        for (MetadataField mdf : findAll(context)) {
+            cache(mdf);
         }
+        cacheInitialized = true;
     }
 
     /**
@@ -669,31 +441,25 @@ public class MetadataField
      *         MetadataField as this object
      */
     @Override
-    public boolean equals(Object obj)
-    {
-        if (obj == null)
-        {
+    public boolean equals(Object obj) {
+        if (obj == null) {
             return false;
         }
-        if (getClass() != obj.getClass())
-        {
+        if (getClass() != obj.getClass()) {
             return false;
         }
         final MetadataField other = (MetadataField) obj;
-        if (this.fieldID != other.fieldID)
-        {
+        if (! Objects.equals(this.fieldID, other.fieldID)) {
             return false;
         }
-        if (this.schemaID != other.schemaID)
-        {
+        if (! Objects.equals(this.schemaID, other.schemaID)) {
             return false;
         }
         return true;
     }
 
     @Override
-    public int hashCode()
-    {
+    public int hashCode() {
         int hash = 7;
         hash = 47 * hash + this.fieldID;
         hash = 47 * hash + this.schemaID;

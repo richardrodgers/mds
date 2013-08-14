@@ -942,7 +942,7 @@ public class MockBrowseCreateDAOOracle
                 PreparedStatement stmt = null;
                 try
                 {
-                    stmt = internalContext.getDBConnection().prepareStatement(query.toString());
+                    stmt = internalContext.getHandle().getConnection().prepareStatement(query.toString());
                     for (Integer distinctId : distinctIds)
                     {
                         stmt.setInt(1, distinctId);
@@ -1034,7 +1034,7 @@ public class MockBrowseCreateDAOOracle
                 PreparedStatement stmt = null;
                 try
                 {
-                    stmt = internalContext.getDBConnection().prepareStatement(query.toString());
+                    stmt = internalContext.getHandle().getConnection().prepareStatement(query.toString());
                     for (Integer distinctId : distinctIds)
                     {
                         stmt.setInt(1, distinctId);

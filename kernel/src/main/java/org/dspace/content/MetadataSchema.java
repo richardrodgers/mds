@@ -7,24 +7,26 @@
  */
 package org.dspace.content;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.ResultSet;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+
+import org.skife.jdbi.v2.StatementContext;
+import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
 import org.dspace.storage.rdbms.DatabaseManager;
 import org.dspace.storage.rdbms.TableRow;
-import org.dspace.storage.rdbms.TableRowIterator;
 
 /**
  * Class representing a schema in DSpace.
@@ -35,7 +37,6 @@ import org.dspace.storage.rdbms.TableRowIterator;
  * </p>
  *
  * @author Martin Hald
- * @version $Revision: 6026 $
  * @see org.dspace.content.MetadataValue
  * @see org.dspace.content.MetadataField
  */
@@ -50,25 +51,30 @@ public class MetadataSchema
     /** Short Name of built-in Dublin Core schema. */
     public static final String DC_SCHEMA = "dc";
 
-    /** The row in the table representing this type */
-    private TableRow row;
+    /** DB table name */
+    private static final String TABLE_NAME = "MetadataSchemaRegistry";
 
+    /** BD -> Object mapper */
+    public static final ResultSetMapper<MetadataSchema> MAPPER = new Mapper();
+
+    /** numeric identifier (primary DB key) of schema */
     private int schemaID;
     private String namespace;
     private String name;
 
     // cache of schema by ID (Integer)
-    private static Map<Integer, MetadataSchema> id2schema = null;
+    private static Map<Integer, MetadataSchema> id2schema = new HashMap<>();
 
     // cache of schema by short name
-    private static Map<String, MetadataSchema> name2schema = null;
+    private static Map<String, MetadataSchema> name2schema = new HashMap<>();
 
+    // cache initialization flag
+    private static boolean cacheInitialized = false;
 
     /**
      * Default constructor.
      */
-    public MetadataSchema()
-    {
+    public MetadataSchema() {
     }
 
     /**
@@ -78,8 +84,7 @@ public class MetadataSchema
      * @param namespace  XML namespace URI
      * @param name  short name of schema
      */
-    public MetadataSchema(int schemaID, String namespace, String name)
-    {
+    public MetadataSchema(int schemaID, String namespace, String name)  {
         this.schemaID = schemaID;
         this.namespace = namespace;
         this.name = name;
@@ -91,79 +96,52 @@ public class MetadataSchema
      * @param namespace  XML namespace URI
      * @param name  short name of schema
      */
-    public MetadataSchema(String namespace, String name)
-    {
+    public MetadataSchema(String namespace, String name) {
         this.namespace = namespace;
         this.name = name;
     }
 
-    /**
-     * Constructor for loading the metadata schema from the database.
-     *
-     * @param row table row object from which to populate this schema.
-     */
-    public MetadataSchema(TableRow row)
-    {
-        if (row != null)
-        {
-            this.schemaID = row.getIntColumn("metadata_schema_id");
-            this.namespace = row.getStringColumn("namespace");
-            this.name = row.getStringColumn("short_id");
-            this.row = row;
-        }
-    }
-
     @Override
-    public boolean equals(Object obj)
-    {
-        if (obj == null)
-        {
+    public boolean equals(Object obj) {
+        if (obj == null) {
             return false;
         }
-        if (getClass() != obj.getClass())
-        {
+        if (getClass() != obj.getClass()) {
             return false;
         }
         final MetadataSchema other = (MetadataSchema) obj;
-        if (this.schemaID != other.schemaID)
-        {
+        if (! Objects.equals(this.schemaID, other.schemaID)) {
             return false;
         }
-        if ((this.namespace == null) ? (other.namespace != null) : !this.namespace.equals(other.namespace))
-        {
+        if (! Objects.equals(this.namespace, other.namespace)) {
             return false;
         }
         return true;
     }
 
     @Override
-    public int hashCode()
-    {
+    public int hashCode() {
         int hash = 5;
         hash = 67 * hash + this.schemaID;
         hash = 67 * hash + (this.namespace != null ? this.namespace.hashCode() : 0);
         return hash;
     }
 
-
-
     /**
      * Get the schema namespace.
      *
      * @return namespace String
      */
-    public String getNamespace()
-    {
+    public String getNamespace() {
         return namespace;
     }
 
     /**
      * Set the schema namespace.
      *
-     * @param namespace  XML namespace URI
+     * @param namespace XML namespace URI
      */
-    public void setNamespace(String namespace)
-    {
+    public void setNamespace(String namespace) {
         this.namespace = namespace;
     }
 
@@ -172,8 +150,7 @@ public class MetadataSchema
      *
      * @return name String
      */
-    public String getName()
-    {
+    public String getName() {
         return name;
     }
 
@@ -182,8 +159,7 @@ public class MetadataSchema
      *
      * @param name  short name of schema
      */
-    public void setName(String name)
-    {
+    public void setName(String name) {
         this.name = name;
     }
 
@@ -192,8 +168,7 @@ public class MetadataSchema
      *
      * @return schema record key
      */
-    public int getSchemaID()
-    {
+    public int getSchemaID() {
         return schemaID;
     }
 
@@ -207,46 +182,39 @@ public class MetadataSchema
      * @throws NonUniqueMetadataException
      */
     public void create(Context context) throws SQLException,
-            AuthorizeException, NonUniqueMetadataException
-    {
+            AuthorizeException, NonUniqueMetadataException {
         // Check authorisation: Only admins may create metadata schemas
-        if (!AuthorizeManager.isAdmin(context))
-        {
+        if (!AuthorizeManager.isAdmin(context)) {
             throw new AuthorizeException(
                     "Only administrators may modify the metadata registry");
         }
 
         // Ensure the schema name is unique
-        if (!uniqueShortName(context, name))
-        {
+        if (findByName(context, name) != null) {
             throw new NonUniqueMetadataException("Please make the name " + name
                     + " unique");
         }
         
         // Ensure the schema namespace is unique
-        if (!uniqueNamespace(context, namespace))
-        {
+        if (findByNamespace(context, namespace) != null) {
             throw new NonUniqueMetadataException("Please make the namespace " + namespace
                     + " unique");
         }
 
-
         // Create a table row and update it with the values
-        row = DatabaseManager.row("MetadataSchemaRegistry");
+        TableRow row = DatabaseManager.row(TABLE_NAME);
         row.setColumn("namespace", namespace);
         row.setColumn("short_id", name);
         DatabaseManager.insert(context, row);
 
-        // invalidate our fast-find cache.
-        decache();
-
         // Remember the new row number
         this.schemaID = row.getIntColumn("metadata_schema_id");
 
-        log
-                .info(LogManager.getHeader(context, "create_metadata_schema",
-                        "metadata_schema_id="
-                                + row.getIntColumn("metadata_schema_id")));
+        // update cache
+        cache(this);
+
+        log.info(LogManager.getHeader(context, "create_metadata_schema",
+                 "metadata_schema_id=" + row.getIntColumn("metadata_schema_id")));
     }
 
     /**
@@ -257,39 +225,24 @@ public class MetadataSchema
      * @return metadata schema object or null if none found.
      * @throws SQLException
      */
-    public static MetadataSchema findByNamespace(Context context,
-            String namespace) throws SQLException
-    {
-        // Grab rows from DB
-        TableRowIterator tri = DatabaseManager.queryTable(context,"MetadataSchemaRegistry",
-                "SELECT * FROM MetadataSchemaRegistry WHERE namespace= ? ", 
-                namespace);
+    public static MetadataSchema findByNamespace(Context context, String namespace) throws SQLException {
+        return context.getHandle()
+               .createQuery("SELECT * FROM " + TABLE_NAME + " WHERE namespace= ? ")
+               .bind(0, namespace).map(MAPPER).first();
+    }
 
-        TableRow row = null;
-        try
-        {
-            if (tri.hasNext())
-            {
-                row = tri.next();
-            }
-        }
-        finally
-        {
-            // close the TableRowIterator to free up resources
-            if (tri != null)
-            {
-                tri.close();
-            }
-        }
-
-        if (row == null)
-        {
-            return null;
-        }
-        else
-        {
-            return new MetadataSchema(row);
-        }
+    /**
+     * Get the schema object corresponding to this short name.
+     *
+     * @param context DSpace context
+     * @param name short name to match
+     * @return metadata schema object or null if none found.
+     * @throws SQLException
+     */
+    public static MetadataSchema findByName(Context context, String name) throws SQLException {
+        return context.getHandle()
+               .createQuery("SELECT * FROM " + TABLE_NAME + " WHERE short_id= ? ")
+               .bind(0, name).map(MAPPER).first();
     }
 
     /**
@@ -301,34 +254,28 @@ public class MetadataSchema
      * @throws NonUniqueMetadataException
      */
     public void update(Context context) throws SQLException,
-            AuthorizeException, NonUniqueMetadataException
-    {
+            AuthorizeException, NonUniqueMetadataException {
         // Check authorisation: Only admins may update the metadata registry
-        if (!AuthorizeManager.isAdmin(context))
-        {
+        if (!AuthorizeManager.isAdmin(context)) {
             throw new AuthorizeException(
                     "Only administrators may modify the metadata registry");
         }
 
         // Ensure the schema name is unique
-        if (!uniqueShortName(context, name))
-        {
-            throw new NonUniqueMetadataException("Please make the name " + name
-                    + " unique");
+        if (findByName(context, name) != null) {
+            throw new NonUniqueMetadataException("Please make the name " + name + " unique");
         }
 
         // Ensure the schema namespace is unique
-        if (!uniqueNamespace(context, namespace))
-        {
-            throw new NonUniqueMetadataException("Please make the namespace " + namespace
-                    + " unique");
+        if (findByNamespace(context, namespace) != null) {
+            throw new NonUniqueMetadataException("Please make the namespace " + namespace + " unique");
         }
         
-        row.setColumn("namespace", getNamespace());
-        row.setColumn("short_id", getName());
-        DatabaseManager.update(context, row);
+        context.getHandle()
+        .createStatement("UPDATE " + TABLE_NAME + " SET namespace = ?, short_id = ? WHERE metadata_schema_id = ?")
+        .bind(0, namespace).bind(1, name).bind(2, schemaID).execute();
 
-        decache();
+        cache(this);
 
         log.info(LogManager.getHeader(context, "update_metadata_schema",
                 "metadata_schema_id=" + getSchemaID() + "namespace="
@@ -342,11 +289,9 @@ public class MetadataSchema
      * @throws SQLException
      * @throws AuthorizeException
      */
-    public void delete(Context context) throws SQLException, AuthorizeException
-    {
+    public void delete(Context context) throws SQLException, AuthorizeException  {
         // Check authorisation: Only admins may create DC types
-        if (!AuthorizeManager.isAdmin(context))
-        {
+        if (!AuthorizeManager.isAdmin(context)) {
             throw new AuthorizeException(
                     "Only administrators may modify the metadata registry");
         }
@@ -354,8 +299,8 @@ public class MetadataSchema
         log.info(LogManager.getHeader(context, "delete_metadata_schema",
                 "metadata_schema_id=" + getSchemaID()));
 
-        DatabaseManager.delete(context, row);
-        decache();
+        DatabaseManager.delete(context, TABLE_NAME, getSchemaID());
+        decache(this);
     }
 
     /**
@@ -365,137 +310,10 @@ public class MetadataSchema
      * @return array of metadata schemas
      * @throws SQLException
      */
-    public static MetadataSchema[] findAll(Context context) throws SQLException
-    {
-        List<MetadataSchema> schemas = new ArrayList<MetadataSchema>();
-
-        // Get all the metadataschema rows
-        TableRowIterator tri = DatabaseManager.queryTable(context, "MetadataSchemaRegistry",
-                        "SELECT * FROM MetadataSchemaRegistry ORDER BY metadata_schema_id");
-
-        try
-        {
-            // Make into DC Type objects
-            while (tri.hasNext())
-            {
-                schemas.add(new MetadataSchema(tri.next()));
-            }
-        }
-        finally
-        {
-            // close the TableRowIterator to free up resources
-            if (tri != null)
-            {
-                tri.close();
-            }
-        }
-
-        // Convert list into an array
-        MetadataSchema[] typeArray = new MetadataSchema[schemas.size()];
-        return (MetadataSchema[]) schemas.toArray(typeArray);
-    }
-
-    /**
-     * Return true if and only if the passed name appears within the allowed
-     * number of times in the current schema.
-     *
-     * @param context DSpace context
-     * @param namespace namespace URI to match
-     * @return true of false
-     * @throws SQLException
-     */
-    private boolean uniqueNamespace(Context context, String namespace)
-            throws SQLException
-    {
-        int count = 0;
-        Connection con = context.getDBConnection();
-        PreparedStatement statement = null;
-        ResultSet rs = null;
-
-        try
-        {
-            TableRow reg = DatabaseManager.row("MetadataSchemaRegistry");
-
-            String query = "SELECT COUNT(*) FROM " + reg.getTable() + " " +
-                    "WHERE metadata_schema_id != ? " +
-                    "AND namespace= ? ";
-
-            statement = con.prepareStatement(query);
-            statement.setInt(1,schemaID);
-            statement.setString(2,namespace);
-
-            rs = statement.executeQuery();
-
-            if (rs.next())
-            {
-                count = rs.getInt(1);
-            }
-        }
-        finally
-        {
-            if (rs != null)
-            {
-                try { rs.close(); } catch (SQLException sqle) { }
-            }
-
-            if (statement != null)
-            {
-                try { statement.close(); } catch (SQLException sqle) { }
-            }
-        }
-
-        return (count == 0);
-    }
-
-    /**
-     * Return true if and only if the passed name is unique.
-     *
-     * @param context DSpace context
-     * @param name  short name of schema
-     * @return true of false
-     * @throws SQLException
-     */
-    private boolean uniqueShortName(Context context, String name)
-            throws SQLException
-    {
-        int count = 0;
-        Connection con = context.getDBConnection();
-        PreparedStatement statement = null;
-        ResultSet rs = null;
-
-        try
-        {
-            TableRow reg = DatabaseManager.row("MetadataSchemaRegistry");
-
-            String query = "SELECT COUNT(*) FROM " + reg.getTable() + " " +
-                    "WHERE metadata_schema_id != ? " +
-                    "AND short_id = ? ";
-
-            statement = con.prepareStatement(query);
-            statement.setInt(1,schemaID);
-            statement.setString(2,name);
-
-            rs = statement.executeQuery();
-
-            if (rs.next())
-            {
-                count = rs.getInt(1);
-            }
-        }
-        finally
-        {
-            if (rs != null)
-            {
-                try { rs.close(); } catch (SQLException sqle) { }
-            }
-
-            if (statement != null)
-            {
-                try { statement.close(); } catch (SQLException sqle) { }
-            }
-        }
-
-        return (count == 0);
+    public static List<MetadataSchema> findAll(Context context) throws SQLException {
+        return context.getHandle()
+               .createQuery("SELECT * FROM " + TABLE_NAME + " ORDER BY metadata_schema_id")
+               .map(MAPPER).list();
     }
 
     /**
@@ -509,23 +327,11 @@ public class MetadataSchema
      * @return the metadata schema object
      * @throws SQLException
      */
-    public static MetadataSchema find(Context context, int id)
-            throws SQLException
-    {
-        if (!isCacheInitialized())
-        {
+    public static MetadataSchema find(Context context, int id) throws SQLException {
+        if (!cacheInitialized) {
             initCache(context);
         }
-        
-        Integer iid = Integer.valueOf(id);
-
-        // sanity check
-        if (!id2schema.containsKey(iid))
-        {
-            return null;
-        }
-
-        return id2schema.get(iid);
+        return id2schema.get(id);
     }
 
     /**
@@ -538,74 +344,47 @@ public class MetadataSchema
      * @return the metadata schema object
      * @throws SQLException
      */
-    public static MetadataSchema find(Context context, String shortName)
-        throws SQLException
-    {
+    public static MetadataSchema find(Context context, String shortName) throws SQLException {
         // If we are not passed a valid schema name then return
-        if (shortName == null)
-        {
+        if (shortName == null)  {
             return null;
         }
 
-        if (!isCacheInitialized())
-        {
+        if (!cacheInitialized) {
             initCache(context);
         }
-
-        if (!name2schema.containsKey(shortName))
-        {
-            return null;
-        }
-
         return name2schema.get(shortName);
     }
 
-    // invalidate the cache e.g. after something modifies DB state.
-    private static void decache()
-    {
-        id2schema = null;
-        name2schema = null;
-    }
-
-    private static boolean isCacheInitialized()
-    {
-        return (id2schema != null && name2schema != null);
+    /**
+     * Maps database result sets to metadata schema instances.
+     * ResultSetMapper interface contract
+     *
+     */
+    static class Mapper implements ResultSetMapper<MetadataSchema> {
+        @Override
+        public MetadataSchema map(int index, ResultSet rs, StatementContext sctx) throws SQLException {
+            return new MetadataSchema(rs.getInt(0), rs.getString(1), rs.getString(2));
+        }
     }
 
     // load caches if necessary
-    private static synchronized void initCache(Context context) throws SQLException
-    {
-        if (!isCacheInitialized())
-        {
-            log.info("Loading schema cache for fast finds");
-            Map<Integer, MetadataSchema> new_id2schema = new HashMap<Integer, MetadataSchema>();
-            Map<String, MetadataSchema> new_name2schema = new HashMap<String, MetadataSchema>();
-
-            TableRowIterator tri = DatabaseManager.queryTable(context,"MetadataSchemaRegistry",
-                    "SELECT * from MetadataSchemaRegistry");
-
-            try
-            {
-                while (tri.hasNext())
-                {
-                    TableRow row = tri.next();
-
-                    MetadataSchema s = new MetadataSchema(row);
-                    new_id2schema.put(Integer.valueOf(s.schemaID), s);
-                    new_name2schema.put(s.name, s);
-                }
-            }
-            finally
-            {
-                // close the TableRowIterator to free up resources
-                if (tri != null)
-                {
-                    tri.close();
-                }
-            }
-
-            id2schema = new_id2schema;
-            name2schema = new_name2schema;
+    private static synchronized void initCache(Context context) throws SQLException {
+        log.info("Loading schema cache for fast finds");
+           
+        for (MetadataSchema mds : findAll(context)) {
+            cache(mds);
         }
+        cacheInitialized = true;
+    }
+
+    private static void cache(MetadataSchema mds) {
+        id2schema.put(mds.schemaID, mds);
+        name2schema.put(mds.name, mds);
+    }
+
+    private static void decache(MetadataSchema mds) {
+        id2schema.remove(mds.schemaID);
+        name2schema.remove(mds.name);
     }
 }

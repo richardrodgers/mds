@@ -37,6 +37,11 @@ import java.util.regex.Pattern;
 import javax.naming.InitialContext;
 import javax.sql.DataSource;
 
+import com.google.common.base.Joiner;
+
+import org.skife.jdbi.v2.DBI;
+import org.skife.jdbi.v2.Handle;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,6 +90,8 @@ public class DatabaseManager
 
     /** Name to use for the pool */
     private static String poolName = "dspacepool";
+
+    private static DBI database = null;
     
     /** 
      * This regular expression is used to perform sanity checks 
@@ -125,29 +132,8 @@ public class DatabaseManager
      *            the constraint name to deferred
      * @throws SQLException
      */
-    public static void setConstraintDeferred(Context context,
-            String constraintName) throws SQLException
-    {
-        Statement statement = null;
-        try
-        {
-            statement = context.getDBConnection().createStatement();
-            statement.execute("SET CONSTRAINTS " + constraintName + " DEFERRED");
-            statement.close();
-        }
-        finally
-        {
-            if (statement != null)
-            {
-                try
-                {
-                    statement.close();
-                }
-                catch (SQLException sqle)
-                {
-                }
-            }
-        }
+    public static void setConstraintDeferred(Context context, String constraintName) {
+        context.getHandle().execute("SET CONSTRAINTS " + constraintName + " DEFERRED");
     }
 
     /**
@@ -159,29 +145,8 @@ public class DatabaseManager
      *            the constraint name to check immediately after every query
      * @throws SQLException
      */
-    public static void setConstraintImmediate(Context context,
-            String constraintName) throws SQLException
-    {
-        Statement statement = null;
-        try
-        {
-            statement = context.getDBConnection().createStatement();
-            statement.execute("SET CONSTRAINTS " + constraintName + " IMMEDIATE");
-            statement.close();
-        }
-        finally
-        {
-            if (statement != null)
-            {
-                try
-                {
-                    statement.close();
-                }
-                catch (SQLException sqle)
-                {
-                }
-            }
-        }
+    public static void setConstraintImmediate(Context context, String constraintName) {
+        context.getHandle().execute("SET CONSTRAINTS " + constraintName + " IMMEDIATE");
     }
     
     /**
@@ -203,7 +168,7 @@ public class DatabaseManager
      * @exception SQLException
      *                If a database error occurs
      */
-    public static TableRowIterator queryTable(Context context, String table, String query, Object... parameters ) throws SQLException
+    public static TableRowIterator queryTable(Context context, String table, String query, Object... parameters) throws SQLException
     {
         if (log.isDebugEnabled())
         {
@@ -219,7 +184,7 @@ public class DatabaseManager
             log.debug(sb.toString());
         }
         
-        PreparedStatement statement = context.getDBConnection().prepareStatement(query);
+        PreparedStatement statement = context.getHandle().getConnection().prepareStatement(query);
         try
         {
             loadParameters(statement, parameters);
@@ -278,7 +243,7 @@ public class DatabaseManager
             log.debug("Running query \"" + query + "\"  with parameters: " + sb.toString());
         }
 
-        PreparedStatement statement = context.getDBConnection().prepareStatement(query);
+        PreparedStatement statement = context.getHandle().getConnection().prepareStatement(query);
         try
         {
             loadParameters(statement,parameters);
@@ -317,7 +282,6 @@ public class DatabaseManager
      * 			  A set of SQL parameters to be included in query. The order of 
      * 			  the parameters must correspond to the order of their reference 
      * 			  within the query.
-
      * @return A TableRow object, or null if no result
      * @exception SQLException
      *                If a database error occurs
@@ -397,27 +361,15 @@ public class DatabaseManager
      * @exception SQLException
      *                If a database error occurs
      */
-    public static int updateQuery(Context context, String query, Object... parameters) throws SQLException
-    {
-        PreparedStatement statement = null;
+    public static int updateQuery(Context context, String query, Object... parameters) throws SQLException {
 
-        if (log.isDebugEnabled())
-        {
-            StringBuilder sb = new StringBuilder("Running query \"").append(query).append("\"  with parameters: ");
-            for (int i = 0; i < parameters.length; i++)
-            {
-                if (i > 0)
-               {
-                       sb.append(",");
-               }
-                sb.append(parameters[i].toString());
-            }
-            log.debug(sb.toString());
-        }
-
+        log.debug(new StringBuilder("Running query \"").append(query)
+                  .append("\"  with parameters: ").append(Joiner.on(",").join(parameters)).toString());
+        return context.getHandle().update(query, parameters);
+/*
         try
         {        	
-        	statement = context.getDBConnection().prepareStatement(query);
+        	statement = context.getHandle().getConnection().prepareStatement(query);
         	loadParameters(statement, parameters);
         	
         	return statement.executeUpdate();
@@ -435,6 +387,7 @@ public class DatabaseManager
                 }
             }
         }
+        */
     }
 
     /**
@@ -531,12 +484,9 @@ public class DatabaseManager
      *                If a database error occurs
      */
     public static int delete(Context context, String table, int id)
-            throws SQLException
-    {
+            throws SQLException {
         String ctable = canonicalize(table);
-
-        return deleteByValue(context, ctable, getPrimaryKeyColumn(ctable),
-                Integer.valueOf(id));
+        return deleteByValue(context, ctable, getPrimaryKeyColumn(ctable), Integer.valueOf(id));
     }
 
     /**
@@ -571,8 +521,20 @@ public class DatabaseManager
         }
 
         StringBuilder sql = new StringBuilder("delete from ").append(ctable).append(" where ").append(column).append(" = ? ");
+        
         return updateQuery(context, sql.toString(), value);
     }
+
+    /**
+     * Obtains a database handle (wrapped JDBC Connection)
+     *
+     * @return A new database handle.
+     */
+    public static Handle getHandle() throws SQLException {
+        initialize();
+        return database.open();
+    }
+
 
     /**
      * Obtain an RDBMS connection.
@@ -728,7 +690,7 @@ public class DatabaseManager
             sql.append(" where ").append(pk.getName()).append(" = ?");
             columns.add(pk);
 
-            return executeUpdate(context.getDBConnection(), sql.toString(), columns, row);
+            return executeUpdate(context.getHandle().getConnection(), sql.toString(), columns, row);
         }
 
         return 1;
@@ -1508,7 +1470,7 @@ public class DatabaseManager
 
                 dataSource = DataSourceInit.getDatasource();
             }
-
+            database = new DBI(dataSource);
             initialized = true;
         }
         catch (SQLException se)
@@ -1746,7 +1708,7 @@ public class DatabaseManager
         ResultSet rs = null;
         try
         {
-            statement = context.getDBConnection().prepareStatement(sql);
+            statement = context.getHandle().getConnection().prepareStatement(sql);
         	loadParameters(statement, params, row);
             rs = statement.executeQuery();
             rs.next();
@@ -1798,11 +1760,11 @@ public class DatabaseManager
             // SQL function in Postgres, or directly with sequences in Oracle
             if (isOracle)
             {
-                statement = context.getDBConnection().prepareStatement("SELECT " + table + "_seq" + ".nextval FROM dual");
+                statement = context.getHandle().getConnection().prepareStatement("SELECT " + table + "_seq" + ".nextval FROM dual");
             }
             else
             {
-                statement = context.getDBConnection().prepareStatement("SELECT getnextid(?) AS result");
+                statement = context.getHandle().getConnection().prepareStatement("SELECT getnextid(?) AS result");
                 loadParameters(statement, new Object[] { table });
             }
             rs = statement.executeQuery();
@@ -1873,7 +1835,7 @@ public class DatabaseManager
             insertSQL.put(table, sql);
         }
 
-        execute(context.getDBConnection(), sql, info, row);
+        execute(context.getHandle().getConnection(), sql, info, row);
         return newID;
     }
 

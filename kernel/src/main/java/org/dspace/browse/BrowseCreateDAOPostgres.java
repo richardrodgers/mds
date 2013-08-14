@@ -817,7 +817,7 @@ public class BrowseCreateDAOPostgres implements BrowseCreateDAO
                 PreparedStatement stmt = null;
                 try
                 {
-                    stmt = context.getDBConnection().prepareStatement(query.toString());
+                    stmt = context.getHandle().getConnection().prepareStatement(query.toString());
                     for (Integer distinctId : distinctIds)
                     {
                         stmt.setInt(1, distinctId);
@@ -915,7 +915,7 @@ public class BrowseCreateDAOPostgres implements BrowseCreateDAO
                 PreparedStatement stmt = null;
                 try
                 {
-                    stmt = context.getDBConnection().prepareStatement(query.toString());
+                    stmt = context.getHandle().getConnection().prepareStatement(query.toString());
                     for (Integer distinctId : distinctIds)
                     {
                         stmt.setInt(1, distinctId);
