@@ -47,31 +47,31 @@ public class SelectorResolver {
 		// try to find a selector profile description matching name
 		String selList = ConfigurationManager.getProperty("curate", "selectors");
 		if (selList != null) {
-        String className = null;
-        for (String desc : selList.split(",")) {
-            String tdesc = desc.trim();
-            if (tdesc.startsWith(selectorName))	{
-                // parse description
-                String[] prof = tdesc.split("=");
-                // prof contains selector class name, and optionally load profile
-                String[] profile = prof[1].split(":");
-                className = profile[0];
-                try {
-                    selector = (ObjectSelector)Class.forName(className).newInstance();
-                    selector.setContext(context);
-                    if (profile.length > 1) {
-                        selector.configure(profile[1]);
-                    }
-					     } catch(Exception e) {
-                  log.error("Ouch");
-					     }
-				    }
+            String className = null;
+            for (String desc : selList.split(",")) {
+                String tdesc = desc.trim();
+                if (tdesc.startsWith(selectorName))	{
+                    // parse description
+                    String[] prof = tdesc.split("=");
+                    // prof contains selector class name, and optionally load profile
+                    String[] profile = prof[1].split(":");
+                    className = profile[0];
+                    try {
+                        selector = (ObjectSelector)Class.forName(className).newInstance();
+                        selector.setContext(context);
+                        if (profile.length > 1) {
+                            selector.configure(profile[1]);
+                        }
+					} catch(Exception e) {
+                        log.error("Ouch");
+					}
 				}
-        if (className == null) {
-          log.info("No named selector found for name: " + selectorName);
-			  }
-		}	else {
-        log.info("No named selectors defined");
+		    }
+            if (className == null) {
+                log.info("No named selector found for name: " + selectorName);
+			}
+		} else {
+            log.info("No named selectors defined");
 		}
 		return selector;
 	}

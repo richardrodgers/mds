@@ -8,7 +8,9 @@
 package org.dspace.curate;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,8 +33,8 @@ import org.dspace.eperson.EPerson;
  *
  * @author richardrodgers
  */
-public class ResolvedTask
-{
+public class ResolvedTask {
+
 	private static Logger log = LoggerFactory.getLogger(ResolvedTask.class);
 	
 	private static final String recorderKey = Recorder.class.getName();
@@ -52,8 +54,7 @@ public class ResolvedTask
     // record annotation metadata
     private List<RecordMetadata> recList = null;
 	
-	protected ResolvedTask(String taskName, CurationTask cTask)
-	{
+	protected ResolvedTask(String taskName, CurationTask cTask) {
 		this.taskName = taskName;
 		this.cTask = cTask;
 		// process annotations
@@ -61,29 +62,30 @@ public class ResolvedTask
 		distributive = ctClass.isAnnotationPresent(Distributive.class);
 		mutative = ctClass.isAnnotationPresent(Mutative.class);
 		Suspendable suspendAnno = (Suspendable)ctClass.getAnnotation(Suspendable.class);
-        if (suspendAnno != null)
-        {
+        if (suspendAnno != null) {
             mode = suspendAnno.invoked();
             codes = suspendAnno.statusCodes();
         }
         Record recAnno = (Record)ctClass.getAnnotation(Record.class);
-        if (recAnno != null)
-        {
+        if (recAnno != null) {
         	processRecord(recAnno);
         }
         // maybe multiple messages ?
         Records recsAnno = (Records)ctClass.getAnnotation(Records.class);
-        if (recsAnno != null)
-        {
-        	for (Record rAnno : recsAnno.value())
-        	{
+        if (recsAnno != null) {
+        	for (Record rAnno : recsAnno.value()) {
         		processRecord(rAnno);
         	}
         }
 	}
-	
-	protected ResolvedTask(String taskName, ScriptedTask sTask)
-	{
+
+    protected ResolvedTask(String taskName, File program) {
+        this.taskName = taskName;
+        this.cTask = new Program();
+        // annotation processing TBD
+    }
+
+	protected ResolvedTask(String taskName, ScriptedTask sTask) {
 		this.taskName = taskName;
 		this.sTask = sTask;
 		// annotation processing TBD
@@ -97,22 +99,18 @@ public class ResolvedTask
      * @param curator the Curator controlling this task
      * @throws IOException
      */
-    public void init(Curator curator) throws IOException
-    {
+    public void init(Curator curator) throws IOException {
     	// any recorder required?
-    	if (recList != null)
-    	{
+    	if (recList != null) {
     		recorder = (Recorder)curator.obtainResource(recorderKey);
-    		if (recorder == null)
-    		{
+    		if (recorder == null) {
     			String recorderClass = ConfigurationManager.getProperty("curate", "recorder.impl");
     			if (recorderClass != null) {
     				try {
     					recorder = (Recorder)Class.forName(recorderClass).newInstance();
     					recorder.init();
     					String policy = null;
-    					if (recorder instanceof Closeable)
-    					{
+    					if (recorder instanceof Closeable) {
     						policy = "close";
     					}
     					curator.manageResource(recorderKey, recorder, policy);
@@ -126,12 +124,9 @@ public class ResolvedTask
     			}
     		}
     	}
-    	if (unscripted())
-    	{
+    	if (unscripted()) {
     		cTask.init(curator, taskName);
-    	}
-    	else
-    	{
+    	} else {
     		sTask.init(curator, taskName);
     	}
     }
@@ -141,9 +136,11 @@ public class ResolvedTask
      *
      * @param dso the DSpace object
      * @return status code
+     * @throws AuthorizeException
      * @throws IOException
+     * @throws SQLException
      */
-    public int perform(DSpaceObject dso) throws AuthorizeException, IOException {
+    public int perform(DSpaceObject dso) throws AuthorizeException, IOException, SQLException {
     	return unscripted() ? cTask.perform(dso) : sTask.performDso(dso);
     }
 
@@ -153,9 +150,11 @@ public class ResolvedTask
      * @param ctx DSpace context object
      * @param id persistent ID for DSpace object
      * @return status code
-     * @throws Exception
+     * @throws AuthorizeException
+     * @throws IOException
+     * @throws SQLException
      */
-    public int perform(Context ctx, String id) throws AuthorizeException, IOException {
+    public int perform(Context ctx, String id) throws AuthorizeException, IOException, SQLException {
     	return unscripted() ? cTask.perform(ctx, id) : sTask.performId(ctx, id);	
     }
     
@@ -167,22 +166,17 @@ public class ResolvedTask
      * @param status the status code returned by the task
      * @param result the result string assigned by to task or null if absent
      */
-    public void record(String objId, Context ctx, int status, String result) throws IOException
-    {
-    	if (recorder != null && recList != null)
-    	{
+    public void record(String objId, Context ctx, int status, String result) throws IOException {
+    	if (recorder != null && recList != null) {
     		String epId = null;
-			if (ctx != null)
-			{
+			if (ctx != null) {
 				EPerson eperson = ctx.getCurrentUser();
 				epId = (eperson != null) ? eperson.getName() : null;
 			}
 			long timestamp = System.currentTimeMillis();
-    		for (RecordMetadata rmd : recList)
-    		{
+    		for (RecordMetadata rmd : recList) {
     			// is status code among those we respond to?
-    			if (rmd.recCodes.contains(status))
-    			{
+    			if (rmd.recCodes.contains(status)) {
     				recorder.record(timestamp, objId, epId, taskName,
     				        		rmd.recType, rmd.recValue, status, result);
     			}
@@ -195,8 +189,7 @@ public class ResolvedTask
      * @return name
      *         the local name of the task
      */
-    public String getName()
-    {
+    public String getName() {
     	return taskName;
     }
     
@@ -205,8 +198,7 @@ public class ResolvedTask
      * @return boolean 
      *         true if the task is distributive
      */
-    public boolean isDistributive()
-    {
+    public boolean isDistributive() {
     	return distributive;
     }
     
@@ -214,48 +206,39 @@ public class ResolvedTask
      * Returns whether task alters (mutates) it's target objects
      * 
      */
-    public boolean isMutative()
-    {
+    public boolean isMutative() {
     	return mutative;
     }
     
-    public Curator.Invoked getMode()
-    {
+    public Curator.Invoked getMode() {
     	return mode;
     }
     
-    public int[] getCodes()
-    {
+    public int[] getCodes() {
     	return codes;
     }
     
-    private void processRecord(Record recAnno)
-    {
-    	if (recList == null)
-    	{
+    private void processRecord(Record recAnno) {
+    	if (recList == null) {
     		recList = new ArrayList<RecordMetadata>();
     	}
     	recList.add(new RecordMetadata(recAnno));
     }
     
-    private boolean unscripted()
-    {
+    private boolean unscripted() {
     	return sTask == null;
     }
     
-    private class RecordMetadata
-    {
+    private class RecordMetadata {
     	public String recType;
     	public String recValue;
     	public List<Integer> recCodes;
     	
-    	public RecordMetadata(Record rec)
-    	{
+    	public RecordMetadata(Record rec) {
     		recType = rec.type();
         	recValue = rec.value();
         	recCodes = new ArrayList<Integer>();
-        	for (int code : rec.statusCodes())
-        	{
+        	for (int code : rec.statusCodes()) {
         		recCodes.add(code);
         	}
     	}

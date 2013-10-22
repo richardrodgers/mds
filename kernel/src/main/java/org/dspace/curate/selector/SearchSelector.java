@@ -42,8 +42,8 @@ import org.dspace.search.QueryResults;
  *
  * @author richardrodgers
  */
-public class SearchSelector implements ObjectSelector
-{
+public class SearchSelector implements ObjectSelector {
+
     private static Logger log = LoggerFactory.getLogger(SearchSelector.class);   
     
     private Context context = null;
@@ -53,104 +53,75 @@ public class SearchSelector implements ObjectSelector
     private QueryResults qResults = null;
     private int read = 0;
 
-    public SearchSelector()
-    {
-    }
+    public SearchSelector() {}
     
     @Override
-    public Context getContext()
-    {
+    public Context getContext() {
     	return context;
     }
     
     @Override
-    public void setContext(Context context)
-    {
+    public void setContext(Context context) {
     	this.context = context;
     }
     
     @Override
-    public void configure(String definition)
-    {
+    public void configure(String definition) {
     	// parse definition. Expected syntax: <type>:<search query>[&scope=<containerId>]
     	int typeIdx = definition.indexOf(":");
-    	if (typeIdx > 0)
-    	{
+    	if (typeIdx > 0) {
     		type = Constants.getTypeID(definition.substring(0, typeIdx).toUpperCase());
-    	}
-    	else
-    	{
+    	} else {
     		log.error("Malformed definition: missing object type");
     		throw new UnsupportedOperationException("missing object type");
     	}
     	int scopeIdx = definition.indexOf("&scope=");
-    	if (scopeIdx > 0)
-    	{
+    	if (scopeIdx > 0) {
     		// TODO: should validate this value
     		setScope(definition.substring(scopeIdx + 7));
     		setQuery(definition.substring(typeIdx + 1, scopeIdx));
-    	}
-    	else
-    	{
+    	} else {
     		setQuery(definition.substring(typeIdx + 1));
     	}
     }
     
     @Override
-    public DSpaceObject next()
-    {
+    public DSpaceObject next() {
     	DSpaceObject dso = null;
-  		try
-  		{
-  			if (qResults == null)
-  			{
+  		try {
+  			if (qResults == null) {
        			doSearch();
   			}
   	    	// return next normalized type found
-  	    	while (read < qResults.getHitCount())
-  	    	{
-  	    		if (type == qResults.getHitTypes().get(read))
-  	    		{
+  	    	while (read < qResults.getHitCount()) {
+  	    		if (type == qResults.getHitTypes().get(read)) {
   	    			dso = HandleManager.resolveToObject(context, qResults.getHitHandles().get(read++));
   	    			break;
   	    		}
   	    		++read;
   	    	}
-  		}
-  		catch (IOException ioE)
-       	{ 
+  		} catch (IOException ioE) { 
        		log.error("Error executing query: '" + query + "' error: " + ioE.getMessage());
-    	}
-  		catch (SQLException sqlE)
-  		{
+    	} catch (SQLException sqlE) {
   			log.error("Error executing query: '" + query + "' error: " + sqlE.getMessage());
   		}
        	return dso;
     }
     
     @Override
-    public boolean hasNext()
-    {
-    	try
-    	{
-    		if (qResults == null)
-    		{
+    public boolean hasNext() {
+    	try {
+    		if (qResults == null) {
        			doSearch();
     		}
-       	}
-    	catch (IOException ioE)
-    	{
+       	} catch (IOException ioE) {
     		log.error("Error executing query: '" + query + "' error: " + ioE.getMessage());
-    	}
-    	catch (SQLException sqlE)
-    	{
+    	} catch (SQLException sqlE) {
     		log.error("Error executing query: '" + query + "' error: " + sqlE.getMessage());
     	}
     	// return true for next normalized type found
-    	while (read < qResults.getHitCount())
-    	{
-    		if (type == qResults.getHitTypes().get(read))
-    		{
+    	while (read < qResults.getHitCount()) {
+    		if (type == qResults.getHitTypes().get(read)) {
     			return true;
     		}
     		++read;
@@ -159,28 +130,23 @@ public class SearchSelector implements ObjectSelector
     }
     
     @Override
-    public void remove()
-    {
+    public void remove() {
     	throw new UnsupportedOperationException("remove() not supported");
     }
     
-    public void setScope(String scope)
-    {
+    public void setScope(String scope) {
     	this.scope = scope;
     }
     
-    public void setType(int type)
-    {
+    public void setType(int type) {
     	this.type = type;
     }
     
-    public void setQuery(String query)
-    {
+    public void setQuery(String query) {
     	this.query = query;
     }
     
-    private void doSearch() throws IOException, SQLException
-    {
+    private void doSearch() throws IOException, SQLException {
         // If there is a scope parameter, attempt to dereference it
         // failure will only result in its being ignored
         DSpaceObject container = (scope != null) ? HandleManager.resolveToObject(context, scope) : null;
@@ -192,22 +158,15 @@ public class SearchSelector implements ObjectSelector
         qArgs.setQuery(query);
 
         // Perform the search
-        if (container == null)
-        {
+        if (container == null) {
         	qResults = DSQuery.doQuery(context, qArgs);
-        }
-        else if (container instanceof Collection)
-        {
+        } else if (container instanceof Collection) {
             logInfo = "collection_id=" + container.getID() + ",";
             qResults = DSQuery.doQuery(context, qArgs, (Collection)container);
-        }
-        else if (container instanceof Community)
-        {
+        } else if (container instanceof Community) {
             logInfo = "community_id=" + container.getID() + ",";
             qResults = DSQuery.doQuery(context, qArgs, (Community)container);
-        }
-        else
-        {
+        } else {
             throw new IllegalStateException("Invalid container for search context");
         }
         log.info(logInfo);

@@ -58,64 +58,50 @@ import org.dspace.storage.rdbms.TableRowIterator;
  *
  * @author richardrodgers
  */
-public class QuerySelector implements ObjectSelector
-{
+public class QuerySelector implements ObjectSelector {
+
     private static Logger log = LoggerFactory.getLogger(QuerySelector.class);
    
     private Context context = null;
     private String query = null;
     private BoundedIterator<Item> itemIter = null;
 
-    public QuerySelector()
-    {
-    }
+    public QuerySelector() {}
     
     @Override
-    public Context getContext()
-    {
+    public Context getContext() {
     	return context;
     }
     
     @Override
-    public void setContext(Context context)
-    {
+    public void setContext(Context context) {
     	this.context = context;
     }
     
     @Override
-    public void configure(String definition)
-    {
+    public void configure(String definition) {
     	setQuery(definition);
     }
     
     @Override
-    public DSpaceObject next()
-    {
-       	try
-    	{
+    public DSpaceObject next() {
+       	try {
     		if (itemIter == null) {
     			doQuery();
     		}
        		return itemIter.next();
-       	}
-      	catch (AuthorizeException authE)
-    	{
+       	} catch (AuthorizeException authE) {
     		log.error("Error executing query: '" + query + "' error: " + authE.getMessage());
-    	}
-    	catch (SQLException sqlE)
-    	{
+    	} catch (SQLException sqlE) {
     		log.error("Error executing query: '" + query + "' error: " + sqlE.getMessage());
     	}
         return null;
     }
     
     @Override
-    public boolean hasNext()
-    {
-    	try
-    	{
-    		if (itemIter == null)
-    		{
+    public boolean hasNext() {
+    	try {
+    		if (itemIter == null) {
     			doQuery();
     		}
        		return itemIter.hasNext();
@@ -132,53 +118,43 @@ public class QuerySelector implements ObjectSelector
     }
     
     @Override
-    public void remove()
-    {
+    public void remove() {
     	throw new UnsupportedOperationException("remove() not supported");
     }
     
-    public void setQuery(String query)
-    {
+    public void setQuery(String query) {
     	this.query = query.trim();
     }
     
-    private void doQuery() throws AuthorizeException, SQLException
-    {
+    private void doQuery() throws AuthorizeException, SQLException {
     	// parse the query string to produce the SQL
     	SqlGenerator sqlGen = new SqlGenerator();
     	sqlGen.parseQuery();
     	List<Object> parameters = sqlGen.getParameters();
     	TableRowIterator rows = null;
-    	if (parameters.size() > 0)
-    	{
+    	if (parameters.size() > 0) {
     		rows = DatabaseManager.queryTable(context, "item", sqlGen.getSql(), parameters);
-    	}
-    	else
-    	{
+    	} else {
     		rows = DatabaseManager.queryTable(context, "item", sqlGen.getSql());
     	}
     	itemIter = new BoundedIterator<Item>(context, rows);
     }
         
-    private class SqlGenerator
-    {   	
+    private class SqlGenerator {
+
     	private int aliasIdx = 1;
     	private StringBuilder fromSb = new StringBuilder(" FROM item");
     	private StringBuilder whereSb = new StringBuilder(" WHERE");
     	private List<Object> params = new ArrayList<Object>();
     	private int parseIdx = 0;
     	
-    	public SqlGenerator()
-    	{
-    	}
+    	public SqlGenerator() {}
     	
-    	public String getSql()
-    	{
+    	public String getSql() {
     		return "SELECT item.*" + fromSb.toString() + whereSb.toString();
     	}
     	
-    	public List<Object> getParameters()
-    	{
+    	public List<Object> getParameters() {
     		return params;
     	}
     	
@@ -266,10 +242,8 @@ public class QuerySelector implements ObjectSelector
     		}
     	}
     	
-       	private void doValue(String value) throws SQLException
-    	{
-    		if (value.startsWith("${"))
-    		{
+       	private void doValue(String value) throws SQLException {
+    		if (value.startsWith("${")) {
     			// it's a variable - evaluate it and set as SQL positional parameter
     			whereSb.append("?");
     			int closeIdx = value.indexOf("}");

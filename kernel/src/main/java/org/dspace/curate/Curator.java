@@ -30,6 +30,7 @@ import org.dspace.content.Site;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.ConfigurationManager;
+import org.dspace.curate.journal.DBJournal;
 import org.dspace.handle.HandleManager;
 
 /**
@@ -64,6 +65,10 @@ public class Curator
     // transaction scopes
     public static enum TxScope { OBJECT, CURATION, OPEN };
 
+    // journal filters
+    private static final boolean[] noCodes = {false, false, false, false};
+    private static final boolean[] allCodes = {true, true, true, true};
+
     private static Logger log = LoggerFactory.getLogger(Curator.class);
     
     private static final ThreadLocal<Context> curationCtx = new ThreadLocal<Context>();
@@ -73,6 +78,10 @@ public class Curator
     private List<String> perfList = new ArrayList<String>();
     private TaskQueue taskQ = null;
     private String reporter = null;
+    private String jrnFilter = "n";
+    private boolean[] jrnCodes = noCodes;
+    private CurationJournal journal = null;
+    private long ctime = 0L;
     private Invoked iMode = null;
     private TaskResolver resolver = new TaskResolver();
     private int cacheLimit = Integer.MAX_VALUE;
@@ -95,9 +104,7 @@ public class Curator
         if (task != null) {
             try {
                 task.init(this);
-                trMap.put(taskName, new TaskRunner(task));
-                // performance order currently FIFO - to be revisited
-                perfList.add(taskName);
+                addInitializedTask(task);
             } catch (IOException ioE) {
                log.error("Task: '" + taskName + "' initialization failure: " + ioE.getMessage()); 
             }
@@ -105,6 +112,12 @@ public class Curator
             log.error("Task: '" + taskName + "' does not resolve");
         }
         return this;
+    }
+
+    void addInitializedTask(ResolvedTask task) {
+        trMap.put(task.getName(), new TaskRunner(task));
+        // performance order currently FIFO - to be revisited
+        perfList.add(task.getName());
     }
     
     /**
@@ -168,6 +181,49 @@ public class Curator
     public Curator setReporter(String reporter) {
         this.reporter = reporter;
         return this;
+    }
+
+    /**
+     * Sets the filter for the task performance journal.
+     *
+     * @param filter a string representing which status codes to accept
+     *        values 'n' (default) - nothing journaled, 'a' all status codes journaled
+     *               'fesk' - one or more of 'f' fail, 'e' error, 's' success, or 'k' skip
+     *
+     * @return this curator - to support concatenating invocation style
+     */
+    public Curator setJournalFilter(String filter) {
+        jrnFilter = filter;
+        if ("a".equals(jrnFilter)) {
+            jrnCodes = allCodes;
+        } else if ("n".equals(jrnFilter)) {
+            jrnCodes = noCodes;
+        } else {
+            jrnCodes = noCodes;
+            for (char c : filter.toCharArray()) {
+                switch (c) {
+                    case 'e': jrnCodes[0] = true; break;
+                    case 's': jrnCodes[1] = true; break;
+                    case 'f': jrnCodes[2] = true; break;
+                    case 'k': jrnCodes[3] = true; break;
+                    default: break; // ignore unknown codes
+               }
+            }
+        }
+        if (jrnFilter.equals("n"))
+            journal = null;
+        else
+            journal = new DBJournal();
+        return this;
+    }
+
+    /**
+     * Returns the current journal filter
+     *
+     * @return filter the status filter for journaling
+     */
+    public String getJournalFilter() {
+        return jrnFilter;
     }
     
     /**
@@ -292,13 +348,14 @@ public class Curator
      * @param id an object identifier
      * @throws IOException
      */
-    public void curate(Context c, String id) throws AuthorizeException, IOException {
+    public void curate(Context c, String id) throws AuthorizeException, IOException, SQLException {
         if (id == null) {
            throw new IOException("Cannot perform curation task(s) on a null object identifier!");            
         }
         try {
             //Save the context on current execution thread
-            curationCtx.set(c);        
+            curationCtx.set(c);
+            ctime = System.currentTimeMillis();
             DSpaceObject dso = HandleManager.resolveToObject(c, id);
             if (dso != null) {
                 curate(dso);
@@ -308,8 +365,6 @@ public class Curator
                 }
             }
             finish();
-        } catch (SQLException sqlE) {
-            throw new IOException(sqlE.getMessage(), sqlE);
         } finally {
             curationCtx.remove();
         }
@@ -327,11 +382,12 @@ public class Curator
      * @param dso the DSpace object
      * @throws IOException
      */
-    public void curate(DSpaceObject dso) throws AuthorizeException, IOException {
+    public void curate(DSpaceObject dso) throws AuthorizeException, IOException, SQLException {
         if (dso == null) {
             throw new IOException("Cannot perform curation task(s) on a null DSpaceObject!");
         }
         int type = dso.getType();
+        ctime = System.currentTimeMillis();
         for (String taskName : perfList) {
             TaskRunner tr = trMap.get(taskName);
             // do we need to iterate over the object ?
@@ -361,19 +417,18 @@ public class Curator
      * @param selector the object selector
      * @throws IOException
      */
-    public void curate(ObjectSelector selector) throws AuthorizeException, IOException {
+    public void curate(ObjectSelector selector) throws AuthorizeException, IOException, SQLException {
         if (selector == null) {
             throw new IOException("Cannot perform curation task(s) with a null selector!");
         }
         try {
             //Save the context on current execution thread
-            curationCtx.set(selector.getContext());         
+            curationCtx.set(selector.getContext());
+            ctime = System.currentTimeMillis();      
             while (selector.hasNext()) {
             	curate(selector.next());
             }            
             finish();
-        } catch (SQLException sqlE) {
-            throw new IOException(sqlE.getMessage(), sqlE);
         } finally {
             curationCtx.remove();
         }    	
@@ -559,9 +614,11 @@ public class Curator
      * @param tr TaskRunner
      * @param site DSpace Site object
      * @return true if successful, false otherwise
+     * @throws AuthorizeException 
      * @throws IOException 
+     * @throws SQLException 
      */
-    private boolean doSite(TaskRunner tr, Site site) throws AuthorizeException, IOException {
+    private boolean doSite(TaskRunner tr, Site site) throws AuthorizeException, IOException, SQLException {
         Context ctx = null;
         BoundedIterator<Community> cIter = null;
         try {
@@ -589,8 +646,6 @@ public class Curator
                     return false;
                 }
             }
-        } catch (SQLException sqlE) {
-            throw new IOException(sqlE);
         } finally {
         	if (cIter != null) {
         		cIter.close();
@@ -605,9 +660,11 @@ public class Curator
      * @param tr TaskRunner
      * @param comm Community
      * @return true if successful, false otherwise
-     * @throws AuthorizeException, IOException 
+     * @throws AuthorizeException
+     * @throws IOException
+     * @throws SQLException
      */
-    private boolean doCommunity(TaskRunner tr, Community comm) throws AuthorizeException, IOException {
+    private boolean doCommunity(TaskRunner tr, Community comm) throws AuthorizeException, IOException, SQLException {
     	BoundedIterator<Community> scIter = null;
     	BoundedIterator<Collection> colIter = null;
         try  {
@@ -626,8 +683,6 @@ public class Curator
                     return false;
                 }
             }
-        } catch (SQLException sqlE) {
-            throw new IOException(sqlE.getMessage(), sqlE);
         } finally {
         	if (scIter != null) {
         		scIter.close();
@@ -644,9 +699,11 @@ public class Curator
      * @param tr TaskRunner
      * @param coll Collection
      * @return true if successful, false otherwise
+     * @throws AuthorizeException
      * @throws IOException 
+     * @throws SQLException
      */
-    private boolean doCollection(TaskRunner tr, Collection coll) throws AuthorizeException, IOException  {
+    private boolean doCollection(TaskRunner tr, Collection coll) throws AuthorizeException, IOException, SQLException  {
     	BoundedIterator<Item> iter = null;
         try {
             if (! tr.run(coll)) {
@@ -658,8 +715,6 @@ public class Curator
                     return false;
                 }
             }
-        } catch (SQLException sqlE)  {
-            throw new IOException(sqlE.getMessage(), sqlE);
         } finally {
         	if (iter != null) {
         		iter.close();
@@ -672,24 +727,19 @@ public class Curator
      * Record a 'visit' to a DSpace object and enforce any policies set
      * on this curator.
      */
-    private void visit(DSpaceObject dso) throws IOException {
+    private void visit(DSpaceObject dso) throws IOException, SQLException {
     	Context curCtx = curationCtx.get();
     	if (curCtx != null) {
-    		try {
-    			if (txScope.equals(TxScope.OBJECT)) {
-    				curCtx.commit();
-    			}
-    			if (curCtx.getCacheSize() % cacheLimit == 0) {
-    				curCtx.clearCache();
-    			}
-    		} catch (SQLException sqlE) {
-    			throw new IOException(sqlE.getMessage(), sqlE);
+    		if (txScope.equals(TxScope.OBJECT)) {
+    			curCtx.commit();
+    		}
+    		if (curCtx.getCacheSize() % cacheLimit == 0) {
+    			curCtx.clearCache();
     		}
     	}
     }
 
-    private class TaskRunner
-    {
+    private class TaskRunner {
         ResolvedTask task = null;
         int statusCode = CURATE_UNSET;
         String result = null;
@@ -698,7 +748,7 @@ public class Curator
             this.task = task;
         }
         
-        public boolean run(DSpaceObject dso) throws AuthorizeException, IOException {
+        public boolean run(DSpaceObject dso) throws AuthorizeException, IOException, SQLException {
             try {    
                 if (dso == null) {
                     throw new IOException("DSpaceObject is null");
@@ -708,6 +758,10 @@ public class Curator
                 log.info(logMessage(id));
                 visit(dso);
                 task.record(id, curationCtx.get(), statusCode, result);
+                // do we write to journal?
+                if (jrnCodes[statusCode + 1]) {
+                    journal.write(curationCtx.get(), ctime, task.getName(), id, statusCode, result);
+                }
                 return ! suspend(statusCode);
             } catch(IOException ioe) {
                 //log error & pass exception upwards
@@ -716,7 +770,7 @@ public class Curator
             }
         }
         
-        public boolean run(Context c, String id) throws AuthorizeException, IOException {
+        public boolean run(Context c, String id) throws AuthorizeException, IOException, SQLException {
             try {
                 if (c == null || id == null) {
                     throw new IOException("Context or identifier is null");
@@ -725,6 +779,10 @@ public class Curator
                 log.info(logMessage(id));
                 visit(null);
                 task.record(id, c, statusCode, result);
+                // do we write to journal?
+                if (jrnCodes[statusCode + 1]) {
+                    journal.write(c, ctime, task.getName(), id, statusCode, result);
+                }
                 return ! suspend(statusCode);
             } catch(IOException ioe) {
                 //log error & pass exception upwards

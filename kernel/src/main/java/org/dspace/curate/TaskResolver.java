@@ -15,6 +15,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.util.Arrays;
 import java.util.Properties;
 
 import javax.script.ScriptEngine;
@@ -27,10 +28,12 @@ import org.slf4j.LoggerFactory;
 import org.dspace.core.ConfigurationManager;
 
 /**
- * TaskResolver takes a logical name of a curation task and attempts to deliver 
- * a suitable implementation object. Supported implementation types include:
+ * TaskResolver takes the logical (local) name of a curation task and attempts to
+ * deliver a suitable implementation object. Supported implementation types include:
  * (1) Classpath-local Java classes loaded via ConfigurationManager.
- * (2) Local script-based tasks, viz. coded in any scripting language whose
+ * (2) Local task 'programs', kept in a directory configured with the
+ * dspace/config/modules/curate.cfg property "program.dir".
+ * (3) Local script-based tasks, viz. coded in any scripting language whose
  * runtimes are accessible via the JSR-223 scripting API. This really amounts
  * to the family of dynamic JVM languages: JRuby, Jython, Groovy, Javascript, etc
  * Note that the requisite jars and other resources for these languages must be
@@ -64,21 +67,20 @@ import org.dspace.core.ConfigurationManager;
  * @author richardrodgers
  */
 
-public class TaskResolver
-{
-	// logging service
-	private static Logger log = LoggerFactory.getLogger(TaskResolver.class);
+public class TaskResolver {
+
+    // logging service
+    private static Logger log = LoggerFactory.getLogger(TaskResolver.class);
+
+    // base directory of task scripts, programs & catalog name
+    private static final String CATALOG = "task.catalog";
+    private static final String scriptDir = ConfigurationManager.getProperty("curate", "script.dir");
+    private static final String programDir = ConfigurationManager.getProperty("curate", "program.dir");
 	
-	// base directory of task scripts & catalog name
-	private static final String CATALOG = "task.catalog";
-	private static final String scriptDir = ConfigurationManager.getProperty("curate", "script.dir");
+    // catalog of script tasks
+    private Properties catalog;
 	
-	// catalog of script tasks
-	private Properties catalog;
-	
-	public TaskResolver()
-	{
-	}
+    public TaskResolver() {}
 		
 	/**
 	 * Installs a task script. Succeeds only if script:
@@ -93,55 +95,29 @@ public class TaskResolver
 	 * 		  name of file containing task script
 	 * @return true if script installed, false if installation failed
 	 */
-	public boolean installScript(String taskName, String fileName)
-	{
-		// Can we locate the file in the script directory?
-		File script = new File(scriptDir, fileName);
-		if (script.exists())
-		{
-			BufferedReader reader = null;
-			try
-			{
-				reader = new BufferedReader(new FileReader(script));
+	public boolean installScript(String taskName, String fileName) {
+        // Can we locate the file in the script directory?
+        File script = new File(scriptDir, fileName);
+        if (script.exists()) {
+            try (BufferedReader reader = new BufferedReader(new FileReader(script))) {
 				String line = null;
-				while((line = reader.readLine()) != null)
-				{
-					if (line.startsWith("#") && line.indexOf("$td=") > 0)
-					{
+				while((line = reader.readLine()) != null) {
+					if (line.startsWith("#") && line.indexOf("$td=") > 0) {
 						String desc = line.substring(line.indexOf("$td=") + 4);
 						// insert relFilePath if missing
 						String[] tokens = desc.split("\\|");
-						if (tokens[1].length() == 0)
-						{
+						if (tokens[1].length() == 0) {
 							desc = tokens[0] + "|" + fileName + "|" + tokens[2];
 						}
 						addDescriptor(taskName, desc);
 						return true;
 					}
 				}
-			}
-			catch(IOException ioE)
-			{
+			} catch(IOException ioE) {
 				log.error("Error reading task script: " + fileName);
-			}
-			finally
-			{
-				if (reader != null)
-				{
-					try
-					{
-						reader.close();
-					}
-					catch(IOException ioE)
-					{
-						log.error("Error closing task script: " + fileName);
-					}
-				}
 			}			
-		}
-		else
-		{
-			log.error("Task script: " + fileName + "not found in: " + scriptDir);
+		} else {
+            log.error("Task script: " + fileName + "not found in: " + scriptDir);
 		}
 		return false;
 	}
@@ -154,34 +130,44 @@ public class TaskResolver
 	 * @param descriptor
 	 *         descriptor for task
 	 */
-	public void addDescriptor(String taskName, String descriptor)
-	{
+	public void addDescriptor(String taskName, String descriptor) {
 		loadCatalog();
 		catalog.put(taskName, descriptor);
-		Writer writer = null;
-		try
-		{
-			writer = new FileWriter(new File(scriptDir, CATALOG));
+		try (Writer writer = new FileWriter(new File(scriptDir, CATALOG))) {
 			catalog.store(writer, "do not edit");
-		}
-		catch(IOException ioE)
-		{
+		} catch(IOException ioE) {
 			log.error("Error saving scripted task catalog: " + CATALOG);
 		}
-		finally
-		{
-			if (writer != null)
-			{
-				try
-				{
-					writer.close();
-				}
-				catch (IOException ioE)
-				{
-					log.error("Error closing scripted task catalog: " + CATALOG);
-				}
+	}
+
+	/**
+	 * Returns whether the task name can be resolved against the locally
+	 * configured system.
+	 *
+	 * @param taskName
+	 *        logical task name
+	 * @return resolvable
+	 *        true if task can be resolved, else false
+	 */
+	public boolean canResolveTask(String taskName) {
+	    // likely a java task - try first
+		String taskClass = ConfigurationManager.getProperty("curate", "task." + taskName);
+		if (taskClass != null) {
+            try {
+                Class.forName(taskClass);
+			} catch (Exception e) {
+				log.error("Error locating task class: " + taskClass + " for task: " + taskName, e);
+				return false;
 			}
+			return true;
 		}
+		// try programs next
+		if (new File(programDir, taskName).exists()) {
+	        return true;
+		}
+		// finally scripted tasks
+		loadCatalog();
+		return (catalog.getProperty(taskName) != null);
 	}
 	
 	/**
@@ -193,8 +179,7 @@ public class TaskResolver
 	 * @return task
 	 *        an object that implements the CurationTask interface
 	 */
-	public ResolvedTask resolveTask(String taskName)
-	{
+	public ResolvedTask resolveTask(String taskName) {
 		// likely a java task - try first
 		String taskClass = ConfigurationManager.getProperty("curate", "task." + taskName);
 		if (taskClass != null) {
@@ -206,53 +191,42 @@ public class TaskResolver
 				return null;
 			}
 		}
+		// maybe it's a program?
+		File program = new File(programDir, taskName);
+		if (program.exists()) {
+	        return new ResolvedTask(taskName, program);
+		}
 		// maybe it is implemented by a script?
 		loadCatalog();
 		String scriptDesc = catalog.getProperty(taskName);
-		if (scriptDesc != null)
-		{
+		if (scriptDesc != null)	{
 			String[] tokens = scriptDesc.split("\\|");
 			// first descriptor token is name ('alias') of scripting engine
 			ScriptEngineManager mgr = new ScriptEngineManager();
 			ScriptEngine engine = mgr.getEngineByName(tokens[0]);
-			if (engine != null)
-			{
+			if (engine != null)	{
 			    // see if we can locate the script file and load it
 			    // the second token is the relative path to the file
 			    File script = new File(scriptDir, tokens[1]);
-			    if (script.exists())
-			    {
-			    	try
-			    	{
-			    		Reader reader = new FileReader(script);
+			    if (script.exists()) {
+			        try (Reader reader = new FileReader(script)) {
 			    		engine.eval(reader);
-			    		reader.close();
 			    		// third token is the constructor expression for the class
 			    		// implementing CurationTask interface
 			    		ScriptedTask stask = (ScriptedTask)engine.eval(tokens[2]);
 			    		return new ResolvedTask(taskName, stask);
-			    	}
-			    	catch (FileNotFoundException fnfE)
-			    	{
+			    	} catch (FileNotFoundException fnfE) {
 			    		log.error("Script: '" + script.getName() + "' not found for task: " + taskName);
-			    	}
-			    	catch (IOException ioE)
-			    	{
+			    	} catch (IOException ioE) {
 			    		log.error("Error loading script: '" + script.getName() + "'");
-			    	}
-			    	catch (ScriptException scE)
-			    	{
+			    	} catch (ScriptException scE) {
 			    		log.error("Error evaluating script: '" + script.getName() + "' msg: " + scE.getMessage());
 			    	}
-			    }
-			    else
-			    {
+			    } else {
 			    	log.error("No script: '" + script.getName() + "' found for task: " + taskName);
 			    }
-			} 
-			else
-			{
-			    log.error("Script engine: '" + tokens[0] + "' is not installed");
+			} else {
+                log.error("Script engine: '" + tokens[0] + "' is not installed");
 			} 	
 		}
 		return null;
@@ -261,25 +235,17 @@ public class TaskResolver
 	/**
 	 * Loads catalog of descriptors for tasks if not already loaded
 	 */
-	private void loadCatalog()
-	{
-		if (catalog == null)
-		{
-			catalog = new Properties();
-			File catalogFile = new File(scriptDir, CATALOG);
-			if (catalogFile.exists())
-			{
-				try
-				{
-					Reader reader = new FileReader(catalogFile);
+    private void loadCatalog() {
+        if (catalog == null) {
+            catalog = new Properties();
+            File catalogFile = new File(scriptDir, CATALOG);
+            if (catalogFile.exists()) {
+                try (Reader reader = new FileReader(catalogFile)) {
 					catalog.load(reader);
-					reader.close();
-				}
-				catch(IOException ioE)
-				{
-					log.error("Error loading scripted task catalog: " + CATALOG);
-				}
-			}
-		}
-	}
+				} catch(IOException ioE) {
+                    log.error("Error loading scripted task catalog: " + CATALOG);
+                }
+            }
+        }
+    }
 }

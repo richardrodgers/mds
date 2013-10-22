@@ -29,8 +29,8 @@ import org.dspace.eperson.EPerson;
  * 
  * @author richardrodgers
  */
-public class CurationCli
-{    
+public class CurationCli {
+
 	@Option(name="-t", usage="curation task name")
 	private String taskName;
 	
@@ -57,6 +57,9 @@ public class CurationCli
 	
 	@Option(name="-s", usage="transaction scope to impose: use 'object', 'curation', or 'open'. If absent, 'open' applies")
 	private String scope;
+
+    @Option(name="-j", usage="journal filter to apply: use 'n' for no journaling, 'a' for any status, or any combination of 's', 'f', 'k' (skip), 'e'. If absent, 'n' applies")
+    private String jrnFilter;
 	
 	@Option(name="-v", usage="report execution details to stdout")
 	private boolean verbose;
@@ -66,8 +69,7 @@ public class CurationCli
 	
 	private CurationCli() {}
 	
-    public static void main(String[] args) throws Exception
-    {
+    public static void main(String[] args) throws Exception {
         CurationCli cli = new CurationCli();
         CmdLineParser parser = new CmdLineParser(cli);
         try {
@@ -114,115 +116,80 @@ public class CurationCli
     private void curate() throws AuthorizeException, IOException, SQLException {
     	
         Context c = new Context();
-        if (ePersonName != null)
-        {
+        if (ePersonName != null) {
             EPerson ePerson = EPerson.findByEmail(c, ePersonName);
-            if (ePerson == null)
-            {
+            if (ePerson == null) {
                 System.out.println("EPerson not found: " + ePersonName);
                 System.exit(1);
             }
             c.setCurrentUser(ePerson);
-        }
-        else
-        {
+        } else {
             c.turnOffAuthorisationSystem();
         }
 
         Curator curator = new Curator();
-        if (reporterName != null)
-        {
+        if (reporterName != null) {
             curator.setReporter(reporterName);
         }
-        if (limit != null)
-        {
+        if (limit != null) {
         	curator.setCacheLimit(Integer.parseInt(limit));
         }
-        if (scope != null)
-        {
+        if (scope != null) {
         	Curator.TxScope txScope = Curator.TxScope.valueOf(scope.toUpperCase());
         	curator.setTransactionScope(txScope);
+        }
+        if (jrnFilter != null) {
+            curator.setJournalFilter(jrnFilter);
         }
         // we are operating in batch mode, if anyone cares.
         curator.setInvoked(Curator.Invoked.BATCH);
         // load curation tasks
-        if (taskName != null)
-        {
-            if (verbose)
-            {
+        if (taskName != null) {
+            if (verbose) {
                 System.out.println("Adding task: " + taskName);
             }
             curator.addTask(taskName);
-            if (verbose && ! curator.hasTask(taskName))
-            {
+            if (verbose && ! curator.hasTask(taskName)) {
                 System.out.println("Task: " + taskName + " not resolved");
             }
-        }
-        else if (taskQueueName == null)
-        {
+        } else if (taskQueueName == null) {
             // load taskFile
-            BufferedReader reader = null;
-            try
-            {
-                reader = new BufferedReader(new FileReader(taskFileName));
-                while ((taskName = reader.readLine()) != null)
-                {
-                    if (verbose)
-                    {
+            try (BufferedReader reader = new BufferedReader(new FileReader(taskFileName))) {
+                while ((taskName = reader.readLine()) != null) {
+                    if (verbose) {
                         System.out.println("Adding task: " + taskName);
                     }
                     curator.addTask(taskName);
                 }
             }
-            finally
-            {
-                if (reader != null)
-                {
-                  reader.close();  
-                }
-            }
         }
         // run tasks against object
         long start = System.currentTimeMillis();
-        if (verbose)
-        {
+        if (verbose) {
             System.out.println("Starting curation");
         }
-        if (idName != null)
-        {
-            if (verbose)
-            {
+        if (idName != null) {
+            if (verbose) {
                System.out.println("Curating id: " + idName);
             }
-            if ("all".equals(idName))
-            {
+            if ("all".equals(idName)) {
             	// run on whole Site
             	curator.curate(c, Site.getSiteHandle());
-            }
-            else
-            {
+            } else {
                 curator.curate(c, idName);
             }
-        }
-        else if (selectorName != null)
-        {
-        	if (verbose)
-        	{
+        } else if (selectorName != null) {
+        	if (verbose) {
         		System.out.println("Curating with selector: " + selectorName);
         	}
         	ObjectSelector selector = SelectorResolver.resolveSelector(c, selectorName);
-        	if (selector != null)
-        	{
+        	if (selector != null) {
         		curator.curate(selector);
-        	}
-        	else
-        	{
+        	} else {
                 System.out.println("No named selector found for: " + selectorName);
                 throw new UnsupportedOperationException("No selector available");       		
         	}
-        }
-        else
-        {
+        } else {
             // process the task queue
         	String tqClass = ConfigurationManager.getProperty("curate", "taskqueue.impl");
         	if (tqClass == null) {
@@ -239,29 +206,22 @@ public class CurationCli
             // use current time as our reader 'ticket'
             long ticket = System.currentTimeMillis();
             Iterator<TaskQueueEntry> entryIter = queue.dequeue(taskQueueName, ticket).iterator();
-            while (entryIter.hasNext())
-            {
+            while (entryIter.hasNext()) {
                 TaskQueueEntry entry = entryIter.next();
-                if (verbose)
-                {
+                if (verbose) {
                     System.out.println("Curating id: " + entry.getObjectId());
                 }
                 curator.clear();
                 // does entry relate to a DSO or workflow object?
-                if (entry.getObjectId().indexOf("/") > 0)
-                {
-                    for (String task : entry.getTaskNames())
-                    {
+                if (entry.getObjectId().indexOf("/") > 0) {
+                    for (String task : entry.getTaskNames()) {
                         curator.addTask(task);
                     }
                     curator.curate(c, entry.getObjectId());
-                }
-                else
-                {
+                } else {
                     // make eperson who queued task the effective user
                     EPerson agent = EPerson.findByEmail(c, entry.getEpersonId());
-                    if (agent != null)
-                    {
+                    if (agent != null) {
                         c.setCurrentUser(agent);
                     }
                     WorkflowCurator.curate(curator, c, entry.getObjectId());
@@ -271,8 +231,7 @@ public class CurationCli
         }
         c.complete();
         curator.complete();
-        if (verbose)
-        {
+        if (verbose) {
             long elapsed = System.currentTimeMillis() - start;
             System.out.println("Ending curation. Elapsed time: " + elapsed);
         }

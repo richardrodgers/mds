@@ -14,6 +14,7 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.Collection;
 import org.dspace.content.Community;
 import org.dspace.content.BoundedIterator;
@@ -30,8 +31,8 @@ import org.dspace.handle.HandleManager;
  * 
  * @author richardrodgers
  */
-public abstract class AbstractCurationTask implements CurationTask
-{
+public abstract class AbstractCurationTask implements CurationTask {
+
     // invoking curator
     protected Curator curator = null;
     // curator-assigned taskId
@@ -42,14 +43,13 @@ public abstract class AbstractCurationTask implements CurationTask
     private static Logger log = LoggerFactory.getLogger(AbstractCurationTask.class);
 
     @Override
-    public void init(Curator curator, String taskId) throws IOException
-    {
+    public void init(Curator curator, String taskId) throws IOException {
         this.curator = curator;
         this.taskId = taskId;
     }
 
     @Override
-    public abstract int perform(DSpaceObject dso) throws IOException;
+    public abstract int perform(DSpaceObject dso) throws AuthorizeException, IOException, SQLException;
     
     /**
      * Distributes a task through a DSpace container - a convenience method
@@ -58,8 +58,9 @@ public abstract class AbstractCurationTask implements CurationTask
      * 
      * @param dso
      * @throws IOException
+     * @throws SQLException
      */
-    protected void distribute(DSpaceObject dso) throws IOException {
+    protected void distribute(DSpaceObject dso) throws IOException, SQLException {
     	BoundedIterator<Item> itIter = null;
     	BoundedIterator<Community> scIter = null;
     	BoundedIterator<Collection> colIter = null;
@@ -83,8 +84,6 @@ public abstract class AbstractCurationTask implements CurationTask
                     distribute(colIter.next());
                 }
             }
-        } catch (SQLException sqlE) {
-            throw new IOException(sqlE.getMessage(), sqlE);
         } finally {
         	if (itIter != null) {
         		itIter.close();
@@ -106,14 +105,12 @@ public abstract class AbstractCurationTask implements CurationTask
      * @throws SQLException
      * @throws IOException
      */
-    protected void performItem(Item item) throws SQLException, IOException
-    {
+    protected void performItem(Item item) throws SQLException, IOException {
         // no-op - override when using 'distribute' method
     }
 
     @Override
-    public int perform(Context ctx, String id) throws IOException
-    {
+    public int perform(Context ctx, String id) throws AuthorizeException, IOException, SQLException {
         DSpaceObject dso = dereference(ctx, id);
         return (dso != null) ? perform(dso) : Curator.CURATE_FAIL;
     }
@@ -128,17 +125,10 @@ public abstract class AbstractCurationTask implements CurationTask
      * @return dso
      *        DSpace object, or null if no object with id exists
      * @throws IOException
+     * @throws SQLException
      */
-    protected DSpaceObject dereference(Context ctx, String id) throws IOException
-    {
-        try
-        {
-            return HandleManager.resolveToObject(ctx, id);
-        }
-        catch (SQLException sqlE)
-        {
-            throw new IOException(sqlE.getMessage(), sqlE);
-        }
+    protected DSpaceObject dereference(Context ctx, String id) throws IOException, SQLException {
+        return HandleManager.resolveToObject(ctx, id);
     }
 
     /**
@@ -147,8 +137,7 @@ public abstract class AbstractCurationTask implements CurationTask
      * @param message
      *        the message to stream
      */
-    protected void report(String message)
-    {
+    protected void report(String message) {
         curator.report(message);
     }
 
@@ -158,8 +147,7 @@ public abstract class AbstractCurationTask implements CurationTask
      * @param result
      *        the result string
      */
-    protected void setResult(String result)
-    {
+    protected void setResult(String result) {
         curator.setResult(taskId, result);
     }
     
@@ -173,27 +161,22 @@ public abstract class AbstractCurationTask implements CurationTask
      *        the property value, or null
      * 
      */
-    protected String taskProperty(String name)
-    {
-    	if (taskProps == null)
-    	{
+    protected String taskProperty(String name) {
+    	if (taskProps == null) {
     		// load properties
     		taskProps = new Properties();
     		StringBuilder modName = new StringBuilder();
-    		for (String segment : taskId.split("\\."))
-    		{
+    		for (String segment : taskId.split("\\.")) {
     			// load property segments if present
     			modName.append(segment);
     			Properties modProps = ConfigurationManager.getProperties(modName.toString());
-    			if (modProps != null)
-    			{
+    			if (modProps != null) {
     				taskProps.putAll(modProps);
     			}
     			modName.append(".");
     		}
         	// warn if *no* properties found
-        	if (taskProps.size() == 0)
-        	{
+        	if (taskProps.size() == 0) {
         		log.warn("Warning: No configuration properties found for task: " + taskId);
         	}
     	}
@@ -212,18 +195,13 @@ public abstract class AbstractCurationTask implements CurationTask
      *        the property value, or default value
      * 
      */
-    protected int taskIntProperty(String name, int defaultValue)
-    {
+    protected int taskIntProperty(String name, int defaultValue) {
     	int intVal = defaultValue;
     	String strVal = taskProperty(name);
-    	if (strVal != null)
-    	{
-    		try
-    		{
+    	if (strVal != null) {
+    		try {
     			intVal = Integer.parseInt(strVal.trim());
-    		}
-    		catch(NumberFormatException nfE)
-    		{
+    		} catch(NumberFormatException nfE) {
     			log.warn("Warning: Number format error in module: " + taskId + " property: " + name);
     		}
     	}
@@ -242,18 +220,13 @@ public abstract class AbstractCurationTask implements CurationTask
      *        the property value, or default
      * 
      */
-    protected long taskLongProperty(String name, long defaultValue)
-    {
+    protected long taskLongProperty(String name, long defaultValue) {
     	long longVal = defaultValue;
     	String strVal = taskProperty(name);
-    	if (strVal != null)
-    	{
-    		try
-    		{
+    	if (strVal != null) {
+    		try {
     			longVal = Long.parseLong(strVal.trim());
-    		}
-    		catch(NumberFormatException nfE)
-    		{
+    		} catch(NumberFormatException nfE) {
     			log.warn("Warning: Number format error in module: " + taskId + " property: " + name);
     		}
     	}
@@ -272,11 +245,9 @@ public abstract class AbstractCurationTask implements CurationTask
      *        the property value, or default
      * 
      */
-    protected boolean taskBooleanProperty(String name, boolean defaultValue)
-    {
+    protected boolean taskBooleanProperty(String name, boolean defaultValue) {
     	String strVal = taskProperty(name);
-    	if (strVal != null)
-    	{
+    	if (strVal != null) {
     		strVal = strVal.trim();
     	    return strVal.equalsIgnoreCase("true") ||
     	           strVal.equalsIgnoreCase("yes");

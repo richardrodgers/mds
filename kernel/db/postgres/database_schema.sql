@@ -113,6 +113,7 @@ CREATE SEQUENCE xresmap_seq;
 CREATE SEQUENCE mdtemplate_seq;
 CREATE SEQUENCE mdtemplatevalue_seq;
 CREATE SEQUENCE command_seq;
+CREATE SEQUENCE cjournal_seq;
 
 -------------------------------------------------------
 -- DSpaceObject table
@@ -684,6 +685,10 @@ CREATE TABLE harvested_item
 
 CREATE INDEX harvested_item_fk_idx ON harvested_item(item_id);
 
+-------------------------------------------------------
+-- curation task tables
+-------------------------------------------------------
+
 CREATE TABLE ctask_data
 (
     ctask_id 		INTEGER PRIMARY KEY,
@@ -697,6 +702,17 @@ CREATE TABLE ctask_data
     info_url		VARCHAR,
     visible_ui      BOOL,
     visible_api     BOOL
+);
+
+CREATE TABLE cjournal
+(
+  cjournal_id    INTEGER PRIMARY KEY,
+  curation_date  TIMESTAMP,
+  user_id        VARCHAR,
+  task           VARCHAR,
+  object_id      VARCHAR,
+  status         INTEGER,
+  result         VARCHAR
 );
 
 -------------------------------------------------------
