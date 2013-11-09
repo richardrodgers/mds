@@ -351,7 +351,7 @@ public class MetadataValue
     static class Mapper implements ResultSetMapper<MetadataValue> {
         @Override
         public MetadataValue map(int index, ResultSet rs, StatementContext sctx) throws SQLException {
-            return new MetadataValue(rs.getInt(0), rs.getInt(1), rs.getInt(2), rs.getString(3), rs.getString(4), rs.getInt(5));
+            return new MetadataValue(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getString(4), rs.getString(5), rs.getInt(6));
         }
     }
 }

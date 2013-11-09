@@ -406,7 +406,7 @@ public class MetadataField {
     static class Mapper implements ResultSetMapper<MetadataField> {
         @Override
         public MetadataField map(int index, ResultSet rs, StatementContext sctx) throws SQLException {
-            return new MetadataField(rs.getInt(0), rs.getInt(1), rs.getString(2), rs.getString(3), rs.getString(4));
+            return new MetadataField(rs.getInt(1), rs.getInt(2), rs.getString(3), rs.getString(4), rs.getString(5));
         }
     }
 

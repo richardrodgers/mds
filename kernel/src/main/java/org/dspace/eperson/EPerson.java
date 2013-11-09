@@ -904,12 +904,12 @@ public class EPerson extends DSpaceObject
             }
         }
 
-        if(ConfigurationManager.getProperty("workflow","workflow.framework").equals("xmlworkflow")){
-            getXMLWorkflowConstraints(tableList);
-        }else{
+        //if(ConfigurationManager.getProperty("workflow","workflow.framework").equals("xmlworkflow")){
+        //    getXMLWorkflowConstraints(tableList);
+        //}else{
             getOriginalWorkflowConstraints(tableList);
 
-        }
+        //}
         // the list of tables can be used to construct an error message
         // explaining to the user why the eperson cannot be deleted.
         return tableList;

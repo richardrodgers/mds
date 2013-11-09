@@ -34,7 +34,7 @@ public interface ScriptedTask
      * @param taskId identifier task should use in invoking services
      * @throws IOException
      */
-    public void init(Curator curator, String taskId) throws IOException;
+    public void init(Curation curation, String taskId) throws IOException;
 
     /**
      * Perform the curation task upon passed DSO

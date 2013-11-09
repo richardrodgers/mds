@@ -429,6 +429,30 @@ public class ConfigurationManager
     }
 
     /**
+     * Returns an instance of configured class
+     *
+     * @param module
+     *         the name of the module 
+     * @param name
+     *         the implementation type
+     * @return object
+     *         new instance of the type
+     */
+    public static Object getInstance(String module, String name) {
+        Object instance = null;
+        String className = getProperty(module, name);
+        if (className != null) {
+            try {
+                instance = Class.forName(className).newInstance();
+            } catch (Exception e) {
+                log.error("Error instantiating class", e);
+                instance = null;
+            }
+        }
+        return instance;
+    }
+
+    /**
      * Get the License
      * 
      * @param

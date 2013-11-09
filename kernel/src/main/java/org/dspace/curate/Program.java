@@ -61,92 +61,92 @@ import static org.dspace.curate.Curator.*;
  */
 
 public class Program extends AbstractCurationTask {
-	// logging service
-	private static Logger log = LoggerFactory.getLogger(Program.class);
-	// base directory of program files
-	private static final String programDir = ConfigurationManager.getProperty("curate", "program.dir");
-  // program 'language' keywords
-	private static final List<String> keywords = Arrays.asList("if", "elif", "else", "end");
+    // logging service
+    private static Logger log = LoggerFactory.getLogger(Program.class);
+    // base directory of program files
+    private static final String programDir = ConfigurationManager.getProperty("curate", "program.dir");
+    // program 'language' keywords
+    private static final List<String> keywords = Arrays.asList("if", "elif", "else", "end");
 
-	private enum Code {
-		SUCCESS (CURATE_SUCCESS, "%SUCCESS"),
-		FAIL    (CURATE_FAIL, "%FAIL"),
-    SKIP    (CURATE_SKIP, "%SKIP"),
-    ERROR   (CURATE_ERROR, "%ERROR");
-    public final int code;
-    public final String tag;
-    Code(int code, String tag) {
-        this.code = code;
-        this.tag = tag;
+    private enum Code {
+        SUCCESS (CURATE_SUCCESS, "%SUCCESS"),
+        FAIL    (CURATE_FAIL, "%FAIL"),
+        SKIP    (CURATE_SKIP, "%SKIP"),
+        ERROR   (CURATE_ERROR, "%ERROR");
+        public final int code;
+        public final String tag;
+        Code(int code, String tag) {
+            this.code = code;
+            this.tag = tag;
+        }
+
+        public static int toCode(String tag) {
+   	        for (Code c : Code.values()) {
+                if (c.tag.equals(tag)) {
+                    return c.code;
+                }
+            }
+        return CURATE_UNSET;
+        }
     }
 
-    public static int toCode(String tag) {
-   	    for (Code c : Code.values()) {
-    		    if (c.tag.equals(tag)) {
-                return c.code;
-    		    }
-    	  }
-    	  return CURATE_UNSET;
+    // program status code
+    private int progStatus = CURATE_UNSET;
+    // root of program execution tree
+    private Node startNode = null;
+    // task resolver for compilation use
+    private TaskResolver resolver = new TaskResolver();
+    // program curator
+    private Curator progCurator = null;
+
+    public Program() {}
+
+    /**
+     * Inititalizes the program - which means compiling the program source.
+     */
+    @Override
+    public void init(Curation curation, String taskId) throws IOException {
+        super.init(curation, taskId);
+        progCurator = new Curator();
+        startNode = new Node(null);
+        compile(taskId);
     }
-	}
 
-  // program status code
-	private int progStatus = CURATE_UNSET;
-	// root of program execution tree
-	private Node startNode = null;
-  // task resolver for compilation use
-  private TaskResolver resolver = new TaskResolver();
-  // program curator
-  private Curator progCurator = null;
-	
-	public Program() {}
-
-	/**
-	 * Inititalizes the program - which means compiling the program source.
-	 */
-	@Override
-	public void init(Curator curator, String taskId) throws IOException {
-      super.init(curator, taskId);
-      progCurator = new Curator();
-      startNode = new Node(null);
-      compile(taskId);
-	}
-
-	/**
-	 * Compiles a program from a source file.
-	 *
-	 * @param progName the name of the curation program
-	 */
-	private void compile(String progName) {
-      // Can we locate the file in the program directory?
-      File progFile = new File(programDir, progName);
-      if (progFile.exists()) {
-          try (BufferedReader reader = new BufferedReader(new FileReader(progFile))) {
-              String line = null;
-              Node curNode = startNode;
-              while((line = reader.readLine()) != null) {
-                  line = line.trim();
-                  // skip comment lines
-					        if (! (line.startsWith("#") || line.startsWith("@")) ) {
-					        	  // is it an action or a control statement?
-                      if (isControl(line)) {
-                          curNode = curNode.addControl(line);
-                      } else if (isAction(line)) {
-                          curNode = curNode.setAction(line);
-                      } else {
-                        // unknown - fail compilation
-                        log.error("Illegal program statement: " + line);
-                        throw new IOException("Illegal program statement");
-                      }
-						      }
-				      }
-			    } catch(IOException ioE) {
-              log.error("Error reading program: " + progName);
-          }
-			} else {
+    /**
+     * Compiles a program from a source file.
+     *
+     * @param progName the name of the curation program
+     */
+    private void compile(String progName) {
+        // Can we locate the file in the program directory?
+        File progFile = new File(programDir, progName);
+        if (progFile.exists()) {
+            try (BufferedReader reader = new BufferedReader(new FileReader(progFile))) {
+                String line = null;
+                Node curNode = startNode;
+                while((line = reader.readLine()) != null) {
+                    line = line.trim();
+                    // skip comment lines
+                    if (! (line.startsWith("#") || line.startsWith("@")) ) {
+                        // is it an action or a control statement?
+                        if (isControl(line)) {
+                            curNode = curNode.addControl(line);
+                        } else if (isAction(line)) {
+                            curNode = curNode.setAction(line);
+                        } else {
+                            // unknown - fail compilation
+                            log.error("Illegal program statement: " + line);
+                            throw new IOException("Illegal program statement");
+                        }
+                    }
+                }
+            } catch(IOException ioE) {
+                log.error("Error reading program: " + progName);
+            }
+        } else {
           log.error("Program: " + progName + "not found in: " + programDir);
-		  }
-	}
+        }
+    }
 
   private boolean isControl(String line) {
       String[] parts = line.split(" ");
@@ -159,7 +159,7 @@ public class Program extends AbstractCurationTask {
       if (resolver.canResolveTask(line)) return true;
       return false;
   }
-		
+
   /**
    * Performs the curation which runs the compiled program
    *
@@ -232,23 +232,23 @@ public class Program extends AbstractCurationTask {
 
       public int perform(DSpaceObject dso) throws AuthorizeException, IOException, SQLException {
           int status = CURATE_UNSET;
-  		    if (action.startsWith("%")) {
-  		        // is it a status code literal - return it
-  			      return Code.toCode(action);
-  			  } else if (action.startsWith("report")) {
-              curator.report(action.split(":")[1]);
+          if (action.startsWith("%")) {
+              // is it a status code literal - return it
+             return Code.toCode(action);
+          } else if (action.startsWith("report")) {
+              curation.report(action.split(":")[1]);
               return progStatus;
           //} else if (action.startsWith("(") && action.endsWith(")")) {
           } else if (task != null) {
               // it is a task - invoke but ignore status if wrapped
-  			  	  //String taskName = action.substring(1, action.length() - 2);
-  			  	  progCurator.addInitializedTask(task);
+              //String taskName = action.substring(1, action.length() - 2);
+              progCurator.addInitializedTask(task);
               progCurator.curate(dso);
               status = progCurator.getStatus(task.getName());
               progCurator.removeTask(task.getName());
-  		    }
-  		    return status;
-  	  }
+          }
+          return status;
+      }
 
       public Node next(int key) {
           return branchMap.get(key);

@@ -27,6 +27,10 @@ import java.util.GregorianCalendar;
 import java.text.SimpleDateFormat;
 import java.text.ParseException;
 
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +44,11 @@ public final class Utils
 {
     /** log4j logger */
     private static Logger log = LoggerFactory.getLogger(Utils.class);
+
+    // ISO8601 date formatters
+    private static final DateTimeFormatter iso8601 = 
+            ISODateTimeFormat.dateTimeNoMillis().withZone(DateTimeZone.UTC);
+    private static final DateTimeFormatter isoDate = ISODateTimeFormat.date();
 
     private static final Pattern DURATION_PATTERN = Pattern
             .compile("(\\d+)([smhdwy])");
@@ -426,5 +435,9 @@ public final class Utils
         }
         int rl = result.length();
         return result.substring(0, rl-2) + ":" + result.substring(rl-2);
+    }
+
+    public static String asISO8601(Date date) {
+        return iso8601.print(date.getTime());
     }
 }

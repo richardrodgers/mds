@@ -22,15 +22,15 @@ import org.dspace.core.Context;
  */
 public interface CurationTask {
     /**
-     * Initialize task - parameters inform the task of it's invoking curator.
-     * Since the curator can provide services to the task, this represents
-     * curation DI.
+     * Initialize task - parameters inform the task of it's invoking curation
+     * context. Since this context can provide services to the task, this
+     * represents curation DI.
      * 
-     * @param curator the Curator controlling this task
+     * @param curation the Curation this task is bound to
      * @param taskId identifier task should use in invoking services
      * @throws IOException
      */
-    void init(Curator curator, String taskId) throws IOException;
+    void init(Curation curation, String taskId) throws IOException;
 
     /**
      * Perform the curation task upon passed DSO

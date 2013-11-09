@@ -8,6 +8,7 @@
 package org.dspace.curate;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Iterator;
@@ -31,90 +32,93 @@ import org.dspace.eperson.EPerson;
  */
 public class CurationCli {
 
-	@Option(name="-t", usage="curation task name")
-	private String taskName;
-	
-	@Option(name="-T", usage="file containing curation task names")
-	private String taskFileName;
-	
-	@Option(name="-i", usage="Id (handle) of object to perform task on, or 'all' to perform on whole repository")
-	private String idName;
-	
-	@Option(name="-q", usage="name of task queue to process")
-	private String taskQueueName;
-	
-	@Option(name="-n", usage="name of object selector to use")
-	private String selectorName;
-	
-	@Option(name="-e", usage="email address of curating eperson")
-	private String ePersonName;
-	
-	@Option(name="-r", usage="reporter to manage results - use '-' to report to console. If absent, no reporting")
-	private String reporterName;
-	
-	@Option(name="-l", usage="maximum number of objects allowed in context cache. If absent, no limit")
-	private String limit;
-	
-	@Option(name="-s", usage="transaction scope to impose: use 'object', 'curation', or 'open'. If absent, 'open' applies")
-	private String scope;
+    @Option(name="-t", usage="curation task name")
+    private String taskName;
+
+    @Option(name="-T", usage="file containing curation task names")
+    private String taskFileName;
+
+    @Option(name="-g", usage="file containing groovy scripted task")
+    private String scriptFileName;
+
+    @Option(name="-i", usage="Id (handle) of object to perform task on, or 'all' to perform on whole repository")
+    private String idName;
+
+    @Option(name="-q", usage="name of task queue to process")
+    private String taskQueueName;
+
+    @Option(name="-n", usage="name of object selector to use")
+    private String selectorName;
+
+    @Option(name="-e", usage="email address of curating eperson")
+    private String ePersonName;
+
+    @Option(name="-r", usage="reporter to manage results - use '-' to report to console. If absent, no reporting")
+    private String reporterName;
+
+    @Option(name="-l", usage="maximum number of objects allowed in context cache. If absent, no limit")
+    private String limit;
+
+    @Option(name="-s", usage="transaction scope to impose: use 'object', 'curation', or 'open'. If absent, 'open' applies")
+    private String scope;
 
     @Option(name="-j", usage="journal filter to apply: use 'n' for no journaling, 'a' for any status, or any combination of 's', 'f', 'k' (skip), 'e'. If absent, 'n' applies")
     private String jrnFilter;
-	
-	@Option(name="-v", usage="report execution details to stdout")
-	private boolean verbose;
-	
-	@Option(name="-h", usage="display helpful message")
-	private boolean help;
-	
-	private CurationCli() {}
-	
+
+    @Option(name="-v", usage="report execution details to stdout")
+    private boolean verbose;
+
+    @Option(name="-h", usage="display helpful message")
+    private boolean help;
+
+    private CurationCli() {}
+
     public static void main(String[] args) throws Exception {
         CurationCli cli = new CurationCli();
         CmdLineParser parser = new CmdLineParser(cli);
         try {
-        	parser.parseArgument(args);
-        	String errmsg = cli.validate();
-        	if (errmsg != null) {
-        		throw new CmdLineException(parser, errmsg);
-        	}
-        	if (cli.help) {
-        		parser.printUsage(System.err);
-        	} else {
-        		cli.curate();
-        	}
-        	System.exit(0);
+            parser.parseArgument(args);
+            String errmsg = cli.validate();
+            if (errmsg != null) {
+                throw new CmdLineException(parser, errmsg);
+            }
+            if (cli.help) {
+                parser.printUsage(System.err);
+            } else {
+                cli.curate();
+            }
+            System.exit(0);
         } catch (CmdLineException clE) {
-        	System.err.println(clE.getMessage());
-        	parser.printUsage(System.err);
+            System.err.println(clE.getMessage());
+            parser.printUsage(System.err);
         } catch (Exception e) {
-        	System.err.println(e.getMessage());
+            System.err.println(e.getMessage());
         }
         System.exit(1);
     }
     
     private String validate() {
-    	
+    
         if (idName == null && taskQueueName == null && selectorName == null) {
             return "Id or selector must be specified: a handle, 'all', name of selector, or a task queue (-h for help)";
         }
 
-        if (taskName == null && taskFileName == null && taskQueueName == null) {
-            return "A curation task or queue must be specified (-h for help)";
+        if (taskName == null && taskFileName == null && scriptFileName == null && taskQueueName == null) {
+            return "A curation task, script or queue must be specified (-h for help)";
         }
         
         if (limit != null && Integer.parseInt(limit) <= 0 ) {
-        	return "Cache limit '" + limit + "' must be a positive integer";
+            return "Cache limit '" + limit + "' must be a positive integer";
         }
         
         if (scope != null && Curator.TxScope.valueOf(scope.toUpperCase()) == null) {
-        	return "Bad transaction scope '" + scope + "': only 'object', 'curation' or 'open' recognized";
-    	}
+            return "Bad transaction scope '" + scope + "': only 'object', 'curation' or 'open' recognized";
+        }
         return null;
     }
     
     private void curate() throws AuthorizeException, IOException, SQLException {
-    	
+    
         Context c = new Context();
         if (ePersonName != null) {
             EPerson ePerson = EPerson.findByEmail(c, ePersonName);
@@ -128,15 +132,16 @@ public class CurationCli {
         }
 
         Curator curator = new Curator();
+        CurationSession session = null;
         if (reporterName != null) {
             curator.setReporter(reporterName);
         }
         if (limit != null) {
-        	curator.setCacheLimit(Integer.parseInt(limit));
+            curator.setCacheLimit(Integer.parseInt(limit));
         }
         if (scope != null) {
-        	Curator.TxScope txScope = Curator.TxScope.valueOf(scope.toUpperCase());
-        	curator.setTransactionScope(txScope);
+            Curator.TxScope txScope = Curator.TxScope.valueOf(scope.toUpperCase());
+            curator.setTransactionScope(txScope);
         }
         if (jrnFilter != null) {
             curator.setJournalFilter(jrnFilter);
@@ -152,7 +157,7 @@ public class CurationCli {
             if (verbose && ! curator.hasTask(taskName)) {
                 System.out.println("Task: " + taskName + " not resolved");
             }
-        } else if (taskQueueName == null) {
+        } else if (taskFileName != null) {
             // load taskFile
             try (BufferedReader reader = new BufferedReader(new FileReader(taskFileName))) {
                 while ((taskName = reader.readLine()) != null) {
@@ -162,44 +167,54 @@ public class CurationCli {
                     curator.addTask(taskName);
                 }
             }
+        } else if (scriptFileName != null) {
+            session = Curator.newSession(new File(scriptFileName), "groovy");
         }
         // run tasks against object
         long start = System.currentTimeMillis();
         if (verbose) {
             System.out.println("Starting curation");
         }
+        //if (scriptFileName != null) {
+        //    CurationSession session = Curator.newSession();
+        //    session.curate
         if (idName != null) {
             if (verbose) {
                System.out.println("Curating id: " + idName);
             }
             if ("all".equals(idName)) {
-            	// run on whole Site
-            	curator.curate(c, Site.getSiteHandle());
+                // run on whole Site
+                if (session == null) {
+                    curator.curate(c, Site.getSiteHandle());
+                } else {
+                    session.curate(c, Site.getSiteHandle());
+                }
             } else {
-                curator.curate(c, idName);
+                if (session == null) {
+                    curator.curate(c, idName);
+                } else {
+                    session.curate(c, idName);
+                }
             }
         } else if (selectorName != null) {
-        	if (verbose) {
-        		System.out.println("Curating with selector: " + selectorName);
-        	}
-        	ObjectSelector selector = SelectorResolver.resolveSelector(c, selectorName);
-        	if (selector != null) {
-        		curator.curate(selector);
-        	} else {
+            if (verbose) {
+                System.out.println("Curating with selector: " + selectorName);
+            }
+            ObjectSelector selector = SelectorResolver.resolveSelector(c, selectorName);
+            if (selector != null) {
+                if (session == null) {
+                    curator.curate(selector);
+                } else {
+                    session.curate(selector);
+                }
+            } else {
                 System.out.println("No named selector found for: " + selectorName);
                 throw new UnsupportedOperationException("No selector available");       		
-        	}
+            }
         } else {
             // process the task queue
-        	String tqClass = ConfigurationManager.getProperty("curate", "taskqueue.impl");
-        	if (tqClass == null) {
-                System.out.println("No implementation configured for queue");
-                throw new UnsupportedOperationException("No queue service available");        		
-        	}
-            TaskQueue queue = null;
-            try {
-            	queue = (TaskQueue)Class.forName(tqClass).newInstance();
-            } catch (Exception e) {
+            TaskQueue queue = (TaskQueue)ConfigurationManager.getInstance("curate", "taskqueue.impl");
+            if (queue == null) {
                 System.out.println("Error instantiating task queue");
                 throw new UnsupportedOperationException("No queue service available");     
             }
@@ -230,7 +245,11 @@ public class CurationCli {
             queue.release(taskQueueName, ticket, true);
         }
         c.complete();
-        curator.complete();
+        if (session == null) {
+            curator.complete();
+        } else {
+            session.close();
+        }
         if (verbose) {
             long elapsed = System.currentTimeMillis() - start;
             System.out.println("Ending curation. Elapsed time: " + elapsed);

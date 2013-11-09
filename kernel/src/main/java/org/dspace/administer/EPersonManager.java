@@ -151,10 +151,10 @@ public final class EPersonManager {
                 String status = null;
                 epm.setAtomicCommit(false);
                 switch (epm.action) {
-                    case add    : status = epm.createEPerson(context);
-                    case prompt : status = epm.negotiateDetails(context);
-                    case update : status = epm.updateEPerson(context);
-                    case delete : status = epm.deleteEPerson(context);
+                    case add    : status = epm.createEPerson(context); break;
+                    case prompt : status = epm.negotiateDetails(context); break;
+                    case update : status = epm.updateEPerson(context); break;
+                    case delete : status = epm.deleteEPerson(context); break;
                 }
                 context.complete();
                 System.out.println(status);

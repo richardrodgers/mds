@@ -555,8 +555,8 @@ public final class Installer {
     }
     
     private boolean dbInitialized(Handle h) throws SQLException {
-   	 	DatabaseMetaData md = h.getConnection().getMetaData();
-   	 	return md.getTables(null, null, "installation", null).next();
+        DatabaseMetaData md = h.getConnection().getMetaData();
+        return md.getTables(null, null, "installation", null).next();
     }
     
     private void updateVersion(Handle h, String grpId, String artId, String version, String checksum) throws SQLException {
@@ -679,16 +679,16 @@ public final class Installer {
     }
     
     private void loadDDL() throws IOException, SQLException {
-    	 String dbName = ConfigurationManager.getProperty("db.name");
-    	 checkState(dbName != null, "no database name defined");
+        String dbName = ConfigurationManager.getProperty("db.name");
+        checkState(dbName != null, "no database name defined");
 
-    	 String path = baseDir.getAbsolutePath() + File.separator + DDL_DIR + File.separator + dbName;
-    	 File ddlFile = new File(path, DDL_UPFILE);
-    	 // not all modules have DDLs
-    	 //checkState(ddlFile.exists(), "no DDL file present");
-    	 if (ddlFile.exists()) {
-    		 DatabaseManager.loadSql(new FileReader(ddlFile.getCanonicalPath()));
-    	 }
+        String path = baseDir.getAbsolutePath() + File.separator + DDL_DIR + File.separator + dbName;
+        File ddlFile = new File(path, DDL_UPFILE);
+        // not all modules have DDLs
+        //checkState(ddlFile.exists(), "no DDL file present");
+        if (ddlFile.exists()) {
+            DatabaseManager.loadSql(new FileReader(ddlFile.getCanonicalPath()));
+        }
     }
     
     private void unloadDDL() throws IOException, SQLException {

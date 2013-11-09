@@ -296,7 +296,7 @@ public class Collection extends DSpaceObject
     @Override
     public String getName()
     {
-    	return getMetadataValue("dsl.name");
+        return tableRow.getStringColumn("name");
     }
     
     /**

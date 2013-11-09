@@ -431,6 +431,16 @@ public abstract class DSpaceObject
     public abstract String getName();
 
     /**
+     * Assigns the EPerson who owns this object to a new context.
+     *
+     * @param delegate the Context which will assume the EPerson
+     *                 identity of the current user.
+     */
+    public void delegate(Context delegateContext) {
+        delegateContext.setCurrentUser(context.getCurrentUser());
+    }
+
+    /**
      * Return the dspace object where an ADMIN action right is sufficient to
      * grant the initial authorize check.
      * <p>

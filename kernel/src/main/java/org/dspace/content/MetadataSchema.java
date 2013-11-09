@@ -364,7 +364,7 @@ public class MetadataSchema
     static class Mapper implements ResultSetMapper<MetadataSchema> {
         @Override
         public MetadataSchema map(int index, ResultSet rs, StatementContext sctx) throws SQLException {
-            return new MetadataSchema(rs.getInt(0), rs.getString(1), rs.getString(2));
+            return new MetadataSchema(rs.getInt(1), rs.getString(2), rs.getString(3));
         }
     }
 

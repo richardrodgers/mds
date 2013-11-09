@@ -1,0 +1,119 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.dspace</groupId>
+    <artifactId>dsm-webapi</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>war</packaging>
+    <name>DSpace HTTP API services :: Definition and Implementation</name>
+    <description>DSpace exposed as RESTful web services.</description>
+    <url>http://projects.dspace.org/dspace-api</url>
+
+    <!--
+       A Parent POM that Maven inherits DSpace Defaults
+       POM attributes from. -->
+    <parent>
+        <artifactId>dspace-pom</artifactId>
+        <groupId>org.dspace</groupId>
+        <version>12</version>
+    </parent>
+
+     <!--
+       Runtime and Compile Time dependencies for DSpace.
+    -->
+    <build>
+      <plugins>
+      <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <version>2.4</version>
+            <executions>
+              <execution>
+                <id>resolve</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>resolve</goal>
+                </goals>
+                <configuration>
+                  <includeScope>compile</includeScope>
+                  <outputFile>deps.txt</outputFile>
+                </configuration>
+              </execution>
+            </executions>
+        </plugin>
+        <plugin>
+          <artifactId>maven-assembly-plugin</artifactId>
+          <version>2.3</version>
+          <dependencies>
+            <dependency>
+              <groupId>org.dspace</groupId>
+              <artifactId>mdsa</artifactId>
+              <version>1.0-SNAPSHOT</version>
+            </dependency>
+          </dependencies>
+          <executions>
+            <execution>
+              <id>make-assembly</id>
+              <phase>package</phase>
+              <goals>
+                <goal>single</goal>
+              </goals>
+              <configuration>
+                <descriptorRefs>
+                  <descriptorRef>mds-assembly</descriptorRef>
+                </descriptorRefs>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+    </plugins>
+  </build>
+
+    <dependencies>
+      <dependency>
+        <groupId>org.dspace</groupId>
+        <artifactId>dsm-kernel</artifactId>
+        <version>1.0-SNAPSHOT</version>
+      </dependency>
+  	  <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>1.7.5</version>
+      </dependency>
+      <dependency>
+        <groupId>javax.servlet</groupId>
+        <artifactId>javax.servlet-api</artifactId>
+        <version>3.0.1</version>
+        <scope>provided</scope>
+      </dependency>
+      <!-- JAX-RS 2.0 RI and Jersey server-->
+      <dependency>
+        <groupId>org.glassfish.jersey.containers</groupId>
+        <artifactId>jersey-container-servlet</artifactId>
+        <version>2.4</version>
+      </dependency>
+      <!--
+      <dependency>
+        <groupId>org.glassfish.jersey.core</groupId>
+        <artifactId>jersey-common</artifactId>
+        <version>2.0-m12-1</version>
+      </dependency>
+      <dependency>
+        <groupId>org.glassfish.jersey.core</groupId>
+        <artifactId>jersey-server</artifactId>
+        <version>2.0-m12-1</version>
+      </dependency>
+      <dependency>
+        <groupId>org.glassfish.jersey.media</groupId>
+        <artifactId>jersey-media-json-jackson</artifactId>
+        <version>2.0-m12-1</version>
+      </dependency>
+    -->
+      <!--  For test harness only -->
+	  <dependency>
+        <groupId>com.sun.jersey</groupId>
+        <artifactId>jersey-grizzly2</artifactId>
+        <version>1.11</version>
+        <scope>test</scope>
+      </dependency>
+    </dependencies>
+</project>
