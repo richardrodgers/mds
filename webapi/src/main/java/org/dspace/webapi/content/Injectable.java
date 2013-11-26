@@ -8,19 +8,19 @@
 package org.dspace.webapi.content;
 
 import java.net.URI;
-import java.util.List;
 import java.util.Map;
 
-import org.dspace.webapi.content.domain.EntityRef;
-
+/**
+ * Injectable interface allows resource URIs to
+ * appear in domain entities through 'injection', decoupling
+ * the entity from its resource mappings.
+ *
+ * @author richardrodgers
+ */
 
 public interface Injectable {
 
     Map<String, String> getUriInjections();
-
-    Map<String, List<EntityRef>> getRefInjections();
    
     void injectUri(String key, URI uri);
-
-    void injectRefs(String key, List<EntityRef> refs);
 }

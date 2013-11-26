@@ -20,45 +20,39 @@ import org.dspace.content.Item;
 @XmlRootElement(name="bitstream")
 public class BitstreamEntity extends ContentEntity {
 
-    private String accessPath;
-    private URI accessUrl;
+    private String mediaPath;
+    private URI mediaUrl;
 
     public BitstreamEntity() {}
 
     public BitstreamEntity(Bitstream bitstream) throws SQLException {
-        super(bitstream);
+        super(bitstream.getName(), bitstream.getParentObject().getHandle() + "." + bitstream.getSequenceID());
         Item parent = (Item)bitstream.getParentObject();
         if (parent != null) {
             parentHandle = parent.getHandle();
         }
-        accessPath = parentHandle + "/" + bitstream.getSequenceID() + "/" + bitstream.getName();
+        mediaPath = parentHandle + "." + bitstream.getSequenceID() + "/media/" + bitstream.getName();
     }
 
-    public URI getAccessUrl() {
-        return accessUrl;
+    public URI getMediaUrl() {
+        return mediaUrl;
     }
 
-    public void setAccessUrl(URI accessUrl) {
-        this.accessUrl = accessUrl;
+    public void setMediaUrl(URI mediaUrl) {
+        this.mediaUrl = mediaUrl;
     }
 
     @Override
     public Map<String, String> getUriInjections() {
-        Map<String, String> injectionMap = new HashMap<>();
-        if (parentHandle != null) {
-            injectionMap.put("parent", "item:" + parentHandle);
-        }
-        injectionMap.put("self", "bitstream:" + handle);
-        injectionMap.put("access", "bitstream:" + accessPath);
+        Map<String, String> injectionMap = super.getUriInjections();
+        injectionMap.put("media", mediaPath);
         return injectionMap;
     }
 
     @Override
     public void injectUri(String key, URI uri) {
         switch (key) {
-            case "self": setURI(uri); break;
-            case "parent": setParentUri(uri); break;
-            case "access": setAccessUrl(uri); break;
+            case "media": setMediaUrl(uri); break;
             default: super.injectUri(key, uri); break;
         }
     }

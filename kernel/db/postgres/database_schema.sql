@@ -691,15 +691,15 @@ CREATE INDEX harvested_item_fk_idx ON harvested_item(item_id);
 
 CREATE TABLE ctask_data
 (
-    ctask_id 		INTEGER PRIMARY KEY,
-    name		    VARCHAR,
-    description		VARCHAR,
+    ctask_id        INTEGER PRIMARY KEY,
+    name            VARCHAR,
+    description     VARCHAR,
     type            INTEGER,
     install_date    TIMESTAMP,
-    version_str		VARCHAR,
-    load_addr		VARCHAR,
-    config		    VARCHAR,
-    info_url		VARCHAR,
+    version_str     VARCHAR,
+    load_addr       VARCHAR,
+    config          VARCHAR,
+    info_url        VARCHAR,
     visible_ui      BOOL,
     visible_api     BOOL
 );

@@ -9,13 +9,11 @@ package org.dspace.webapi.content.domain;
 
 import java.net.URI;
 import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.Map;
 
 import javax.xml.bind.annotation.XmlRootElement;
 
 import org.dspace.content.Bitstream;
-import org.dspace.content.Collection;
 import org.dspace.content.Community;
 
 @XmlRootElement(name="community")
@@ -37,7 +35,7 @@ public class CommunityEntity extends ContentEntity {
 
         Bitstream logoBS = comm.getLogo();
         if (logoBS != null) {
-            logoPath = logoBS.getParentObject().getHandle() + "/" + logoBS.getSequenceID() + "/" + logoBS.getName();
+            logoPath = logoBS.getParentObject().getHandle() + "." + logoBS.getSequenceID() + "/media/" + logoBS.getName();
         }
     }
 
@@ -67,15 +65,11 @@ public class CommunityEntity extends ContentEntity {
 
     @Override
     public Map<String, String> getUriInjections() {
-        Map<String, String> injectionMap = new HashMap<>();
-        if (parentHandle != null) {
-            injectionMap.put("parent", "community:" + parentHandle);
-        }
-        injectionMap.put("collections", "community/" + handle + ":collections");
-        injectionMap.put("subcommunities", "community/" + handle + ":subcommunities");
-        injectionMap.put("self", "community:" + handle);
+        Map<String, String> injectionMap = super.getUriInjections();
+        injectionMap.put("collections", handle + ":collections");
+        injectionMap.put("subcommunities", handle + ":subcommunities");
         if (logoPath != null) {
-            injectionMap.put("logo", "bitstream:" + logoPath);
+            injectionMap.put("logo", logoPath);
         }
         return injectionMap;
     }
@@ -83,12 +77,10 @@ public class CommunityEntity extends ContentEntity {
     @Override
     public void injectUri(String key, URI uri) {
         switch (key) {
-            case "self": setURI(uri); break;
-            case "parent": setParentUri(uri); break;
             case "collections": setCollections(uri); break;
             case "subcommunities": setSubcommunities(uri); break;
             case "logo": setLogo(uri); break;
-            default: break;
+            default: super.injectUri(key, uri); break;
         }
     }
 }

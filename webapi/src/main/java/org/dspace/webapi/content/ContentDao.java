@@ -25,11 +25,14 @@ import org.dspace.content.Collection;
 import org.dspace.content.Community;
 import org.dspace.content.Item;
 import org.dspace.content.DSpaceObject;
+import org.dspace.content.MetadataSchema;
 import org.dspace.handle.HandleManager;
 import org.dspace.webapi.content.domain.BitstreamEntity;
 import org.dspace.webapi.content.domain.CommunityEntity;
 import org.dspace.webapi.content.domain.CollectionEntity;
+import org.dspace.webapi.content.domain.ContentEntity;
 import org.dspace.webapi.content.domain.ItemEntity;
+import org.dspace.webapi.content.domain.MetadataEntity;
 import org.dspace.webapi.content.domain.EntityRef;
 
 /**
@@ -37,7 +40,6 @@ import org.dspace.webapi.content.domain.EntityRef;
  * to the service.
  *  
  * @author richardrodgers
- *
  */
 
 public class ContentDao {
@@ -47,76 +49,71 @@ public class ContentDao {
         Context ctx = new Context();
         switch (contentType) {
             case "community" : getCommunityRefs(refList, ctx); break;
-            case "collection" : getCollectionRefs(refList, handle, ctx); break;
-            case "subcommunity" : getSubcommunityRefs(refList, handle, ctx); break;
-            case "item" : getItemRefs(refList, handle, ctx); break;
+            case "collections" : getCollectionRefs(refList, handle, ctx); break;
+            case "subcommunities" : getSubcommunityRefs(refList, handle, ctx); break;
+            case "items" : getItemRefs(refList, handle, ctx); break;
             case "bitstream" : getBitstreamRefs(refList, handle, filter, ctx); break;
-            case "filter" : getFilterRefs(refList, handle, ctx); break;
+            case "filters" : getFilterRefs(refList, handle, ctx); break;
+            case "mdsets" : getMetadataRefs(refList, handle, ctx); break;
             default: break;
         }
         ctx.complete();
         return refList;
     }
 
-    public CommunityEntity getCommunity(String prefix, String id) throws SQLException {
-        String handle = prefix + "/" + id;
-        CommunityEntity entity = null;
+    public ContentEntity getEntity(String prefix, String id) throws SQLException {
+        String[] parts = id.split("\\.");
+        String lid = id;
+        if (parts.length > 1) {
+            lid = parts[0];
+        } 
+        String handle = prefix + "/" + lid;
+        ContentEntity entity = null;
         Context ctx = new Context();
         DSpaceObject dso = HandleManager.resolveToObject(ctx, handle);
         if (dso == null) {
             ctx.complete();
-            throw new IllegalArgumentException("no such community");
+            throw new IllegalArgumentException("no such entity");
         }
-        if (dso.getType() == Constants.COMMUNITY) {
-            entity = new CommunityEntity((Community)dso);
+        switch (dso.getType()) {
+            case Constants.COMMUNITY : entity = new CommunityEntity((Community)dso); break;
+            case Constants.COLLECTION : entity = new CollectionEntity((Collection)dso); break;
+            case Constants.ITEM : if (parts.length == 1) { entity = new ItemEntity((Item)dso); }
+                                  else { entity = getBitstream(ctx, prefix, lid, parts[1]); } break;
+            default: break;
         }
         ctx.complete();
         return entity;
     }
 
-    public CollectionEntity getCollection(String prefix, String id) throws SQLException {
+    public MetadataEntity getMetadata(String prefix, String id, String name) throws SQLException {
         String handle = prefix + "/" + id;
-        CollectionEntity entity = null;
+        MetadataEntity entity = null;
         Context ctx = new Context();
         DSpaceObject dso = HandleManager.resolveToObject(ctx, handle);
         if (dso == null) {
             ctx.complete();
-            throw new IllegalArgumentException("no such collection");
+            throw new IllegalArgumentException("no such entity");
         }
-        if (dso.getType() == Constants.COLLECTION) {
-            entity = new CollectionEntity((Collection)dso);
-        }
+        entity = new MetadataEntity(dso, name);
         ctx.complete();
         return entity;
     }
 
-    public ItemEntity getItem(String prefix, String id) throws SQLException {
-        String handle = prefix + "/" + id;
-        ItemEntity entity = null;
+    public MediaReader getMediaReader(String prefix, String id) throws AuthorizeException, IOException, SQLException {
+        String[] parts = id.split("\\."); 
         Context ctx = new Context();
-        DSpaceObject dso = HandleManager.resolveToObject(ctx, handle);
-        if (dso == null) {
-            ctx.complete();
-            throw new IllegalArgumentException("no such item");
-        }
-        if (dso.getType() == Constants.ITEM) {
-            entity = new ItemEntity((Item)dso);
-        }
+        Bitstream bitstream = findBitstream(ctx, prefix + "/" + parts[0], parts[1]);
+        MediaReader reader = new MediaReader(bitstream.retrieve(), bitstream.getFormat().getMIMEType(), bitstream.getSize());
         ctx.complete();
-        return entity;
+        return reader;
     }
 
-    public BitstreamEntity getBitstream(String prefix, String id, String seq) throws SQLException {
-        return new BitstreamEntity(findBitstream(prefix + "/" + id, seq));
+    private BitstreamEntity getBitstream(Context ctx, String prefix, String id, String seq) throws SQLException {
+        return new BitstreamEntity(findBitstream(ctx, prefix + "/" + id, seq));
     }
 
-    public MediaReader getBitstreamReader(String prefix, String id, String seq) throws AuthorizeException, IOException, SQLException {
-        Bitstream bitstream = findBitstream(prefix + "/" + id, seq);
-        return new MediaReader(bitstream.retrieve(), bitstream.getFormat().getMIMEType(), bitstream.getSize());
-    }
-
-    private Bitstream findBitstream(String handle, String seq) throws SQLException {
-        Context ctx = new Context();
+    private Bitstream findBitstream(Context ctx, String handle, String seq) throws SQLException {
         DSpaceObject dso = HandleManager.resolveToObject(ctx, handle);
         if (dso == null) {
             ctx.complete();
@@ -129,7 +126,6 @@ public class ContentDao {
             for (Bundle bundle : item.getBundles()) {
                for (Bitstream bs: bundle.getBitstreams()) {
                    if (bs.getSequenceID() == seqInt) {
-                       ctx.complete();
                        return bs;
                    }
                }
@@ -137,6 +133,14 @@ public class ContentDao {
         }
         ctx.complete();
         throw new IllegalArgumentException("no such bitstream");
+    }
+
+    private void getMetadataRefs(List<EntityRef> refList, String handle, Context ctx) throws SQLException {
+        // Currently, the only sets offered are partitions by schema of the metadata, but there is no
+        // reason one could not define, e.g. a 'public' subset of a given slice of metadata
+        for (MetadataSchema schema: MetadataSchema.findAll(ctx)) {
+            refList.add(new EntityRef(schema.getName(), handle + "/mdset/" + schema.getName(), schema.getNamespace()));
+        }
     }
 
     private void getCommunityRefs(List<EntityRef> refList, Context ctx) throws SQLException {
@@ -200,7 +204,7 @@ public class ContentDao {
         if (dso != null && dso.getType() == Constants.ITEM) {
             Item item = (Item)dso;
             for (Bitstream bs : item.getBundles(filter).get(0).getBitstreams()) {
-                String bsHandle = item.getHandle() + "/" + bs.getSequenceID();
+                String bsHandle = item.getHandle() + "." + bs.getSequenceID();
                 refList.add(new EntityRef(bs.getName(), bsHandle, "bitstream"));
             }
         }

@@ -9,7 +9,6 @@ package org.dspace.webapi.content.domain;
 
 import java.net.URI;
 import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.Map;
 
 import javax.xml.bind.annotation.XmlRootElement;
@@ -35,7 +34,7 @@ public class CollectionEntity extends ContentEntity {
         }
         Bitstream logoBS = coll.getLogo();
         if (logoBS != null) {
-            logoPath = logoBS.getParentObject().getHandle() + "/" + logoBS.getSequenceID() + "/" + logoBS.getName();
+            logoPath = logoBS.getParentObject().getHandle() + "." + logoBS.getSequenceID() + "/media/" + logoBS.getName();
         }
     }
 
@@ -57,14 +56,10 @@ public class CollectionEntity extends ContentEntity {
 
     @Override
     public Map<String, String> getUriInjections() {
-        Map<String, String> injectionMap = new HashMap<String, String>();
-        if (parentHandle != null) {
-            injectionMap.put("parent", "community:" + parentHandle);
-        }
-        injectionMap.put("items", "collection/" + handle + ":items");
-        injectionMap.put("self", "collection:" + handle);
+        Map<String, String> injectionMap = super.getUriInjections();
+        injectionMap.put("items", handle + ":items");
         if (logoPath != null) {
-            injectionMap.put("logo", "bitstream:" + logoPath);
+            injectionMap.put("logo", logoPath);
         }
         return injectionMap;
     }
@@ -72,11 +67,9 @@ public class CollectionEntity extends ContentEntity {
     @Override
     public void injectUri(String key, URI uri) {
         switch (key) {
-            case "self": setURI(uri); break;
-            case "parent": setParentUri(uri); break;
             case "items": setItems(uri); break;
             case "logo": setLogo(uri); break;
-            default: break;
+            default: super.injectUri(key, uri); break;
         }
     }
 }

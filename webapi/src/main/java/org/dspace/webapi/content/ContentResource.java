@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -33,13 +32,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.dspace.authorize.AuthorizeException;
-import org.dspace.core.Constants;
 
-import org.dspace.webapi.content.ContentDao;
-import org.dspace.webapi.content.domain.CommunityEntity;
-import org.dspace.webapi.content.domain.CollectionEntity;
-import org.dspace.webapi.content.domain.ItemEntity;
-import org.dspace.webapi.content.domain.BitstreamEntity;
+import org.dspace.webapi.content.domain.ContentEntity;
+import org.dspace.webapi.content.domain.MetadataEntity;
 import org.dspace.webapi.content.domain.EntityRef;
 
 /**
@@ -60,17 +55,17 @@ public class ContentResource {
     @Context UriInfo uriInfo;
 
     // get roots of the content hierarchy - i.e. top-level communities
-    @GET @Path("roots")
-    public List<EntityRef> getTopCommunities() {
+    @GET @Path("/")
+    public List<EntityRef> getRoots() {
         return getRefList(null, "community", null);
     }
 
-    // get a community resource
-    @GET @Path("community/{prefix}/{id}")
-    public CommunityEntity getCommunity(@PathParam("prefix") String prefix, @PathParam("id") String id) {
-        CommunityEntity entity = null;
+    // get a content entity (community, collection, item, bitstream)
+    @GET @Path("{prefix}/{id}")
+    public ContentEntity getContent(@PathParam("prefix") String prefix, @PathParam("id") String id) {
+        ContentEntity entity = null;
         try {
-            entity = contentDao.getCommunity(prefix, id);
+            entity = contentDao.getEntity(prefix, id);
         } catch (SQLException sqlE) {
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         } catch (IllegalArgumentException iaE) {
@@ -81,95 +76,39 @@ public class ContentResource {
         return entity;
     }
 
-    // get a community's collections
-    @GET @Path("community/{prefix}/{id}/collections")
-    public List<EntityRef> getCommunityCollections(@PathParam("prefix") String prefix, @PathParam("id") String id) {
-        return getRefList(prefix + "/" + id, "collection", null);
-    }
-
-    // get a community's subcommunities
-    @GET @Path("community/{prefix}/{id}/subcommunities")
-    public List<EntityRef> getSubcommunities(@PathParam("prefix") String prefix, @PathParam("id") String id) {
-        return getRefList(prefix + "/" + id, "subcommunity", null);
-    }
-
-    // get a collection
-    @GET @Path("collection/{prefix}/{id}")
-    public CollectionEntity getCollection(@PathParam("prefix") String prefix, @PathParam("id") String id) {
-        CollectionEntity entity = null;
-        try {
-            entity = contentDao.getCollection(prefix, id);
-        } catch (SQLException sqlE) {
-            throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
-        } catch (IllegalArgumentException iaE) {
-            throw new WebApplicationException(Response.Status.NOT_FOUND);
-        }
-        // Inject URIs into this entity
-        inject(entity);
-        return entity;
-    }
-
-    // get a collections's items
-    @GET @Path("collection/{prefix}/{id}/items")
-    public List<EntityRef> getCollectionItems(@PathParam("prefix") String prefix, @PathParam("id") String id) {
-        return getRefList(prefix + "/" + id, "item", null);
-    }
-
-    // get an item
-    @GET @Path("item/{prefix}/{id}")
-    public ItemEntity getItem(@PathParam("prefix") String prefix, @PathParam("id") String id) {
-        ItemEntity entity = null;
-        try {
-            entity = contentDao.getItem(prefix, id);
-        } catch (SQLException sqlE) {
-            throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
-        } catch (IllegalArgumentException iaE) {
-            throw new WebApplicationException(Response.Status.NOT_FOUND);
-        }
-        // Inject URIs into this entity
-        inject(entity);
-        return entity;
-    }
-
-    // get an item's bitstream filters - AKA bundles
-    @GET @Path("item/{prefix}/{id}/filters")
-    public List<EntityRef> getItemFilters(@PathParam("prefix") String prefix, @PathParam("id") String id) {
-        return getRefList(prefix + "/" + id, "filter", null);
-    }
-
-    // get an item's bitstreams (ORIGINAL bundle)
-    @GET @Path("item/{prefix}/{id}/bitstreams")
-    public List<EntityRef> getItemBitstreams(@PathParam("prefix") String prefix, @PathParam("id") String id) {
-        return getRefList(prefix + "/" + id, "bitstream", "ORIGINAL");
-    }
+    // get an entity sub-resource list
+    @GET @Path("{prefix}/{id}/{subres}")
+    public List<EntityRef> getResourceList(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("subres") String subres) {
+        return getRefList(prefix + "/" + id, subres, null);
+    } 
 
     // get an item's filtered bitstreams
-    @GET @Path("item/{prefix}/{id}/filter/{filter}")
+    @GET @Path("{prefix}/{id}/filter/{filter}")
     public List<EntityRef> getItemBitstreams(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("filter") String filter) {
         return getRefList(prefix + "/" + id, "bitstream", filter);
     }
 
-    // get a bitstream resource
-    @GET @Path("bitstream/{prefix}/{id}/{seq}")
-    public BitstreamEntity getBitstream(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("seq") String seq) {
-        BitstreamEntity entity = null;
+    // get an entity metadata set
+    @GET @Path("{prefix}/{id}/mdset/{name}")
+    public MetadataEntity getMetadata(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("name") String name) {
+        MetadataEntity mdEntity = null;
         try {
-            entity = contentDao.getBitstream(prefix, id, seq);
+            mdEntity = contentDao.getMetadata(prefix, id, name);
         } catch (SQLException sqlE) {
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         } catch (IllegalArgumentException iaE) {
             throw new WebApplicationException(Response.Status.NOT_FOUND);
         }
         // Inject URIs into this entity
-        inject(entity);
-        return entity;
+        inject(mdEntity);
+        return mdEntity;
     }
 
-     // get a bitstream's bytes
-    @GET @Path("bitstream/{prefix}/{id}/{seq}/{name}")
-    public Response getBitstreamBytes(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("seq") String seq) {
+    // get an entity media object (= the bitstream bytes)
+    @GET @Path("{prefix}/{id}/media/{name}")
+    public Response getMedia(@PathParam("prefix") String prefix, @PathParam("id") String id) {
         try {
-            MediaReader reader = contentDao.getBitstreamReader(prefix, id, seq);
+            MediaReader reader = contentDao.getMediaReader(prefix, id);
             return Response.ok(reader.getStream()).type(reader.getMimeType()).build();
         } catch (IllegalArgumentException iaE) {
             throw new WebApplicationException(Response.Status.NOT_FOUND);
@@ -184,16 +123,11 @@ public class ContentResource {
         Map<String, String> sites = injectable.getUriInjections();
         for (String key : sites.keySet()) {
             UriBuilder ub = uriInfo.getBaseUriBuilder();
-            String[] parts = sites.get(key).split(":");
-            injectable.injectUri(key, ub.path("content").path(parts[0]).path(parts[1]).build());
-        }
-        Map<String, List<EntityRef>> refSites = injectable.getRefInjections();
-        for (String refKey: refSites.keySet()) {
-            List<EntityRef> refs = refSites.get(refKey);
-            for (EntityRef ref: refs) {
-                inject(ref);
+            ub = ub.path("content");
+            for (String part: sites.get(key).split(":")) {
+                ub = ub.path(part);
             }
-            injectable.injectRefs(refKey, refs);
+            injectable.injectUri(key, ub.build());
         }
     }
 

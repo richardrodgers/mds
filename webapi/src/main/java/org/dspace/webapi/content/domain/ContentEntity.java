@@ -10,7 +10,6 @@ package org.dspace.webapi.content.domain;
 import java.net.URI;
 import java.sql.SQLException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.dspace.content.DSpaceObject;
@@ -20,6 +19,8 @@ import org.dspace.webapi.content.Injectable;
  * ContentEntity is the abstract base class for
  * all DSpaceObject entity classes: Community, Collection,
  * Item, Bitstream
+ *
+ * @author richardrodgers
  */
 
 public abstract class ContentEntity implements Injectable {
@@ -29,12 +30,18 @@ public abstract class ContentEntity implements Injectable {
     private URI selfUri;
     protected String parentHandle;
     private URI parentUri;
+    private URI mdUri;
 
     public ContentEntity() {}
 
     public ContentEntity(DSpaceObject dso) {
         name = dso.getName();
         handle = dso.getHandle();
+    }
+
+    public ContentEntity(String name, String handle) {
+        this.name = name;
+        this.handle = handle;
     }
 
     public String getName() {
@@ -69,22 +76,32 @@ public abstract class ContentEntity implements Injectable {
         this.parentUri = parentUri;
     }
 
+    public URI getMetadataUri() {
+        return mdUri;
+    }
+
+    public void setMetadataUri(URI mdUri) {
+        this.mdUri = mdUri;
+    }
+
     @Override
     public Map<String, String> getUriInjections() {
         Map<String, String> injectionMap = new HashMap<>();
+        injectionMap.put("self", handle);
+        if (parentHandle != null) {
+            injectionMap.put("parent", parentHandle);
+        }
+        injectionMap.put("mdsets", handle + ":mdsets");
         return injectionMap;
     }
 
     @Override
     public void injectUri(String key, URI uri) {
+        switch (key) {
+            case "self": setURI(uri); break;
+            case "parent": setParentUri(uri); break;
+            case "mdsets": setMetadataUri(uri); break;
+            default: break;
+        }
     }
-
-    @Override
-    public Map<String, List<EntityRef>> getRefInjections() {
-        return new HashMap<>();
-    }
-
-    @Override
-    public void injectRefs(String key, List<EntityRef> refs) {}
-
 }

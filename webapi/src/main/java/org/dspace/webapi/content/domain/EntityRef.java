@@ -9,7 +9,6 @@ package org.dspace.webapi.content.domain;
 
 import java.net.URI;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import javax.xml.bind.annotation.XmlRootElement;
@@ -46,6 +45,14 @@ public class EntityRef implements Injectable {
         this.name = name;
     }
 
+    public String getType() {
+        return resourceType;
+    }
+
+    public void setType(String resourceType) {
+        this.resourceType = resourceType;
+    }
+
     public URI getURI() {
         return resourceUri;
     }
@@ -57,7 +64,7 @@ public class EntityRef implements Injectable {
     @Override
     public Map<String, String> getUriInjections() {
         Map<String, String> injectionMap = new HashMap<>();
-        injectionMap.put("uri", resourceType + ":" + handle);
+        injectionMap.put("uri", handle);
         return injectionMap;
     }
 
@@ -67,12 +74,4 @@ public class EntityRef implements Injectable {
             setURI(uri);
         }
     }
-
-    @Override
-    public Map<String, List<EntityRef>> getRefInjections() {
-        return new HashMap<>();
-    }
-
-    @Override
-    public void injectRefs(String key, List<EntityRef> refs) {}
 }
