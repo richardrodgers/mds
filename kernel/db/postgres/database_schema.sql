@@ -114,6 +114,8 @@ CREATE SEQUENCE mdtemplate_seq;
 CREATE SEQUENCE mdtemplatevalue_seq;
 CREATE SEQUENCE command_seq;
 CREATE SEQUENCE cjournal_seq;
+CREATE SEQUENCE task_queue_seq;
+
 
 -------------------------------------------------------
 -- DSpaceObject table
@@ -702,6 +704,18 @@ CREATE TABLE ctask_data
     info_url        VARCHAR,
     visible_ui      BOOL,
     visible_api     BOOL
+);
+
+CREATE TABLE task_queue
+(
+    task_queue_id    INTEGER PRIMARY KEY DEFAULT NEXTVAL('task_queue_seq'),
+    queue_name       VARCHAR,
+    task_list        VARCHAR,
+    eperson_id       VARCHAR,
+    enqueue_time     TIMESTAMP,
+    target           VARCHAR,
+    jrn_filter       VARCHAR,
+    ticket           INTEGER
 );
 
 CREATE TABLE cjournal

@@ -5,7 +5,8 @@
  *
  * http://www.dspace.org/license/
  */
-package org.dspace.curate;
+
+package org.dspace.curate.queue;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -13,6 +14,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -23,16 +26,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.dspace.core.ConfigurationManager;
+import org.dspace.core.Context;
 
 /**
  * FileTaskQueue provides a TaskQueue implementation based on flat files
- * for the queues and semaphores. 
+ * for the queues and semaphores. It should be considered deprecated in
+ * favor of DBTaskQueue (RDBMS-backed queue), but is included for backward
+ * compatibility/migration. For new installations, configure DBTaskQueue.
  *
  * @author richardrodgers
  */
+@Deprecated
 public class FileTaskQueue implements TaskQueue {
 
-    private static Logger log = LoggerFactory.getLogger(TaskQueue.class);   
+    private static Logger log = LoggerFactory.getLogger(FileTaskQueue.class);   
     // base directory for curation task queues
     private String tqDir = ConfigurationManager.getProperty("curate", "taskqueue.dir");
 
@@ -44,19 +51,19 @@ public class FileTaskQueue implements TaskQueue {
     public FileTaskQueue() {}
     
     @Override
-    public String[] queueNames() {
-        return new File(tqDir).list();
+    public List<String> queueNames(Context context) {
+        return Arrays.asList(new File(tqDir).list());
     }
     
     @Override
-    public synchronized void enqueue(String queueName, TaskQueueEntry entry) throws IOException {
+    public synchronized void enqueue(Context context, String queueName, TaskQueueEntry entry) throws IOException, SQLException {
         Set entrySet = new HashSet<TaskQueueEntry>();
         entrySet.add(entry);
-        enqueue(queueName, entrySet);
+        enqueue(context, queueName, entrySet);
     }
 
     @Override
-    public synchronized void enqueue(String queueName, Set<TaskQueueEntry> entrySet) throws IOException {
+    public synchronized void enqueue(Context context, String queueName, Set<TaskQueueEntry> entrySet) throws IOException, SQLException {
         // don't block or fail - iterate until an unlocked queue found/created
         int queueIdx = 0;
         File qDir = ensureQueue(queueName);
@@ -86,7 +93,7 @@ public class FileTaskQueue implements TaskQueue {
     }
 
     @Override
-    public synchronized Set<TaskQueueEntry> dequeue(String queueName, long ticket) throws IOException {
+    public synchronized Set<TaskQueueEntry> dequeue(Context context, String queueName, long ticket) throws IOException, SQLException {
         Set<TaskQueueEntry> entrySet = new HashSet<TaskQueueEntry>();
         if (readTicket == -1L) {
             // hold the ticket & copy all Ids available, locking queues
@@ -120,9 +127,14 @@ public class FileTaskQueue implements TaskQueue {
         }
         return entrySet;
     }
+
+    @Override
+    public Set<TaskQueueEntry> peek(Context context, String queueName) throws SQLException {
+        throw new UnsupportedOperationException("Not implemented for files");
+    }
     
     @Override
-    public synchronized void release(String queueName, long ticket, boolean remove) {
+    public synchronized void release(Context context, String queueName, long ticket, boolean remove) throws SQLException {
         if (ticket == readTicket) {
             readTicket = -1L;
             File qDir = ensureQueue(queueName);

@@ -52,98 +52,105 @@ public class SearchSelector implements ObjectSelector {
     private String query = null;
     private QueryResults qResults = null;
     private int read = 0;
+    private String name;
 
     public SearchSelector() {}
+
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public void setName(String name) {
+        this.name = name;
+    }
     
     @Override
     public Context getContext() {
-    	return context;
+        return context;
     }
     
     @Override
     public void setContext(Context context) {
-    	this.context = context;
+        this.context = context;
     }
     
     @Override
     public void configure(String definition) {
-    	// parse definition. Expected syntax: <type>:<search query>[&scope=<containerId>]
-    	int typeIdx = definition.indexOf(":");
-    	if (typeIdx > 0) {
-    		type = Constants.getTypeID(definition.substring(0, typeIdx).toUpperCase());
-    	} else {
-    		log.error("Malformed definition: missing object type");
-    		throw new UnsupportedOperationException("missing object type");
-    	}
-    	int scopeIdx = definition.indexOf("&scope=");
-    	if (scopeIdx > 0) {
-    		// TODO: should validate this value
-    		setScope(definition.substring(scopeIdx + 7));
-    		setQuery(definition.substring(typeIdx + 1, scopeIdx));
-    	} else {
-    		setQuery(definition.substring(typeIdx + 1));
-    	}
+        // parse definition. Expected syntax: <type>:<search query>[&scope=<containerId>]
+        int typeIdx = definition.indexOf(":");
+        if (typeIdx > 0) {
+            type = Constants.getTypeID(definition.substring(0, typeIdx).toUpperCase());
+        } else {
+            log.error("Malformed definition: missing object type");
+            throw new UnsupportedOperationException("missing object type");
+        }
+        int scopeIdx = definition.indexOf("&scope=");
+        if (scopeIdx > 0) {
+            // TODO: should validate this value
+            setScope(definition.substring(scopeIdx + 7));
+            setQuery(definition.substring(typeIdx + 1, scopeIdx));
+        } else {
+            setQuery(definition.substring(typeIdx + 1));
+        }
     }
     
     @Override
     public DSpaceObject next() {
-    	DSpaceObject dso = null;
-  		try {
-  			if (qResults == null) {
-       			doSearch();
-  			}
-  	    	// return next normalized type found
-  	    	while (read < qResults.getHitCount()) {
-  	    		if (type == qResults.getHitTypes().get(read)) {
-  	    			dso = HandleManager.resolveToObject(context, qResults.getHitHandles().get(read++));
-  	    			break;
-  	    		}
-  	    		++read;
-  	    	}
-  		} catch (IOException ioE) { 
-       		log.error("Error executing query: '" + query + "' error: " + ioE.getMessage());
-    	} catch (SQLException sqlE) {
-  			log.error("Error executing query: '" + query + "' error: " + sqlE.getMessage());
-  		}
-       	return dso;
+        DSpaceObject dso = null;
+        try {
+            if (qResults == null) {
+                doSearch();
+            }
+            // return next normalized type found
+            while (read < qResults.getHitCount()) {
+                if (type == qResults.getHitTypes().get(read)) {
+                    dso = HandleManager.resolveToObject(context, qResults.getHitHandles().get(read++));
+                    break;
+                }
+                ++read;
+            }
+        } catch (IOException | SQLException e) { 
+            log.error("Error executing query: '" + query + "' error: " + e.getMessage());
+        } 
+        return dso;
     }
     
     @Override
     public boolean hasNext() {
-    	try {
-    		if (qResults == null) {
-       			doSearch();
-    		}
-       	} catch (IOException ioE) {
-    		log.error("Error executing query: '" + query + "' error: " + ioE.getMessage());
-    	} catch (SQLException sqlE) {
-    		log.error("Error executing query: '" + query + "' error: " + sqlE.getMessage());
-    	}
-    	// return true for next normalized type found
-    	while (read < qResults.getHitCount()) {
-    		if (type == qResults.getHitTypes().get(read)) {
-    			return true;
-    		}
-    		++read;
-    	}
-    	return false;
+        try {
+            if (qResults == null) {
+                doSearch();
+            }
+        } catch (IOException | SQLException e) {
+            log.error("Error executing query: '" + query + "' error: " + e.getMessage());
+        }
+        // return true for next normalized type found
+        while (read < qResults.getHitCount()) {
+            if (type == qResults.getHitTypes().get(read)) {
+                return true;
+            }
+            ++read;
+        }
+        return false;
     }
     
     @Override
     public void remove() {
-    	throw new UnsupportedOperationException("remove() not supported");
+        throw new UnsupportedOperationException("remove() not supported");
     }
     
     public void setScope(String scope) {
-    	this.scope = scope;
+        this.scope = scope;
     }
     
     public void setType(int type) {
-    	this.type = type;
+        this.type = type;
     }
     
     public void setQuery(String query) {
-    	this.query = query;
+        this.query = query;
     }
     
     private void doSearch() throws IOException, SQLException {
@@ -159,7 +166,7 @@ public class SearchSelector implements ObjectSelector {
 
         // Perform the search
         if (container == null) {
-        	qResults = DSQuery.doQuery(context, qArgs);
+            qResults = DSQuery.doQuery(context, qArgs);
         } else if (container instanceof Collection) {
             logInfo = "collection_id=" + container.getID() + ",";
             qResults = DSQuery.doQuery(context, qArgs, (Collection)container);

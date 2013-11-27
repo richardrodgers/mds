@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Set;
 import java.sql.SQLException;
 
 import org.kohsuke.args4j.Argument;
@@ -23,6 +24,9 @@ import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.Site;
 import org.dspace.core.Context;
 import org.dspace.core.ConfigurationManager;
+import org.dspace.curate.queue.TaskQueue;
+import org.dspace.curate.queue.TaskQueueEntry;
+import org.dspace.curate.queue.TaskQueueFilter;
 import org.dspace.eperson.EPerson;
 
 /**
@@ -37,6 +41,9 @@ public class CurationCli {
 
     @Option(name="-T", usage="file containing curation task names")
     private String taskFileName;
+
+    @Option(name="-f", usage="name of queue filter to apply")
+    private String filterName;
 
     @Option(name="-g", usage="file containing groovy scripted task")
     private String scriptFileName;
@@ -113,6 +120,10 @@ public class CurationCli {
         
         if (scope != null && Curator.TxScope.valueOf(scope.toUpperCase()) == null) {
             return "Bad transaction scope '" + scope + "': only 'object', 'curation' or 'open' recognized";
+        }
+
+        if (filterName != null && taskQueueName == null) {
+            return "A filter can only be used if a task queue is specified";
         }
         return null;
     }
@@ -220,29 +231,49 @@ public class CurationCli {
             }
             // use current time as our reader 'ticket'
             long ticket = System.currentTimeMillis();
-            Iterator<TaskQueueEntry> entryIter = queue.dequeue(taskQueueName, ticket).iterator();
+            Set<TaskQueueEntry> entrySet = queue.dequeue(c, taskQueueName, ticket);
+            Iterator<TaskQueueEntry> entryIter = null;
+            if (filterName != null) {
+                TaskQueueFilter filter = (TaskQueueFilter)ConfigurationManager.getInstance("curate", "queuefilter." + filterName);
+                entryIter = filter.filter(entrySet);
+            } else {
+                entryIter = entrySet.iterator();
+            }
             while (entryIter.hasNext()) {
                 TaskQueueEntry entry = entryIter.next();
+                String target = entry.getTarget();
                 if (verbose) {
-                    System.out.println("Curating id: " + entry.getObjectId());
+                    System.out.println("Curating target: " + target);
                 }
                 curator.clear();
-                // does entry relate to a DSO or workflow object?
-                if (entry.getObjectId().indexOf("/") > 0) {
-                    for (String task : entry.getTaskNames()) {
-                        curator.addTask(task);
+                if (! target.startsWith("selector:")) {
+                    // does entry relate to a DSO or workflow object?
+                    if (target.indexOf("/") > 0) {
+                        for (String task : entry.getTaskNames()) {
+                            curator.addTask(task);
+                        }
+                        curator.curate(c, target);
+                    } else {
+                        // make eperson who queued task the effective user
+                        EPerson agent = EPerson.findByEmail(c, entry.getEpersonId());
+                        if (agent != null) {
+                            c.setCurrentUser(agent);
+                        }
+                        WorkflowCurator.curate(curator, c, target);
                     }
-                    curator.curate(c, entry.getObjectId());
                 } else {
-                    // make eperson who queued task the effective user
-                    EPerson agent = EPerson.findByEmail(c, entry.getEpersonId());
-                    if (agent != null) {
-                        c.setCurrentUser(agent);
+                    // target is a selector
+                    String selName = target.substring("selector:".length());
+                    ObjectSelector sel = SelectorResolver.resolveSelector(c, selName);
+                    if (sel != null) {
+                        curator.curate(sel);
+                    } else {
+                        System.out.println("No named selector found for: " + selName);
+                        throw new UnsupportedOperationException("No selector available");               
                     }
-                    WorkflowCurator.curate(curator, c, entry.getObjectId());
                 }
             }
-            queue.release(taskQueueName, ticket, true);
+            queue.release(c, taskQueueName, ticket, true);
         }
         c.complete();
         if (session == null) {

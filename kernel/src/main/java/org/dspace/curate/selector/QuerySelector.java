@@ -65,65 +65,69 @@ public class QuerySelector implements ObjectSelector {
     private Context context = null;
     private String query = null;
     private BoundedIterator<Item> itemIter = null;
+    private String name;
 
     public QuerySelector() {}
+
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public void setName(String name) {
+        this.name = name;
+    }
     
     @Override
     public Context getContext() {
-    	return context;
+        return context;
     }
     
     @Override
     public void setContext(Context context) {
-    	this.context = context;
+        this.context = context;
     }
     
     @Override
     public void configure(String definition) {
-    	setQuery(definition);
+        setQuery(definition);
     }
     
     @Override
     public DSpaceObject next() {
-       	try {
-    		if (itemIter == null) {
-    			doQuery();
-    		}
-       		return itemIter.next();
-       	} catch (AuthorizeException authE) {
-    		log.error("Error executing query: '" + query + "' error: " + authE.getMessage());
-    	} catch (SQLException sqlE) {
-    		log.error("Error executing query: '" + query + "' error: " + sqlE.getMessage());
-    	}
+        try {
+            if (itemIter == null) {
+                doQuery();
+            }
+            return itemIter.next();
+        } catch (AuthorizeException | SQLException e) {
+            log.error("Error executing query: '" + query + "' error: " + e.getMessage());
+        } 
         return null;
     }
     
     @Override
     public boolean hasNext() {
-    	try {
-    		if (itemIter == null) {
-    			doQuery();
-    		}
-       		return itemIter.hasNext();
-       	}
-       	catch (AuthorizeException authE)
-    	{
-    		log.error("Error executing query: '" + query + "' error: " + authE.getMessage());
-    	}
-    	catch (SQLException sqlE)
-    	{
-    		log.error("Error executing query: '" + query + "' error: " + sqlE.getMessage());
-    	}
-    	return false;
+        try {
+            if (itemIter == null) {
+                doQuery();
+            }
+            return itemIter.hasNext();
+        }
+        catch (AuthorizeException | SQLException e) {
+            log.error("Error executing query: '" + query + "' error: " + e.getMessage());
+        }
+        return false;
     }
     
     @Override
     public void remove() {
-    	throw new UnsupportedOperationException("remove() not supported");
+        throw new UnsupportedOperationException("remove() not supported");
     }
     
     public void setQuery(String query) {
-    	this.query = query.trim();
+        this.query = query.trim();
     }
     
     private void doQuery() throws AuthorizeException, SQLException {
@@ -149,20 +153,20 @@ public class QuerySelector implements ObjectSelector {
     	private int parseIdx = 0;
     	
     	public SqlGenerator() {}
-    	
+    
     	public String getSql() {
     		return "SELECT item.*" + fromSb.toString() + whereSb.toString();
     	}
-    	
+    
     	public List<Object> getParameters() {
     		return params;
     	}
-    	
+    
     	private void parseQuery() throws AuthorizeException, SQLException
     	{
     		int tokenIdx = 0;
     		String token = null;
-    		
+    
     		while((token = nextToken()) != null)
     		{
     			switch(tokenIdx % 4)
@@ -179,7 +183,7 @@ public class QuerySelector implements ObjectSelector {
     			++tokenIdx;
     		}
     	}
-    	
+    
     	private String nextToken()
     	{
     		// main thing to worry about is internal whitespace in literals

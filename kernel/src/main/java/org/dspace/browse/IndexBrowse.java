@@ -30,8 +30,6 @@ import com.google.common.base.Strings;
 
 import org.dspace.content.MDValue;
 import org.dspace.content.Item;
-import org.dspace.authority.ChoiceAuthorityManager;
-import org.dspace.authority.MetadataAuthorityManager;
 import org.dspace.core.Context;
 import org.dspace.sort.SortOption;
 import org.dspace.sort.SortException;
@@ -420,9 +418,11 @@ public class IndexBrowse
                             // if we have values to index on, then do so
                             if (values != null && values.size() > 0)
                             {
+                                /*
                                 int minConfidence = MetadataAuthorityManager.getManager()
                                         .getMinConfidence(values.get(0).getSchema(), values.get(0).getElement(),
                                         		          values.get(0).getQualifier());
+                                */
 
                                 for (MDValue value : values)
                                 {

@@ -21,6 +21,24 @@ import org.dspace.core.Context;
  * @author richardrodgers
  */
 public interface ObjectSelector extends Iterator<DSpaceObject> {
+
+    /**
+     * Returns the (local, aka logical) name of the selector, which is the
+     * configured name by which the implementation was chosen.
+     *
+     * @return name
+     *         the selector name
+     */
+     String getName();
+
+    /**
+     * Assigns the (local, aka logical) name of the selector, which is the
+     * configured name by which the implementation was chosen.
+     *
+     * @param name
+     *         the selector name
+     */
+     void setName(String name);
     
     /**
      * Returns context (if any) associated with selector.
@@ -34,7 +52,7 @@ public interface ObjectSelector extends Iterator<DSpaceObject> {
      * Assigns a context for use by selector
      * 
      * @param context
-     * 		  the context for selector
+     *        the context for selector
      */
     void setContext(Context context);
     

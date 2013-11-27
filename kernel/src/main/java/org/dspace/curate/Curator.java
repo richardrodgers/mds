@@ -32,6 +32,8 @@ import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.curate.journal.DBJournal;
+import org.dspace.curate.queue.TaskQueue;
+import org.dspace.curate.queue.TaskQueueEntry;
 import org.dspace.handle.HandleManager;
 
 /**
@@ -480,20 +482,21 @@ public class Curator implements Curation
      *                be created automatically.
      * @throws IOException
      */
-    public void queue(Context c, String id, String queueId) throws IOException {
+    public void queue(Context c, String id, String queueId) throws IOException, SQLException {
         if (taskQ == null) {
             taskQ = (TaskQueue)ConfigurationManager.getInstance("curate", "taskqueue.impl");
         }
         if (taskQ != null) {
-            taskQ.enqueue(queueId, new TaskQueueEntry(c.getCurrentUser().getName(),
-                                    System.currentTimeMillis(), perfList, id));
+            taskQ.enqueue(c, queueId, new TaskQueueEntry(c.getCurrentUser().getName(),
+                                                         System.currentTimeMillis(),
+                                                         perfList, id, getJournalFilter()));
         } else {
             log.error("curate - no TaskQueue implemented");
         }
     }
     
     /**
-     * Places a curation request for each selector-provided object on a
+     * Places a curation request for the selector on a
      * managed queue named by the queueId.
      * 
      * @param selector an object selector 
@@ -501,17 +504,8 @@ public class Curator implements Curation
      *                be created automatically.
      * @throws IOException
      */
-    public void queue(ObjectSelector selector, String queueId) throws IOException {
-        Context c = selector.getContext();
-        while(selector.hasNext()) {
-            DSpaceObject dso = selector.next();
-            String objId = dso.getHandle();
-            if (objId == null) {
-                // workflow object
-                objId = String.valueOf(dso.getID());
-            }
-            queue(c, objId, queueId);
-        }
+    public void queue(ObjectSelector selector, String queueId) throws IOException, SQLException {
+        queue(selector.getContext(), "selector:" + selector.getName(), queueId);
     }
     
     /**
