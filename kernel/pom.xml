@@ -121,6 +121,7 @@
     </build>
 
     <dependencies>
+        <!-- service APIs -->
         <dependency>
             <groupId>org.dspace</groupId>
             <artifactId>handle</artifactId>
@@ -137,9 +138,14 @@
             <version>3.6.0</version>
         </dependency>
         <dependency>
+            <groupId>javax.mail</groupId>
+            <artifactId>mail</artifactId>
+            <version>1.4.7</version>
+        </dependency>
+        <dependency>
             <groupId>args4j</groupId>
             <artifactId>args4j</artifactId>
-            <version>2.0.24</version>
+            <version>2.0.26</version>
         </dependency>
         <dependency>
             <groupId>com.typesafe</groupId>
@@ -167,20 +173,22 @@
             <artifactId>jdbi</artifactId>
             <version>2.51</version>
         </dependency>
+        <!-- language utilities -->
         <dependency>
             <groupId>joda-time</groupId>
             <artifactId>joda-time</artifactId>
-            <version>2.2</version>
+            <version>2.3</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>15.0</version>
         </dependency>
+        <!-- instumentation, monitoring, performance, etc -->
         <dependency>
-            <groupId>javax.mail</groupId>
-            <artifactId>mail</artifactId>
-            <version>1.4.7</version>
+            <groupId>com.codahale.metrics</groupId>
+            <artifactId>metrics-core</artifactId>
+            <version>3.0.1</version>
         </dependency>
         <!-- test  -->
         <dependency>
@@ -191,7 +199,7 @@
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
             <artifactId>groovy-all</artifactId>
-            <version>2.2.0-rc-1</version>
+            <version>2.2.1</version>
         </dependency>
         <!--  search QueryArgs dependency - remove
               a lot of authentication stuff too... sigh  -->
@@ -202,7 +210,7 @@
             <scope>provided</scope>
         </dependency> 
         <!-- logging API and implementation  -->
-  		<dependency>
+        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>1.7.5</version>

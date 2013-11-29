@@ -27,6 +27,9 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.JmxReporter;
+
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import ch.qos.logback.core.joran.spi.JoranException;
@@ -47,6 +50,10 @@ import ch.qos.logback.core.util.StatusPrinter;
  * of the DSpace installation directory (specified as the property
  * <code>dspace.dir</code> in the main configuration file.)
  *
+ *  Notes: (1) this class should gradually be superceded by ConfigManager, which uses newer config libary
+ *         (2) Metrics registry is exposed here, since it is among the first classes to be loaded in the app,
+ *             but should evenutally be moved out.
+ *
  * 
  * @author Robert Tansley
  * @author Larry Stone - Interpolated values.
@@ -57,6 +64,10 @@ public class ConfigurationManager
 {
     /** log4j category */
     private static Logger log = null; // LoggerFactory.getLogger(ConfigurationManager.class);
+
+    public static final MetricRegistry metrics = new MetricRegistry();
+    // NB: development-mode only reporter for all gathered metrics
+    private static final JmxReporter reporter = JmxReporter.forRegistry(metrics).build();
 
     /** The configuration properties */
     private static Properties properties = null;
@@ -73,7 +84,11 @@ public class ConfigurationManager
 
     protected ConfigurationManager()
     {
-        
+    }
+
+    public static void reportMetricsJmx() {
+        // dev-mode only - metrics reporting via JMX
+        reporter.start();
     }
 
     /**

@@ -45,6 +45,9 @@ import org.skife.jdbi.v2.Handle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.MetricRegistry;
+
 import com.google.common.base.Strings;
 
 import org.dspace.core.ConfigurationManager;
@@ -110,6 +113,9 @@ public class DatabaseManager
      * String; the value is an array of ColumnInfo objects.
      */
     private static Map<String, Map<String, ColumnInfo>> info = new HashMap<String, Map<String, ColumnInfo>>();
+
+    // metrics counter for open connections
+    private static final Counter openConns = ConfigurationManager.metrics.counter(MetricRegistry.name(DatabaseManager.class, "open-connections"));
 
     /**
      * Protected Constructor to prevent instantiation except by derived classes.
@@ -532,7 +538,17 @@ public class DatabaseManager
      */
     public static Handle getHandle() throws SQLException {
         initialize();
+        openConns.inc();
         return database.open();
+    }
+
+    /**
+     * Closes a database handle (wrapped JDBC Connection)
+     *
+     */
+    public static void releaseHandle(Handle handle) throws SQLException {
+        handle.close();
+        openConns.dec();
     }
 
 
