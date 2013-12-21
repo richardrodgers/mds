@@ -32,6 +32,7 @@ import org.dspace.content.MetadataSchema;
 import org.dspace.content.NonUniqueMetadataException;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
+import org.dspace.curate.TaskResolver;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
@@ -40,8 +41,10 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 /**
- * Loads the bitstream format, Dublin Core type, or Command registries into the database.
- * Intended for use as a command-line tool, or programmically from static methods
+ * Loads various mds registries from XML files nto the database.
+ * Current registries include those for: bitstream formats, metdata types,
+ * curation tasks, and system commands.
+ * Intended for use as a command-line tool, or programmically from static methods.
  * <P>
  * Example usage:
  * <P>
@@ -50,25 +53,26 @@ import org.xml.sax.SAXException;
  * @author Robert Tansley
  * @author richardrodgers
  */
-public class RegistryLoader
-{
-	// types Loader understands
-	enum LoaderType {
-		BITSTREAM_FORMATS("dspace-bitstream-types"),
-		METADATA_TYPES("dspace-dc-types"),
-		COMMANDS("dspace-commands"),
-		REGISTRY_REFS("dspace-registry-refs");
-		
-		private final String element;
-		
-		LoaderType(String element) {
-			this.element = element;
-		}
-		public String getElement() {
-			return element;
-		}
-	}
-	
+public class RegistryLoader {
+    // types Loader understands
+    enum LoaderType {
+        BITSTREAM_FORMATS("dspace-bitstream-types"),
+        METADATA_TYPES("dspace-dc-types"),
+        CURATION_TASKS("dspace-curation-tasks"),
+        COMMANDS("dspace-commands"),
+        REGISTRY_REFS("dspace-registry-refs");
+
+        private final String element;
+
+        LoaderType(String element) {
+            this.element = element;
+        }
+
+        public String getElement() {
+            return element;
+        }
+    }
+
     /** log4j category */
     private static Logger log = LoggerFactory.getLogger(RegistryLoader.class);
     
@@ -81,22 +85,21 @@ public class RegistryLoader
      * @param args
      *            command-line arguments
      */
-    public static void main(String[] args) throws Exception
-    {
-    	if (args.length < 1) {
-    		System.err.println("Missing registry load file name");
-    		System.exit(1);
-    	}
-    	try (Context context = new Context()) {
-    	   	// Can't update registries anonymously, so we need to turn off
+    public static void main(String[] args) throws Exception {
+        if (args.length < 1) {
+            System.err.println("Missing registry load file name");
+            System.exit(1);
+        }
+        try (Context context = new Context()) {
+            // Can't update registries anonymously, so we need to turn off
             // authorisation
-        	context.turnOffAuthorisationSystem();
+            context.turnOffAuthorisationSystem();
             loadRegistryFile(context, args[0]);
             context.complete();
             System.exit(0);
-    	} catch (Exception e) {
-    		log.error("error_loading_registries: " +  e.getMessage());
-    	}
+        } catch (Exception e) {
+            log.error("error_loading_registries: " +  e.getMessage());
+        }
         System.exit(1);
     }
     
@@ -108,11 +111,11 @@ public class RegistryLoader
      * @param filename the full path name of XML file to load
      */
     public static void loadRegistryFile(Context context, String filename)
-    	    throws SQLException, IOException, ParserConfigurationException,
+            throws SQLException, IOException, ParserConfigurationException,
             SAXException, TransformerException, AuthorizeException,
             NonUniqueMetadataException {
-    	
-    	loadRegistryDocument(context, loadXML(filename));
+
+        loadRegistryDocument(context, loadXML(filename));
     }
     
     /**
@@ -123,11 +126,11 @@ public class RegistryLoader
      * @param uri a resovable reference to the XML document to load
      */
     public static void loadRegistryUri(Context context, String uri)
-    		throws SQLException, IOException, ParserConfigurationException,
+            throws SQLException, IOException, ParserConfigurationException,
             SAXException, TransformerException, AuthorizeException,
             NonUniqueMetadataException {
-    	
-    	loadRegistryDocument(context, loadXMLUri(uri));
+    
+        loadRegistryDocument(context, loadXMLUri(uri));
     }
     
     /**
@@ -138,27 +141,29 @@ public class RegistryLoader
      * @param document the XML document to load
      */
     public static void loadRegistryDocument(Context context, Document document)
-    	    throws SQLException, IOException, SAXException, TransformerException,
-    	    AuthorizeException, NonUniqueMetadataException {
-    	
-    	String docType = document.getDocumentElement().getTagName();
-    	boolean canProcess = false;
-    	for (LoaderType type : LoaderType.values()) {
-    		if (type.getElement().equals(docType)) {
-    			// can process it
-    			canProcess = true;
-    			if (type.equals(LoaderType.BITSTREAM_FORMATS)) {
-    				loadBitstreamFormats(context, document);
-    			} else if (type.equals(LoaderType.METADATA_TYPES)) {
-    				loadDublinCoreTypes(context, document);
-    			}  else if (type.equals(LoaderType.COMMANDS)) {
-    				loadCommands(context, document);
-    			}
-    		}
-    	}
-    	if (! canProcess) {
-    		throw new IOException("Unknown document type - cannot load");
-    	}
+            throws SQLException, IOException, SAXException, TransformerException,
+            AuthorizeException, NonUniqueMetadataException {
+    
+        String docType = document.getDocumentElement().getTagName();
+        boolean canProcess = false;
+        for (LoaderType type : LoaderType.values()) {
+            if (type.getElement().equals(docType)) {
+                // can process it
+                canProcess = true;
+                if (type.equals(LoaderType.BITSTREAM_FORMATS)) {
+                    loadBitstreamFormats(context, document);
+                } else if (type.equals(LoaderType.METADATA_TYPES)) {
+                    loadDublinCoreTypes(context, document);
+                }  else if (type.equals(LoaderType.CURATION_TASKS)) {
+                    loadCurationTasks(context, document);
+                }  else if (type.equals(LoaderType.COMMANDS)) {
+                    loadCommands(context, document);
+                }
+            }
+        }
+        if (! canProcess) {
+            throw new IOException("Unknown document type - cannot load");
+        }
     }
     
     /**
@@ -172,8 +177,8 @@ public class RegistryLoader
     public static void loadBitstreamFormats(Context context, String filename)
             throws SQLException, IOException, ParserConfigurationException,
             SAXException, TransformerException, AuthorizeException {
-    	
-    	loadBitstreamFormats(context, loadXML(filename));
+    
+        loadBitstreamFormats(context, loadXML(filename));
     }
 
     /**
@@ -189,7 +194,7 @@ public class RegistryLoader
             TransformerException, AuthorizeException {
 
         // Get the nodes corresponding to formats
-    	String path = LoaderType.BITSTREAM_FORMATS.getElement() + "/bitstream-type";
+        String path = LoaderType.BITSTREAM_FORMATS.getElement() + "/bitstream-type";
         NodeList typeNodes = xPathFind(document, path);
 
         // Add each one as a new format to the registry
@@ -213,8 +218,7 @@ public class RegistryLoader
      */
     private static void loadFormat(Context context, Node node)
             throws SQLException, IOException, TransformerException,
-            AuthorizeException
-    {
+            AuthorizeException {
         // Get the values
         String mimeType = getElementData(node, "mimetype");
         String shortDesc = getElementData(node, "short_description");
@@ -255,8 +259,7 @@ public class RegistryLoader
     public static void loadDublinCoreTypes(Context context, String filename)
             throws SQLException, IOException, ParserConfigurationException,
             SAXException, TransformerException, AuthorizeException,
-            NonUniqueMetadataException
-    {
+            NonUniqueMetadataException {
         loadDublinCoreTypes(context, loadXML(filename));
     }
 
@@ -304,20 +307,20 @@ public class RegistryLoader
      * @param node
      */
     private static void loadMDSchema(Context context, Node node) 
-    		throws TransformerException, SQLException, AuthorizeException, 
-    		NonUniqueMetadataException {
-    	// Get the values
+            throws TransformerException, SQLException, AuthorizeException, 
+            NonUniqueMetadataException {
+        // Get the values
         String shortname = getElementData(node, "name");
         String namespace = getElementData(node, "namespace");
 
         // Check if the schema exists already
         MetadataSchema schema = MetadataSchema.find(context, shortname);
         if (schema == null) {
-        	// If not create it.
-        	schema = new MetadataSchema();
-        	schema.setNamespace(namespace);
-        	schema.setName(shortname);
-        	schema.create(context);
+            // If not create it.
+            schema = new MetadataSchema();
+            schema.setNamespace(namespace);
+            schema.setName(shortname);
+            schema.create(context);
         }
     }
     
@@ -333,8 +336,7 @@ public class RegistryLoader
      */
     private static void loadDCType(Context context, Node node)
             throws SQLException, IOException, TransformerException,
-            AuthorizeException, NonUniqueMetadataException
-    {
+            AuthorizeException, NonUniqueMetadataException {
         // Get the values
         String schema = getElementData(node, "schema");
         String element = getElementData(node, "element");
@@ -356,6 +358,102 @@ public class RegistryLoader
         field.setScopeNote(scopeNote);
         field.create(context);
     }
+
+    /**
+     * Load DSpace curation tasks
+     * 
+     * @param context
+     *            DSpace context object
+     * @param filename
+     *            the filename of the XML file to load
+     * @throws NonUniqueMetadataException
+     */
+    public static void loadCurationTasks(Context context, String filename) 
+            throws AuthorizeException, IOException, SAXException,
+                   SQLException, ParserConfigurationException, TransformerException {
+     
+        loadCurationTasks(context, loadXML(filename));
+    }
+
+    /**
+     * Load DSpace curation tasks
+     * 
+     * @param context
+     *            DSpace context object
+     * @param document
+     *            the XML document to load
+     * @throws NonUniqueMetadataException
+     */
+    public static void loadCurationTasks(Context context, Document document) 
+           throws AuthorizeException, IOException, SAXException,
+                  SQLException, TransformerException {
+
+        // Get the nodes corresponding to groups and tasks
+        String gPath = LoaderType.CURATION_TASKS.getElement() + "/group";
+        NodeList groupNodes = xPathFind(document, gPath);
+        
+        // Add each one as a new group to the registry
+        for (int i = 0; i < groupNodes.getLength(); i++)  {
+            Node n = groupNodes.item(i);
+            loadCurationGroup(context, n);
+        }
+
+        String path = LoaderType.CURATION_TASKS.getElement() + "/task";
+        NodeList taskNodes = xPathFind(document, path);
+        
+        // Add each one as a new task or selector to the registry
+        for (int i = 0; i < taskNodes.getLength(); i++)  {
+            Node n = taskNodes.item(i);
+            loadCurationTask(context, n);
+        }
+        log.info(LogManager.getHeader(context, "load_curation_tasks",
+                "number_loaded=" + taskNodes.getLength()));
+    }
+
+    private static void loadCurationGroup(Context context, Node node) 
+            throws AuthorizeException, SQLException, TransformerException {
+        // Get the values
+        String type = getElementData(node, "type");
+        String name = getElementData(node, "name");
+        String description = getElementData(node, "description");
+        String uiAccess = getElementData(node, "ui-access"); 
+        String apiAccess = getElementData(node, "api-access"); 
+        
+        if (TaskResolver.groupExists(context, type, name)) {
+            throw new AuthorizeException("Group with name: '" + name + "' already exists");
+        }
+        
+        TaskResolver.addGroup(context, type, name, description, "true".equals(uiAccess), "true".equals(apiAccess));
+    }
+
+    private static void loadCurationTask(Context context, Node node) 
+            throws AuthorizeException, SQLException, TransformerException {
+        // Get the values
+        String script = null;
+        String name = getElementData(node, "name");
+        String description = getElementData(node, "description");
+        String type = getElementData(node, "type");
+        String impl = getElementData(node, "impl");
+        if ("task".equals(type) && ! "java".equals(impl)) {
+            // task is a script
+            script = getElementData(node, "script");
+        }
+        String loadAddr = getElementData(node, "load-addr");
+        String config = getElementData(node, "config"); 
+        String version = getElementData(node, "version");
+        String infoUrl = getElementData(node, "info-url"); 
+        String group = getElementData(node, "group"); 
+        
+        if (TaskResolver.canResolveTask(context, name)) {
+            throw new AuthorizeException("Task with name: '" + name + "' already exists");
+        }
+        
+        TaskResolver.installTask(context, name, description, type, impl, loadAddr, script, config);
+
+        if (group != null & group.length() > 0) {
+            TaskResolver.addGroupMember(context, group, type, name);
+        }
+    }
     
     /**
      * Load DSpace commands
@@ -367,10 +465,10 @@ public class RegistryLoader
      * @throws NonUniqueMetadataException
      */
     public static void loadCommands(Context context, String filename) 
-     	   throws AuthorizeException, IOException, SAXException,
-     	          SQLException, ParserConfigurationException, TransformerException {
-     	
-     	loadCommands(context, loadXML(filename));
+            throws AuthorizeException, IOException, SAXException,
+                   SQLException, ParserConfigurationException, TransformerException {
+     
+        loadCommands(context, loadXML(filename));
     }
     
     /**
@@ -383,11 +481,11 @@ public class RegistryLoader
      * @throws NonUniqueMetadataException
      */
     public static void loadCommands(Context context, Document document) 
-    	   throws AuthorizeException, IOException, SAXException,
-    	          SQLException, TransformerException {
-    	    	
+           throws AuthorizeException, IOException, SAXException,
+                  SQLException, TransformerException {
+        
         // Get the nodes corresponding to commands
-    	String path = LoaderType.COMMANDS.getElement() + "/command";
+        String path = LoaderType.COMMANDS.getElement() + "/command";
         NodeList cmdNodes = xPathFind(document, path);
         
         // Add each one as a new format to the registry
@@ -417,7 +515,7 @@ public class RegistryLoader
             String className = getElementData(n, "class");
             StringBuilder sb = new StringBuilder();
             for (String arg : getRepeatedElementData(n, "argument")) {
-            	sb.append(arg).append(" ");
+                sb.append(arg).append(" ");
             }
             boolean noUserArgs = "false".equals(getAttributeData(n, "passuserargs"));
             stack.push(new Step(className, sb.toString().trim(), ! noUserArgs, i));
@@ -426,39 +524,39 @@ public class RegistryLoader
         int successorId = -1;
         Step step = null;
         while (stack.size() > 1) {
-        	step = stack.pop();
-        	String cname = name + "-p" + step.index;
-        	Command cmd = loadUniqueCommand(context, cname, description, step, false, successorId);
-        	successorId = cmd.getID();
+            step = stack.pop();
+            String cname = name + "-p" + step.index;
+            Command cmd = loadUniqueCommand(context, cname, description, step, false, successorId);
+            successorId = cmd.getID();
         }
         step = stack.pop();
         loadUniqueCommand(context, name, description, step, true, successorId);
     }
     
     private static Command loadUniqueCommand(Context context, String name, String description,
-    		                              	 Step step, boolean launchable, int successorId)
-    		throws AuthorizeException, SQLException {
-    	
+                                             Step step, boolean launchable, int successorId)
+            throws AuthorizeException, SQLException {
+    
         // prevent name collisions
         if (Command.findByName(context, name) != null) {
-        	throw new AuthorizeException("Command with name: '" + name + "' already exists");
+            throw new AuthorizeException("Command with name: '" + name + "' already exists");
         }
-    	return Command.load(context, name, description, step.className, step.arguments,
-                 			launchable, step.userArgs, successorId);
+        return Command.load(context, name, description, step.className, step.arguments,
+                            launchable, step.userArgs, successorId);
     }
     
     private static class Step {
-    	public String className;
-    	public String arguments;
-    	public boolean userArgs;
-    	public int index;
-    	
-    	public Step(String className, String arguments, boolean userArgs, int index) {
-    		this.className = className;
-    		this.arguments = arguments;
-    		this.userArgs = userArgs;
-    		this.index = index;
-    	}
+        public String className;
+        public String arguments;
+        public boolean userArgs;
+        public int index;
+    
+        public Step(String className, String arguments, boolean userArgs, int index) {
+            this.className = className;
+            this.arguments = arguments;
+            this.userArgs = userArgs;
+            this.index = index;
+        }
     }
     
     /**
@@ -471,11 +569,11 @@ public class RegistryLoader
      * @throws NonUniqueMetadataException
      */
     public static void loadReferences(Context context, String filename) 
-     	   throws AuthorizeException, IOException, SAXException,
-     	          SQLException, ParserConfigurationException, TransformerException,
-     	          NonUniqueMetadataException {
-     	
-     	loadReferences(context, loadXML(filename));
+            throws AuthorizeException, IOException, SAXException,
+                   SQLException, ParserConfigurationException, TransformerException,
+                   NonUniqueMetadataException {
+     
+        loadReferences(context, loadXML(filename));
     }
     
     /**
@@ -487,12 +585,12 @@ public class RegistryLoader
      *            the XML document to extract references from
      */
     public static void loadReferences(Context context, Document document) 
-    	   throws AuthorizeException, IOException, ParserConfigurationException,
-    	          SAXException, SQLException, TransformerException,
-    	          NonUniqueMetadataException {
-    	    	
+           throws AuthorizeException, IOException, ParserConfigurationException,
+                  SAXException, SQLException, TransformerException,
+                  NonUniqueMetadataException {
+       
         // Get the nodes corresponding to commands
-    	String path = LoaderType.REGISTRY_REFS.getElement() + "/reference";
+        String path = LoaderType.REGISTRY_REFS.getElement() + "/reference";
         NodeList cmdNodes = xPathFind(document, path);
         
         // Add each one as a new format to the registry
@@ -516,8 +614,7 @@ public class RegistryLoader
      * @return the DOM representation of the XML file
      */
     public static Document loadXML(String filename) throws IOException,
-            ParserConfigurationException, SAXException
-    {
+            ParserConfigurationException, SAXException {
         DocumentBuilder builder = DocumentBuilderFactory.newInstance()
                 .newDocumentBuilder();
 
@@ -533,8 +630,7 @@ public class RegistryLoader
      * @return the DOM representation of the XML file
      */
     public static Document loadXMLUri(String registryUri) throws IOException,
-            ParserConfigurationException, SAXException
-    {
+            ParserConfigurationException, SAXException {
         DocumentBuilder builder = DocumentBuilderFactory.newInstance()
                 .newDocumentBuilder();
 
@@ -561,8 +657,7 @@ public class RegistryLoader
      * @return the CDATA as a <code>String</code>
      */
     public static String getElementData(Node parentElement, String childName)
-            throws TransformerException
-    {
+            throws TransformerException  {
         // Grab the child node
         Node childNode = xPathFind(parentElement, childName).item(0);
 
@@ -583,9 +678,9 @@ public class RegistryLoader
     }
     
     private static String getAttributeData(Node element, String attributeName) {
-    	NamedNodeMap map = element.getAttributes();
-    	Node attrNode = map.getNamedItem(attributeName);
-    	return (attrNode != null) ? attrNode.getNodeValue() : null;
+        NamedNodeMap map = element.getAttributes();
+        Node attrNode = map.getNamedItem(attributeName);
+        return (attrNode != null) ? attrNode.getNodeValue() : null;
     }
 
     /**
@@ -611,8 +706,7 @@ public class RegistryLoader
      * @return the CDATA as a <code>String</code>
      */
     public static String[] getRepeatedElementData(Node parentElement,
-            String childName) throws TransformerException
-    {
+            String childName) throws TransformerException {
         // Grab the child node
         NodeList childNodes = xPathFind(parentElement, childName);
 
@@ -630,16 +724,16 @@ public class RegistryLoader
     }
     
     private static NodeList xPathFind(Node element, String match) {
-    	if (factory == null) {
-    		factory = XPathFactory.newInstance();
-    		xpath = factory.newXPath();
-    	}
-    	try {
-    		XPathExpression exp = xpath.compile(match);
-    		return (NodeList)exp.evaluate(element, XPathConstants.NODESET);
-    	} catch (Exception e) {
-    		log.error("Error evaluating expression: '" + match + "'", e);
-    	}
-    	return null;
+        if (factory == null) {
+            factory = XPathFactory.newInstance();
+            xpath = factory.newXPath();
+        }
+        try {
+            XPathExpression exp = xpath.compile(match);
+            return (NodeList)exp.evaluate(element, XPathConstants.NODESET);
+        } catch (Exception e) {
+            log.error("Error evaluating expression: '" + match + "'", e);
+        }
+        return null;
     }
 }

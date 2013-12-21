@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<dspace-curation-tasks>
+    <group>
+        <type>task</type>
+        <name>replicate</name>
+        <description>Replication Curation Tasks</description>
+        <ui-access>true</ui-access>
+        <api-access>true</api-access>
+    </group>
+    <group>
+        <type>task</type>
+        <name>manifest</name>
+        <description>Manifest Replication Curation Tasks</description>
+        <ui-access>true</ui-access>
+        <api-access>true</api-access>
+    </group>
+    <task>
+        <name>estaipsize</name>
+        <description>Estimate Storage Space for AIP(s)</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.replicate.EstimateAIPSize</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>replicate</group>
+    </task>
+    <task>
+        <name>readodometer</name>
+        <description>Read Odometer</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.replicate.ReadOdometer</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>replicate</group>
+    </task>
+    <task>
+        <name>transmitaip</name>
+        <description>Transmit AIP(s) to Storage</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.replicate.TransmitAIP</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>replicate</group>
+    </task>
+    <task>
+        <name>transmitsingleaip</name>
+        <description>Transmit Single AIP to Storage</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.replicate.TransmitSingleAIP</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>replicate</group>
+    </task>
+    <task>
+        <name>verifyaip</name>
+        <description>Verify AIP(s) exist in Storage</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.replicate.VerifyAIP</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>replicate</group>
+    </task>
+    <task>
+        <name>fetchaip</name>
+        <description>Fetch AIP(s) from Storage</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.replicate.FetchAIP</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>replicate</group>
+    </task>
+    <task>
+        <name>auditaip</name>
+        <description>Audit against AIP(s)</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.replicate.CompareWithAIP</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>replicate</group>
+    </task>
+    <task>
+        <name>removeaip</name>
+        <description>Remove AIP(s) from Storage</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.replicate.RemoveAIP</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>replicate</group>
+    </task>
+    <task>
+        <name>restorefromaip</name>
+        <description>Restore Missing Object(s) from AIP(s)</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.replicate.BagItRestoreFromAIP</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>replicate</group>
+    </task>
+    <task>
+        <name>replacewithaip</name>
+        <description>Replace Existing Object(s) with AIP(s)</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.replicate.BagItReplaceWithAIP</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>replicate</group>
+    </task>
+    <task>
+        <name>transmitmanifest</name>
+        <description>Transmit Checkm Manifest to Storage</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.replicate.checkm.TransmitManifest</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>manifest</group>
+    </task>
+    <task>
+        <name>verifymanifest</name>
+        <description>Verify Checkm Manifest exists in Storage</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.replicate.checkm.VerifyManifest</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>manifest</group>
+    </task>
+    <task>
+        <name>fetchmanifest</name>
+        <description>Fetch Checkm Manifest from Storage</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.replicate.checkm.FetchManifest</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>manifest</group>
+    </task>
+    <task>
+        <name>auditmanifest</name>
+        <description>Audit against Checkm Manifest</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.replicate.checkm.CompareWithManifest</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>manifest</group>
+    </task>
+    <task>
+        <name>removemanifest</name>
+        <description>Remove Checkm Manifest from Storage</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.replicate.checkm.RemoveManifest</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>manifest</group>
+    </task>
+</dspace-curation-tasks>

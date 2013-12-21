@@ -7,14 +7,9 @@
  */
 package org.dspace.curate;
 
-import java.io.File;
 import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.FileNotFoundException;
+import java.io.StringReader;
 import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -25,16 +20,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.dspace.authorize.AuthorizeException;
-import org.dspace.core.ConfigurationManager;
 import org.dspace.content.DSpaceObject;
+import org.dspace.core.Context;
 import org.dspace.curate.Curator;
 
 import static org.dspace.curate.Curator.*;
 
 /**
  * Program encapulates the behavior of curation programs, which
- * are instructions to orchestrate the invocation of one or more
- * curation tasks. The primary ability a program has is to
+ * are scripts with instructions to orchestrate the invocation of 
+ * one or more curation tasks. The primary ability a program has is to
  * conditionalize invocations or other activity on task status codes:
  * i.e. establish rules that rely on the runtime outcomes of tasks.
  * A program is a simple text file, with syntax defined in documentation.
@@ -52,8 +47,6 @@ import static org.dspace.curate.Curator.*;
  *  end
  *</code>
  * 
- * Programs are managed in a directory configured with the
- * dspace/config/modules/curate.cfg property "program.dir". 
  * To the curation runtime system, a program looks exactly
  * like an atomic task, and is invoked as such.
  *
@@ -63,8 +56,6 @@ import static org.dspace.curate.Curator.*;
 public class Program extends AbstractCurationTask {
     // logging service
     private static Logger log = LoggerFactory.getLogger(Program.class);
-    // base directory of program files
-    private static final String programDir = ConfigurationManager.getProperty("curate", "program.dir");
     // program 'language' keywords
     private static final List<String> keywords = Arrays.asList("if", "elif", "else", "end");
 
@@ -90,6 +81,8 @@ public class Program extends AbstractCurationTask {
         }
     }
 
+    // program source code
+    private String source;
     // program status code
     private int progStatus = CURATE_UNSET;
     // root of program execution tree
@@ -101,6 +94,12 @@ public class Program extends AbstractCurationTask {
 
     public Program() {}
 
+    public Program(Context context, String source) {
+        this.source = source;
+        startNode = new Node(null);
+        compile(context);
+    }
+
     /**
      * Inititalizes the program - which means compiling the program source.
      */
@@ -108,20 +107,16 @@ public class Program extends AbstractCurationTask {
     public void init(Curation curation, String taskId) throws IOException {
         super.init(curation, taskId);
         progCurator = new Curator();
-        startNode = new Node(null);
-        compile(taskId);
     }
 
     /**
-     * Compiles a program from a source file.
+     * Compiles a program from the source text.
      *
      * @param progName the name of the curation program
      */
-    private void compile(String progName) {
-        // Can we locate the file in the program directory?
-        File progFile = new File(programDir, progName);
-        if (progFile.exists()) {
-            try (BufferedReader reader = new BufferedReader(new FileReader(progFile))) {
+    private void compile(Context context) {
+        if (source != null) {
+            try (BufferedReader reader = new BufferedReader(new StringReader(source))) {
                 String line = null;
                 Node curNode = startNode;
                 while((line = reader.readLine()) != null) {
@@ -131,8 +126,8 @@ public class Program extends AbstractCurationTask {
                         // is it an action or a control statement?
                         if (isControl(line)) {
                             curNode = curNode.addControl(line);
-                        } else if (isAction(line)) {
-                            curNode = curNode.setAction(line);
+                        } else if (isAction(context, line)) {
+                            curNode = curNode.setAction(context, line);
                         } else {
                             // unknown - fail compilation
                             log.error("Illegal program statement: " + line);
@@ -141,10 +136,10 @@ public class Program extends AbstractCurationTask {
                     }
                 }
             } catch(IOException ioE) {
-                log.error("Error reading program: " + progName);
+                log.error("Error reading program: " + taskId);
             }
         } else {
-          log.error("Program: " + progName + "not found in: " + programDir);
+          log.error("Program: " + taskId + "has no source code");
         }
     }
 
@@ -153,10 +148,10 @@ public class Program extends AbstractCurationTask {
       return keywords.contains(parts[0]);
   }
 
-  private boolean isAction(String line) {
+  private boolean isAction(Context context, String line) {
       if (line.startsWith("%") && Code.toCode(line) != CURATE_UNSET) return true;
       if (line.startsWith("report")) return true;
-      if (resolver.canResolveTask(line)) return true;
+      if (resolver.canResolveTask(context, line)) return true;
       return false;
   }
 
@@ -201,18 +196,18 @@ public class Program extends AbstractCurationTask {
           branchMap = new HashMap<>();
       }
 
-      public Node setAction(String action) throws IOException {
+      public Node setAction(Context context, String action) throws IOException {
         if (action == null) {
             this.action = action;
             if (! (action.startsWith("report") || action.startsWith("%"))) {
-                task = resolver.resolveTask(action);
+                task = resolver.resolveTask(context, action);
                 task.init(progCurator);
             }
             return this;
         } else {
             Node next = new Node(this);
             mapAll(this, next);
-            return next.setAction(action);
+            return next.setAction(context, action);
         }
       }
 

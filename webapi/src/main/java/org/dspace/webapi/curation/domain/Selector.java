@@ -15,6 +15,13 @@ public class Selector {
     private String name;
     private String description;
 
+    public Selector() {}
+
+    public Selector(String name, String description) {
+        this.name = name;
+        this.description = description;
+    }
+
     public String getName() {
         return name;
     }

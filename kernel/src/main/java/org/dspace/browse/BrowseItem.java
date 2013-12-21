@@ -221,6 +221,7 @@ public class BrowseItem //extends DSpaceObject
 	 * @return
 	 * @throws SQLException
 	 */
+    /*
     public Thumbnail getThumbnail()
     	throws SQLException
     {
@@ -286,6 +287,7 @@ public class BrowseItem //extends DSpaceObject
 
         return null;
     }
+    */
 
 	public String getName()
     {

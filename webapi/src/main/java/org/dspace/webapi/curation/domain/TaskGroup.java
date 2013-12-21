@@ -18,6 +18,13 @@ public class TaskGroup {
     private String description;
     private List<Task> members;
 
+    public TaskGroup() {}
+
+    public TaskGroup(String name, String description) {
+        this.name = name;
+        this.description = description;
+    }
+
     public String getName() {
         return name;
     }

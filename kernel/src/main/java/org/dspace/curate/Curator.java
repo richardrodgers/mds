@@ -86,7 +86,6 @@ public class Curator implements Curation
     private CurationJournal journal = null;
     private long ctime = 0L;
     private Invoked iMode = null;
-    private TaskResolver resolver = new TaskResolver();
     private int cacheLimit = Integer.MAX_VALUE;
     private TxScope txScope = TxScope.OPEN;
 
@@ -98,15 +97,16 @@ public class Curator implements Curation
     /**
      * Returns a curation session bound to a single task.
      *
+     * @param context - current DSpace context
      * @param taskName the logical task name
      * @return session a CurationSession bound to the task
      */
-    public static CurationSession newSession(String taskName) throws IOException {
+    public static CurationSession newSession(Context context, String taskName) throws IOException {
         // do we know what this task is?
-        ResolvedTask task = new TaskResolver().resolveTask(taskName);
+        ResolvedTask task = TaskResolver.resolveTask(context, taskName);
         return (task != null) ? new CurationSession(new Curator(), task) : null;
     }
-
+    
     /**
      * Returns a curation session bound to a single anonymous task.
      * Currently, only Groovy tasks supported.
@@ -116,7 +116,7 @@ public class Curator implements Curation
      */
     public static CurationSession newSession(String script, String scriptType) throws IOException {
         // do we know what this task is?
-        ResolvedTask task = new TaskResolver().resolveScript(script);
+        ResolvedTask task = TaskResolver.resolveScript("Anon.groovy", script);
         return (task != null) ? new CurationSession(new Curator(), task) : null;
     }
 
@@ -129,7 +129,7 @@ public class Curator implements Curation
      */
     public static CurationSession newSession(File scriptFile, String scriptType) throws IOException {
         // do we know what this task is?
-        ResolvedTask task = new TaskResolver().resolveScript(scriptFile);
+        ResolvedTask task = TaskResolver.resolveScript(scriptFile);
         return (task != null) ? new CurationSession(new Curator(), task) : null;
     }
 
@@ -137,11 +137,12 @@ public class Curator implements Curation
      * Add a task to the set to be performed. Caller should make no assumptions
      * on execution ordering.
      * 
+     * @param context - current DSpace context
      * @param taskName - logical name of task
      * @return this curator - to support concatenating invocation style
      */
-    public Curator addTask(String taskName) {
-        ResolvedTask task = resolver.resolveTask(taskName);
+    public Curator addTask(Context context, String taskName) {
+        ResolvedTask task = TaskResolver.resolveTask(context, taskName);
         if (task != null) {
             try {
                 task.init(this);
@@ -549,9 +550,9 @@ public class Curator implements Curation
      * @param propName the property name (key)
      * @return the property value, or <code>null</code> if task has not defined it.
      */
-    public String taskProperty(String taskName, String propName) {
+    public String taskProperty(String taskName, String propName) throws SQLException {
         TaskRunner tr = trMap.get(taskName);
-        return (tr != null) ? tr.task.taskProperty(propName) : null;
+        return (tr != null) ? tr.task.taskProperty(curationContext(), propName) : null;
     }
 
     /**

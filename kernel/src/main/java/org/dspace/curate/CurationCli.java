@@ -164,7 +164,7 @@ public class CurationCli {
             if (verbose) {
                 System.out.println("Adding task: " + taskName);
             }
-            curator.addTask(taskName);
+            curator.addTask(c, taskName);
             if (verbose && ! curator.hasTask(taskName)) {
                 System.out.println("Task: " + taskName + " not resolved");
             }
@@ -175,7 +175,7 @@ public class CurationCli {
                     if (verbose) {
                         System.out.println("Adding task: " + taskName);
                     }
-                    curator.addTask(taskName);
+                    curator.addTask(c, taskName);
                 }
             }
         } else if (scriptFileName != null) {
@@ -211,7 +211,7 @@ public class CurationCli {
             if (verbose) {
                 System.out.println("Curating with selector: " + selectorName);
             }
-            ObjectSelector selector = SelectorResolver.resolveSelector(c, selectorName);
+            ObjectSelector selector = TaskResolver.resolveSelector(c, selectorName);
             if (selector != null) {
                 if (session == null) {
                     curator.curate(selector);
@@ -250,7 +250,7 @@ public class CurationCli {
                     // does entry relate to a DSO or workflow object?
                     if (target.indexOf("/") > 0) {
                         for (String task : entry.getTaskNames()) {
-                            curator.addTask(task);
+                            curator.addTask(c, task);
                         }
                         curator.curate(c, target);
                     } else {
@@ -264,7 +264,7 @@ public class CurationCli {
                 } else {
                     // target is a selector
                     String selName = target.substring("selector:".length());
-                    ObjectSelector sel = SelectorResolver.resolveSelector(c, selName);
+                    ObjectSelector sel = TaskResolver.resolveSelector(c, selName);
                     if (sel != null) {
                         curator.curate(sel);
                     } else {

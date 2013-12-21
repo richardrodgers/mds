@@ -141,13 +141,13 @@ import org.dspace.workflow.WorkflowManager;
  * @author richardrodgers
  */
 public class ContentImport {
-	
-	// name of metdata file
-	private static final String METADATAFILE = "metadata.xml";
-	// name of bitstream data directory
-	private static final String DATADIR = "data";
-	// name of remote data description file
-	private static final String FETCHFILE = "fetch.txt";
+
+    // name of metdata file
+    private static final String METADATAFILE = "metadata.xml";
+    // name of bitstream data directory
+    private static final String DATADIR = "data";
+    // name of remote data description file
+    private static final String FETCHFILE = "fetch.txt";
     private static final Logger log = LoggerFactory.getLogger(ContentImport.class);
     private static XPathFactory factory;
     private static XPath xpath;
@@ -219,16 +219,16 @@ public class ContentImport {
             System.err.println(clE.getMessage());
             parser.printUsage(System.err);
         } catch (Exception e) {
-        	System.err.println(e.getMessage());
+            System.err.println(e.getMessage());
         } finally {
             indexer.setBatchProcessingMode(false);
             Date endTime = new Date();
             System.out.println("Started: " + startTime.getTime());
             System.out.println("Ended: " + endTime.getTime());
             System.out.println("Elapsed time: " + ((endTime.getTime() - startTime.getTime()) / 1000) + 
-            		           " secs (" + (endTime.getTime() - startTime.getTime()) + " msecs)");
+                               " secs (" + (endTime.getTime() - startTime.getTime()) + " msecs)");
             if (context != null && context.isValid()) {
-            	context.abort();
+                context.abort();
             }
         }
         System.exit(status);
@@ -296,9 +296,9 @@ public class ContentImport {
     }
     
     private int importData(Context context) throws Exception {
-    	
-    	int status = 0;
-    	
+    
+        int status = 0;
+    
         if (isTest) {
             System.out.println("**Test Run** - not actually importing items.");
         }
@@ -311,11 +311,10 @@ public class ContentImport {
         
         // delete actions are simple - dispense with them here
         if (action.equals(Action.delete)) {
-        	return deleteObjects(context, mapFileName);
+            return deleteObjects(context, mapFileName);
         }
 
         try {
-        	
             // really?
             context.turnOffAuthorisationSystem();
 
@@ -378,8 +377,8 @@ public class ContentImport {
     }
         
     private void explodeZip(ZipInputStream in) throws Exception {
-    	
-    	ZipEntry entry = null;
+    
+        ZipEntry entry = null;
     	while ((entry = in.getNextEntry()) != null) {
             if (entry.isDirectory()) {
                 if (! new File(sourceDir, entry.getName()).mkdir())  {
@@ -600,17 +599,17 @@ public class ContentImport {
     }
     
     private void addCommunityTree(Context c, Community parent, File workingDir,
-    							  PrintWriter mapOut) throws Exception {
-    	Community community = (parent != null) ? parent.createSubcommunity() :
-            									 Community.create(null, c);     
+                                  PrintWriter mapOut) throws Exception {
+        Community community = (parent != null) ? parent.createSubcommunity() :
+                              Community.create(null, c);     
         // now load metadata, etc
-    	loadMetadata(c, community, workingDir);
+        loadMetadata(c, community, workingDir);
         // add logo file if presents
         File logoFile = new File(workingDir, "logo");
         if (logoFile.exists()) {
-        	FileInputStream in = new FileInputStream(logoFile);
-        	community.setLogo(in);
-        	in.close();
+            FileInputStream in = new FileInputStream(logoFile);
+            community.setLogo(in);
+            in.close();
         }
         
         community.update();

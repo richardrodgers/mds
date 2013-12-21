@@ -202,7 +202,7 @@ public class CurationSession implements AutoCloseable {
          * If not argument assigned, the property file value used.
          */
         @Override
-        public String taskProperty(String taskName, String propName) {
+        public String taskProperty(String taskName, String propName) throws SQLException {
             String value = args.get(propName);
             if (value == null) {
                 value = curator.taskProperty(taskName, propName);

@@ -377,6 +377,9 @@ public class Community extends DSpaceObject
 
         if (is != null) {
             Bitstream newLogo = Bitstream.create(context, is);
+            // give it some standard attributes
+            newLogo.setSequenceID(1);
+            newLogo.setName("logo");
             tableRow.setColumn("logo_bitstream_id", newLogo.getID());
             logo = newLogo;
 

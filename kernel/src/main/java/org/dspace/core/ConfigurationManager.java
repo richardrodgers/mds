@@ -67,7 +67,7 @@ public class ConfigurationManager
 
     public static final MetricRegistry metrics = new MetricRegistry();
     // NB: development-mode only reporter for all gathered metrics
-    private static final JmxReporter reporter = JmxReporter.forRegistry(metrics).build();
+    private static JmxReporter reporter;
 
     /** The configuration properties */
     private static Properties properties = null;
@@ -1000,17 +1000,7 @@ public class ConfigurationManager
                 moduleProps = new HashMap<String, Properties>();
                 is = url.openStream();
                 properties.load(is);
-
-                // walk values, interpolating any embedded references.
-                for (Enumeration<?> pe = properties.propertyNames(); pe.hasMoreElements(); )
-                {
-                    String key = (String)pe.nextElement();
-                    String value = interpolate(key, properties.getProperty(key), 1);
-                    if (value != null)
-                    {
-                        properties.setProperty(key, value);
-                    }
-                }
+                interpolateProps(properties, 1);
             }
 
         }
@@ -1181,6 +1171,7 @@ public class ConfigurationManager
     private static void lazyInfo(String message) {
     	if (log == null) {
     		log = LoggerFactory.getLogger(ConfigurationManager.class);
+            postLogInit();
     	}
     	log.info(message);
     }
@@ -1188,6 +1179,7 @@ public class ConfigurationManager
     private static void lazyWarn(String message) {
     	if (log == null) {
     		log = LoggerFactory.getLogger(ConfigurationManager.class);
+            postLogInit();
     	}
     	log.warn(message);
     }
@@ -1195,8 +1187,29 @@ public class ConfigurationManager
     private static void lazyError(String message, Throwable t) {
     	if (log == null) {
     		log = LoggerFactory.getLogger(ConfigurationManager.class);
+            postLogInit();
     	}
     	log.error(message, t);
+    }
+
+    private static void postLogInit() {
+        reporter = JmxReporter.forRegistry(metrics).build();
+    }
+
+    /**
+     * Interpolates variable references for a property set
+     *
+     * @param props - the properties to be interpolated
+     */
+    public static void interpolateProps(Properties props, int level) {
+        // walk values, interpolating any embedded references.
+        for (Enumeration<?> pe = props.propertyNames(); pe.hasMoreElements(); ) {
+            String key = (String)pe.nextElement();
+            String value = interpolate(key, props.getProperty(key), level);
+            if (value != null) {
+                props.setProperty(key, value);
+            }
+        }
     }
 
     /**

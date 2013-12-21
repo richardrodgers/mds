@@ -17,6 +17,11 @@
         <version>12</version>
     </parent>
 
+    <properties>
+        <!-- this is the WAR file name which will be deployed. Typically strips version, etc -->
+        <deployAs>oaipmh</deployAs>
+    </properties>
+
     <!--
        Runtime and Compile Time dependencies for DSpace.
     -->

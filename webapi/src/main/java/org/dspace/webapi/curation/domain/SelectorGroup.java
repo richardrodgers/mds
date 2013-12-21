@@ -18,6 +18,13 @@ public class SelectorGroup {
     private String description;
     private List<Selector> members;
 
+    public SelectorGroup() {}
+
+    public SelectorGroup(String name, String description) {
+        this.name = name;
+        this.description = description;
+    }
+
     public String getName() {
         return name;
     }

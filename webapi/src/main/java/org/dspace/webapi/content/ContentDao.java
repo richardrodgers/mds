@@ -119,16 +119,28 @@ public class ContentDao {
             ctx.complete();
             throw new IllegalArgumentException("no such item");
         }
+        int seqInt = Integer.parseInt(seq);
         if (dso.getType() == Constants.ITEM) {
             // clumsy way for now
             Item item = (Item)dso;
-            int seqInt = Integer.parseInt(seq);
             for (Bundle bundle : item.getBundles()) {
                for (Bitstream bs: bundle.getBitstreams()) {
                    if (bs.getSequenceID() == seqInt) {
                        return bs;
                    }
                }
+            }
+        } else if (dso.getType() == Constants.COMMUNITY) {
+            // could be a community logo
+            Bitstream cbs = ((Community)dso).getLogo();
+            if (cbs.getSequenceID() == seqInt) {
+                return cbs;
+            }
+        } else if (dso.getType() == Constants.COLLECTION) {
+            // or a collection logo
+            Bitstream clbs = ((Collection)dso).getLogo();
+            if (clbs.getSequenceID() == seqInt) {
+                return clbs;
             }
         }
         ctx.complete();

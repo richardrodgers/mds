@@ -8,6 +8,7 @@
 package org.dspace.curate.journal;
 
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -46,35 +47,35 @@ public class DBJournal implements CurationJournal {
         String userId = context.getCurrentUser().getName();
         context.getHandle().execute("INSERT INTO cjournal (cjournal_id, curation_date, user_id, task, object_id, status, result) " +
                   "VALUES (nextval('cjournal_seq'), ?, ?, ?, ?, ?, ?)",
-                  timestamp, userId, task, objectId, status, result);
+                  new Timestamp(timestamp), userId, task, objectId, status, result);
     }
 
     public static void deleteTask(Context context, long timestamp, String task) throws AuthorizeException, IOException {
-        context.getHandle().execute("DELETE FROM cjournal WHERE curation_date = ? AND task = ?", timestamp, task);
+        context.getHandle().execute("DELETE FROM cjournal WHERE curation_date = ? AND task = ?", new Timestamp(timestamp), task);
     }
 
     public static void deleteBefore(Context context, long timestamp) throws AuthorizeException, IOException {
-        context.getHandle().execute("DELETE FROM cjournal WHERE curation_date < ?", timestamp);
+        context.getHandle().execute("DELETE FROM cjournal WHERE curation_date < ?", new Timestamp(timestamp));
     }
 
     public static List<JournalEntry> allEntries(Context context, long timestamp, String task) throws AuthorizeException, IOException {
         return context.getHandle().createQuery("SELECT * FROM cjournal WHERE curation_date = ? AND task = ?").
-        bind(0, timestamp).bind(1, task).map(new BeanMapper<JournalEntry>(JournalEntry.class)).list();
+        bind(0, new Timestamp(timestamp)).bind(1, task).map(new BeanMapper<JournalEntry>(JournalEntry.class)).list();
     }
 
     public static List<JournalEntry> entriesWithStatus(Context context, long timestamp, String task, int status) throws AuthorizeException, IOException {
         return context.getHandle().createQuery("SELECT * FROM cjournal WHERE curation_date = ? AND task = ? AND status = ?").
-        bind(0, timestamp).bind(1, task).bind(2, status).map(new BeanMapper<JournalEntry>(JournalEntry.class)).list();
+        bind(0, new Timestamp(timestamp)).bind(1, task).bind(2, status).map(new BeanMapper<JournalEntry>(JournalEntry.class)).list();
     }
 
     public static TaskSummary taskSummary(Context context, long timestamp, String task) throws AuthorizeException, IOException {
         return context.getHandle().createQuery("SELECT COUNT(*) numObjects, SUM(case WHEN status = 0 then 1 else 0 end) numSuccess, SUM(case WHEN status = 1 then 1 else 0 end) numFail, SUM(case WHEN status = 2 then 1 else 0 end) numSkip, SUM(case WHEN status = -1 then 1 else 0 end) numError, FROM cjournal WHERE curation_date = ? AND task = ?").
-        bind(0, timestamp).bind(1, task).map(new BeanMapper<TaskSummary>(TaskSummary.class)).first();
+        bind(0, new Timestamp(timestamp)).bind(1, task).map(new BeanMapper<TaskSummary>(TaskSummary.class)).first();
     }
 
     public static List<JournalEntry> curationsSince(Context context, long timestamp) throws AuthorizeException, IOException {
         return context.getHandle().createQuery("SELECT DISTINCT curation_date, user_id, task FROM cjournal WHERE curation_date > ? LIMIT 100").
-        bind(0, timestamp).map(new BeanMapper<JournalEntry>(JournalEntry.class)).list();
+        bind(0, new Timestamp(timestamp)).map(new BeanMapper<JournalEntry>(JournalEntry.class)).list();
     }
 
     public static List<TaskSummary> summariesSince(Context context, long timestamp) throws AuthorizeException, IOException {

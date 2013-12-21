@@ -90,7 +90,7 @@ public class WorkflowCurator {
             // are we going to perform, or just put on queue?
             if (step.queue != null) {
                 for (Task task : step.tasks) {
-                    curator.addTask(task.name);
+                    curator.addTask(c, task.name);
                 }
                 curator.queue(c, String.valueOf(wfi.getID()), step.queue);
                 wfi.update();
@@ -133,7 +133,7 @@ public class WorkflowCurator {
             Item item = wfi.getItem();
             item.setOwningCollection(wfi.getCollection());
             for (Task task : step.tasks) {
-                curator.addTask(task.name);
+                curator.addTask(c, task.name);
                 curator.curate(item);
                 int status = curator.getStatus(task.name);
                 String result = curator.getResult(task.name);

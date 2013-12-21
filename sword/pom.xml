@@ -17,6 +17,10 @@
         <version>12</version>
     </parent>
 
+    <properties>
+        <deployAs>sword</deployAs>
+    </properties>
+
     <build>
         <!--
         <filters>

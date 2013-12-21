@@ -110,11 +110,15 @@ CREATE SEQUENCE group2groupcache_seq;
 CREATE SEQUENCE harvested_collection_seq;
 CREATE SEQUENCE harvested_item_seq;
 CREATE SEQUENCE xresmap_seq;
+CREATE SEQUENCE email_template_seq;
 CREATE SEQUENCE mdtemplate_seq;
 CREATE SEQUENCE mdtemplatevalue_seq;
 CREATE SEQUENCE command_seq;
 CREATE SEQUENCE cjournal_seq;
-CREATE SEQUENCE task_queue_seq;
+CREATE SEQUENCE ctask_seq;
+CREATE SEQUENCE ctask_group_seq;
+CREATE SEQUENCE group2ctask_seq;
+CREATE SEQUENCE ctask_queue_seq;
 
 
 -------------------------------------------------------
@@ -693,22 +697,39 @@ CREATE INDEX harvested_item_fk_idx ON harvested_item(item_id);
 
 CREATE TABLE ctask_data
 (
-    ctask_id        INTEGER PRIMARY KEY,
-    name            VARCHAR,
+    ctask_id        INTEGER PRIMARY KEY DEFAULT NEXTVAL('ctask_seq'),
+    name            VARCHAR UNIQUE,
     description     VARCHAR,
-    type            INTEGER,
-    install_date    TIMESTAMP,
-    version_str     VARCHAR,
+    type            VARCHAR,
+    impl            VARCHAR,
     load_addr       VARCHAR,
+    script          VARCHAR,
     config          VARCHAR,
-    info_url        VARCHAR,
-    visible_ui      BOOL,
-    visible_api     BOOL
+    install_date    TIMESTAMP,
+    version         VARCHAR,
+    info_url        VARCHAR
 );
 
-CREATE TABLE task_queue
+CREATE TABLE ctask_group
 (
-    task_queue_id    INTEGER PRIMARY KEY DEFAULT NEXTVAL('task_queue_seq'),
+    ctask_group_id  INTEGER PRIMARY KEY DEFAULT NEXTVAL('ctask_group_seq'),
+    type            VARCHAR,
+    group_name      VARCHAR,
+    description     VARCHAR,
+    ui_access       BOOLEAN,
+    api_access      BOOLEAN
+);
+
+CREATE TABLE group2ctask
+(
+    id              INTEGER PRIMARY KEY DEFAULT NEXTVAL('group2ctask_seq'),
+    group_id        INTEGER REFERENCES ctask_group(ctask_group_id),
+    ctask_id        INTEGER REFERENCES ctask_data(ctask_id)
+);
+
+CREATE TABLE ctask_queue
+(
+    ctask_queue_id   INTEGER PRIMARY KEY DEFAULT NEXTVAL('ctask_queue_seq'),
     queue_name       VARCHAR,
     task_list        VARCHAR,
     eperson_id       VARCHAR,
@@ -720,7 +741,7 @@ CREATE TABLE task_queue
 
 CREATE TABLE cjournal
 (
-  cjournal_id    INTEGER PRIMARY KEY,
+  cjournal_id    INTEGER PRIMARY KEY DEFAULT NEXTVAL('cjournal_seq'),
   curation_date  TIMESTAMP,
   user_id        VARCHAR,
   task           VARCHAR,
@@ -739,6 +760,16 @@ CREATE TABLE xresmap
     mapping       VARCHAR,
     res_key       VARCHAR,
     resource      VARCHAR
+);
+
+-------------------------------------------------------
+-- email template table
+-------------------------------------------------------
+CREATE TABLE email_template
+(
+    email_template_id    INTEGER PRIMARY KEY DEFAULT NEXTVAL('email_template_seq'),
+    name                 VARCHAR UNIQUE,
+    template             VARCHAR
 );
 
 ------------------------------------------------------

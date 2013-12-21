@@ -30,8 +30,8 @@ import org.slf4j.LoggerFactory;
 
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.curate.Curator;
+import org.dspace.curate.TaskResolver;
 import org.dspace.curate.ObjectSelector;
-import org.dspace.curate.SelectorResolver;
 import org.dspace.eperson.EPerson;
 
 import org.dspace.webapi.curation.domain.Action;
@@ -62,36 +62,60 @@ public class CurationResource {
 
     @GET @Path("tasks")
     public List<Task> getTasks() {
-        return curationDao.getTasks();
+        try (org.dspace.core.Context context = new org.dspace.core.Context()) {
+            return curationDao.getTasks(context);
+        } catch (SQLException sqlE) {
+            throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @GET @Path("taskgroups")
     public List<TaskGroup> getTaskGroups() {
-        return curationDao.getTaskGroups();
+        try (org.dspace.core.Context context = new org.dspace.core.Context()) {
+            return curationDao.getTaskGroups(context);
+        } catch (SQLException sqlE) {
+            throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @GET @Path("selectors")
     public List<Selector> getSelectors() {
-        return curationDao.getSelectors();
+        try (org.dspace.core.Context context = new org.dspace.core.Context()) {
+            return curationDao.getSelectors(context);
+         } catch (SQLException sqlE) {
+            throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @GET @Path("selectorgroups")
     public List<SelectorGroup> getSelectorGroups() {
-        return curationDao.getSelectorGroups();
+        try (org.dspace.core.Context context = new org.dspace.core.Context()) {
+            return curationDao.getSelectorGroups(context);
+        } catch (SQLException sqlE) {
+            throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @POST @Path("content/{dsoId}")
     public Curation curateDso(@Context SecurityContext sec, @PathParam("dsoId") String dsoId,
                               CurationOrder order) {
-        Curation curation = initCuration(dsoId, "dso", sec, order);
-        return curate(curation);
+        try (org.dspace.core.Context context = new org.dspace.core.Context()) {
+            Curation curation = initCuration(context, dsoId, "dso", sec, order);
+            return curate(curation);
+        } catch (SQLException sqlE) {
+            throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @POST @Path("set/{selector}")
     public Curation curateSelector(@Context SecurityContext sec, @PathParam("selector") String selector,
                                    CurationOrder order) {
-        Curation curation = initCuration(selector, "set", sec, order);
-        return curate(curation);
+        try (org.dspace.core.Context context = new org.dspace.core.Context()) {
+            Curation curation = initCuration(context, selector, "set", sec, order);
+            return curate(curation);
+        } catch (SQLException sqlE) {
+            throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
+        }
     }
 
     private Curation curate(Curation curation) {
@@ -103,7 +127,7 @@ public class CurationResource {
             invoker = EPerson.findByEmail(ctx, curation.getInvoker());
             if (invoker != null) {
                 ctx.setCurrentUser(invoker);
-                curator = initCurator(curation);
+                curator = initCurator(ctx, curation);
                 String queue = curation.getQueue();
                 if ("dso".equals(curation.getIdType())) {
                     if (queue == null) {
@@ -112,7 +136,7 @@ public class CurationResource {
                         curator.queue(ctx, curation.getId(), queue);
                     }
                 } else if ("set".equals(curation.getIdType())) {
-                    ObjectSelector selector = SelectorResolver.resolveSelector(ctx, curation.getId());
+                    ObjectSelector selector = TaskResolver.resolveSelector(ctx, curation.getId());
                     if (selector != null) {
                         selector.setContext(ctx);
                         if (queue == null) {
@@ -146,15 +170,14 @@ public class CurationResource {
         return curation;
     }
 
-    private Curation initCuration(String id, String idType, 
-                                  SecurityContext sec, CurationOrder order) {
+    private Curation initCuration(org.dspace.core.Context context, String id, String idType, 
+                                  SecurityContext sec, CurationOrder order) throws SQLException {
         Curation curation = new Curation();
         curation.setId(id);
         curation.setIdType(idType);
         curation.setInvoker(sec.getUserPrincipal().toString());
-        Map<String, Task> knownTasks = curationDao.getTaskMap();
         for (String taskName : order.getTasks()) {
-            Task task = knownTasks.get(taskName);
+            Task task = curationDao.getTask(context, taskName);
             if (task != null) {
                 Action action = new Action();
                 action.setTaskName(task.getName());
@@ -200,7 +223,7 @@ public class CurationResource {
         }
     }
 
-    private Curator initCurator(Curation curation) {
+    private Curator initCurator(org.dspace.core.Context context, Curation curation) {
         Curator curator = new Curator();
         String scope = curation.getTransactionScope();
         if (scope != null) {
@@ -215,7 +238,7 @@ public class CurationResource {
             curator.setJournalFilter(filter);
         }
         for (Action action : curation.getActions()) {
-            curator.addTask(action.getTaskName());
+            curator.addTask(context, action.getTaskName());
         }
         return curator;
     }

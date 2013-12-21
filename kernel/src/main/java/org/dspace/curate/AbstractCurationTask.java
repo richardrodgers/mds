@@ -171,7 +171,7 @@ public abstract class AbstractCurationTask implements CurationTask {
      * @return value
      *        the property value, or null
      */
-    protected String taskProperty(String name) {
+    protected String taskProperty(String name) throws SQLException {
         return curation.taskProperty(taskId, name);
     }
     
@@ -187,7 +187,7 @@ public abstract class AbstractCurationTask implements CurationTask {
      *        the property value, or default value
      * 
      */
-    protected int taskIntProperty(String name, int defaultValue) {
+    protected int taskIntProperty(String name, int defaultValue) throws SQLException {
         int intVal = defaultValue;
         String strVal = taskProperty(name);
         if (strVal != null) {
@@ -211,7 +211,7 @@ public abstract class AbstractCurationTask implements CurationTask {
      * @return value
      *        the property value, or default
      */
-    protected long taskLongProperty(String name, long defaultValue) {
+    protected long taskLongProperty(String name, long defaultValue) throws SQLException {
         long longVal = defaultValue;
         String strVal = taskProperty(name);
         if (strVal != null) {
@@ -235,7 +235,7 @@ public abstract class AbstractCurationTask implements CurationTask {
      * @return value
      *        the property value, or default
      */
-    protected boolean taskBooleanProperty(String name, boolean defaultValue) {
+    protected boolean taskBooleanProperty(String name, boolean defaultValue) throws SQLException {
         String strVal = taskProperty(name);
         if (strVal != null) {
             strVal = strVal.trim();

@@ -7,6 +7,7 @@
  */
 package org.dspace.curate;
 
+import java.sql.SQLException;
 import java.util.List;
 
 /**
@@ -93,7 +94,7 @@ public interface Curation {
      * @param propName the property name (key)
      * @return the property value, or <code>null</code> if task has not defined it.
      */
-    String taskProperty(String taskName, String propName);
+    String taskProperty(String taskName, String propName) throws SQLException;
 
     /**
      * Assigns a result to the performance of the named task.

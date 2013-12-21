@@ -82,9 +82,9 @@ public class ResolvedTask {
         }
     }
 
-    protected ResolvedTask(String taskName, File program) {
+    protected ResolvedTask(String taskName, Program program) {
         this.taskName = taskName;
-        this.cTask = new Program();
+        this.cTask = program;
         // annotation processing TBD
     }
 
@@ -180,7 +180,7 @@ public class ResolvedTask {
      * @param name the property name
      * @return value the property value
      */
-    protected String taskProperty(String name) {
+    protected String taskProperty(Context ctx, String name) {
         if (taskProps == null) {
             // load properties
             taskProps = new Properties();
@@ -188,7 +188,7 @@ public class ResolvedTask {
             for (String segment : taskName.split("\\.")) {
                 // load property segments if present
                 modName.append(segment);
-                Properties modProps = ConfigurationManager.getProperties(modName.toString());
+                Properties modProps = TaskResolver.taskConfig(ctx, modName.toString()); //ConfigurationManager.getProperties(modName.toString());
                 if (modProps != null) {
                     taskProps.putAll(modProps);
                 }
