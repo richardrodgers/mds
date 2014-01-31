@@ -90,11 +90,17 @@
         <version>3.0.1</version>
         <scope>provided</scope>
       </dependency>
-      <!-- JAX-RS 2.0 RI and Jersey server-->
+      <!-- JAX-RS 2.0 RI and Jersey server -->
       <dependency>
         <groupId>org.glassfish.jersey.containers</groupId>
         <artifactId>jersey-container-servlet</artifactId>
-        <version>2.4.1</version>
+        <version>2.5.1</version>
+      </dependency>
+      <!-- JSON support via Moxy -->
+      <dependency>
+        <groupId>org.glassfish.jersey.media</groupId>
+        <artifactId>jersey-media-moxy</artifactId>
+        <version>2.5.1</version>
       </dependency>
       <!--  For test harness only -->
       <dependency>

@@ -379,6 +379,11 @@ public abstract class DSpaceObject
     }
 
     /**
+     * Update the object
+     */
+    public abstract void update() throws AuthorizeException, SQLException;
+
+    /**
      * Get the type of this object, found in Constants
      * 
      * @return type of the object

@@ -7,8 +7,6 @@
  */
 package org.dspace.webapi.curation.domain;
 
-import java.util.List;
-
 import javax.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement(name="curation")
@@ -22,7 +20,7 @@ public class Curation {
     private int    cacheLimit;
     private String jrnFilter;
     private String queue;
-    private List<Action> actions;
+    private Action action;
 
     public String getId() {
         return id;
@@ -88,19 +86,11 @@ public class Curation {
         this.queue = queue;
     }
 
-    public void addAction(Action action) {
-        actions.add(action);
+    public void setAction(Action action) {
+        this.action = action;
     }
 
-    public int numberActions() {
-        return actions.size();
-    }
-
-    public List<Action> getActions() {
-        return actions;
-    }
-
-    public void setActions(List<Action> actions) {
-        this.actions = actions;
+    public Action getAction() {
+        return action;
     }
 }

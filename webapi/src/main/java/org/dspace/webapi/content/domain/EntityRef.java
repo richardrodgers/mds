@@ -25,16 +25,16 @@ import org.dspace.webapi.content.Injectable;
 public class EntityRef implements Injectable {
 
     private String name;
-    private String handle;
-    private String resourceType;
+    private String pid;
+    private String entityType;
     private URI resourceUri;
 
     public EntityRef() {}
 
-    public EntityRef(String name, String handle, String resourceType) {
+    public EntityRef(String name, String pid, String entityType) {
         this.name = name;
-        this.handle = handle;
-        this.resourceType = resourceType;
+        this.pid = pid;
+        this.entityType = entityType;
     }
 
     public String getName() {
@@ -45,12 +45,20 @@ public class EntityRef implements Injectable {
         this.name = name;
     }
 
-    public String getType() {
-        return resourceType;
+    public String getPid() {
+        return pid;
     }
 
-    public void setType(String resourceType) {
-        this.resourceType = resourceType;
+    public void setPid(String pid) {
+        this.pid = pid;
+    }
+
+    public String getEntityType() {
+        return entityType;
+    }
+
+    public void setEntityType(String entityType) {
+        this.entityType = entityType;
     }
 
     public URI getURI() {
@@ -64,7 +72,7 @@ public class EntityRef implements Injectable {
     @Override
     public Map<String, String> getUriInjections() {
         Map<String, String> injectionMap = new HashMap<>();
-        injectionMap.put("uri", handle);
+        injectionMap.put("uri", pid);
         return injectionMap;
     }
 

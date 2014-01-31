@@ -26,12 +26,12 @@ public class BitstreamEntity extends ContentEntity {
     public BitstreamEntity() {}
 
     public BitstreamEntity(Bitstream bitstream) throws SQLException {
-        super(bitstream.getName(), bitstream.getParentObject().getHandle() + "." + bitstream.getSequenceID());
+        super(bitstream);
         Item parent = (Item)bitstream.getParentObject();
-        if (parent != null) {
-            parentHandle = parent.getHandle();
+        if (pid != null) {
+            parentPid = parent.getHandle();
         }
-        mediaPath = parentHandle + "." + bitstream.getSequenceID() + "/media/" + bitstream.getName();
+        mediaPath = parentPid + "." + bitstream.getSequenceID() + "/media/" + bitstream.getName();
     }
 
     public URI getMediaUrl() {

@@ -505,7 +505,8 @@ public class Bundle extends DSpaceObject
     /**
      * Update the bundle metadata
      */
-    public void update() throws SQLException, AuthorizeException {
+    @Override
+    public void update() throws AuthorizeException, SQLException {
         // Check authorisation
         //AuthorizeManager.authorizeAction(context, this, Constants.WRITE);
         log.info(LogManager.getHeader(context, "update_bundle", "bundle_id=" + getID()));

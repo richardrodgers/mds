@@ -1091,8 +1091,8 @@ public class Group extends DSpaceObject
     /**
      * Update the group - writing out group object and EPerson list if necessary
      */
-    public void update() throws SQLException, AuthorizeException
-    {
+    @Override
+    public void update() throws AuthorizeException, SQLException {
     	 updateDSO();
 
         // Redo eperson mappings if they've changed

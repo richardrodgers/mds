@@ -844,7 +844,8 @@ public class EPerson extends DSpaceObject
     /**
      * Update the EPerson
      */
-    public void update() throws SQLException, AuthorizeException
+    @Override
+    public void update() throws AuthorizeException, SQLException
     {
         // Check authorisation - if you're not the eperson
         // see if the authorization system says you can

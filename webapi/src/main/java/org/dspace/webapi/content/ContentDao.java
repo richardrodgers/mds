@@ -25,6 +25,7 @@ import org.dspace.content.Collection;
 import org.dspace.content.Community;
 import org.dspace.content.Item;
 import org.dspace.content.DSpaceObject;
+import org.dspace.content.MDValue;
 import org.dspace.content.MetadataSchema;
 import org.dspace.handle.HandleManager;
 import org.dspace.webapi.content.domain.BitstreamEntity;
@@ -34,6 +35,7 @@ import org.dspace.webapi.content.domain.ContentEntity;
 import org.dspace.webapi.content.domain.ItemEntity;
 import org.dspace.webapi.content.domain.MetadataEntity;
 import org.dspace.webapi.content.domain.EntityRef;
+import org.dspace.webapi.content.domain.Statement;
 
 /**
  * ContentDao provides domain objects, known as 'entities'
@@ -54,7 +56,8 @@ public class ContentDao {
             case "items" : getItemRefs(refList, handle, ctx); break;
             case "bitstream" : getBitstreamRefs(refList, handle, filter, ctx); break;
             case "filters" : getFilterRefs(refList, handle, ctx); break;
-            case "mdsets" : getMetadataRefs(refList, handle, ctx); break;
+            case "mdsets" : getMetadataSetRefs(refList, handle, ctx); break;
+            case "mdviews" : getMetadataViewRefs(refList, handle, ctx); break;
             default: break;
         }
         ctx.complete();
@@ -62,31 +65,69 @@ public class ContentDao {
     }
 
     public ContentEntity getEntity(String prefix, String id) throws SQLException {
-        String[] parts = id.split("\\.");
-        String lid = id;
-        if (parts.length > 1) {
-            lid = parts[0];
-        } 
-        String handle = prefix + "/" + lid;
-        ContentEntity entity = null;
+        String[] idParts = id.split("\\.");
         Context ctx = new Context();
-        DSpaceObject dso = HandleManager.resolveToObject(ctx, handle);
-        if (dso == null) {
-            ctx.complete();
-            throw new IllegalArgumentException("no such entity");
+        DSpaceObject dso = resolveDso(ctx, prefix, id);
+        ContentEntity entity = resolveEntity(ctx, dso, idParts[1]);
+        ctx.complete();
+        return entity;
+    }
+
+    public ContentEntity createEntity(String prefix, String id, String subres, EntityRef entityRef) throws AuthorizeException, IOException, SQLException {
+        Context ctx = new Context();
+        ctx.turnOffAuthorisationSystem();
+        DSpaceObject dso = null;
+        if (prefix == null) {
+            // no parent - create a top-level community
+            Community comm = Community.create(null, ctx);
+            comm.setName(entityRef.getName());
+            comm.update();
+            dso = comm;
+        } else {
+            DSpaceObject parent = resolveDso(ctx, prefix, id);
+            switch (subres) {
+                case "subcommunities" : Community subComm = ((Community)parent).createSubcommunity();
+                                        subComm.setName(entityRef.getName());
+                                        subComm.update();
+                                        dso = subComm; break;
+                case "collections": Collection coll = ((Community)parent).createCollection();
+                                    coll.setName(entityRef.getName());
+                                    coll.update();
+                                    dso = coll; break;
+                default: break;
+            }
         }
-        switch (dso.getType()) {
-            case Constants.COMMUNITY : entity = new CommunityEntity((Community)dso); break;
-            case Constants.COLLECTION : entity = new CollectionEntity((Collection)dso); break;
-            case Constants.ITEM : if (parts.length == 1) { entity = new ItemEntity((Item)dso); }
-                                  else { entity = getBitstream(ctx, prefix, lid, parts[1]); } break;
-            default: break;
+        ContentEntity entity = resolveEntity(ctx, dso, null);
+        ctx.complete();
+        return entity;
+    }
+
+    public ContentEntity removeEntity(String prefix, String id) throws AuthorizeException, IOException, SQLException {
+        String[] idParts = id.split("\\.");
+        Context ctx = new Context();
+        DSpaceObject dso = resolveDso(ctx, prefix, id);
+        ContentEntity entity = resolveEntity(ctx, dso, idParts[1]);
+        // removal means that the parent removes the child, except if no parent, then direct delete
+        DSpaceObject parent = dso.getParentObject();
+        if (parent == null) {
+            // top-level community
+            ((Community)dso).delete();
+        } else {
+            // remove is non-generic - need to type objects
+            switch (parent.getType()) {
+                case Constants.COMMUNITY: Community comm = (Community)parent; 
+                                          if (dso.getType() == Constants.COMMUNITY) comm.removeSubcommunity((Community)dso);
+                                          else comm.removeCollection((Collection)dso); break;
+                case Constants.COLLECTION: ((Collection)parent).removeItem((Item)dso); break;
+                case Constants.ITEM: ((Item)parent).getBundles().get(0).removeBitstream((Bitstream)dso); break;
+                default: break;
+            }
         }
         ctx.complete();
         return entity;
     }
 
-    public MetadataEntity getMetadata(String prefix, String id, String name) throws SQLException {
+    public MetadataEntity getMetadataSet(String prefix, String id, String name) throws SQLException {
         String handle = prefix + "/" + id;
         MetadataEntity entity = null;
         Context ctx = new Context();
@@ -100,25 +141,75 @@ public class ContentDao {
         return entity;
     }
 
+    public MetadataEntity getMetadataView(String prefix, String id, String name) throws SQLException {
+        String handle = prefix + "/" + id;
+        MetadataEntity entity = null;
+        Context ctx = new Context();
+        DSpaceObject dso = HandleManager.resolveToObject(ctx, handle);
+        if (dso == null) {
+            ctx.complete();
+            throw new IllegalArgumentException("no such entity");
+        }
+        entity = new MetadataEntity(dso, name);
+        ctx.complete();
+        return entity;
+    }
+
+     public MetadataEntity updateMetadata(String prefix, String id, String name, MetadataEntity updEntity) throws AuthorizeException, SQLException {
+        String handle = prefix + "/" + id;
+        MetadataEntity entity = null;
+        Context ctx = new Context();
+        DSpaceObject dso = HandleManager.resolveToObject(ctx, handle);
+        if (dso == null) {
+            ctx.complete();
+            throw new IllegalArgumentException("no such entity");
+        }
+        // clear all metadata in the set, then add back entity content
+        dso.clearMetadata(name, MDValue.ANY, MDValue.ANY, MDValue.ANY);
+        for (Statement stmt : updEntity.getStatements()) {
+            dso.addMetadata(name, stmt.getElement(), stmt.getQualifier(), stmt.getLanguage(), stmt.getValue());
+        }
+        dso.update();
+        entity = new MetadataEntity(dso, name);
+        ctx.complete();
+        return entity;
+    }
+
     public MediaReader getMediaReader(String prefix, String id) throws AuthorizeException, IOException, SQLException {
         String[] parts = id.split("\\."); 
         Context ctx = new Context();
-        Bitstream bitstream = findBitstream(ctx, prefix + "/" + parts[0], parts[1]);
+        DSpaceObject dso = resolveDso(ctx, prefix, id);
+        Bitstream bitstream = findBitstream(ctx, dso, parts[1]);
         MediaReader reader = new MediaReader(bitstream.retrieve(), bitstream.getFormat().getMIMEType(), bitstream.getSize());
         ctx.complete();
         return reader;
     }
 
-    private BitstreamEntity getBitstream(Context ctx, String prefix, String id, String seq) throws SQLException {
-        return new BitstreamEntity(findBitstream(ctx, prefix + "/" + id, seq));
-    }
-
-    private Bitstream findBitstream(Context ctx, String handle, String seq) throws SQLException {
-        DSpaceObject dso = HandleManager.resolveToObject(ctx, handle);
+    private DSpaceObject resolveDso(Context ctx, String prefix, String id) throws SQLException {
+        String[] parts = id.split("\\.");
+        String lid = id;
+        if (parts.length > 1) {
+            lid = parts[0];
+        } 
+        DSpaceObject dso = HandleManager.resolveToObject(ctx, prefix + "/" + lid);
         if (dso == null) {
             ctx.complete();
-            throw new IllegalArgumentException("no such item");
+            throw new IllegalArgumentException("no such entity");
         }
+        return dso;
+    }
+
+    private ContentEntity resolveEntity(Context ctx, DSpaceObject dso, String seqId) throws SQLException {
+        switch (dso.getType()) {
+            case Constants.COMMUNITY : return new CommunityEntity((Community)dso);
+            case Constants.COLLECTION : return new CollectionEntity((Collection)dso);
+            case Constants.ITEM : if (seqId == null) return new ItemEntity((Item)dso);
+                                  else return new BitstreamEntity(findBitstream(ctx, dso, seqId));
+            default: return null;
+        }
+    }
+    
+    private Bitstream findBitstream(Context ctx, DSpaceObject dso, String seq) throws SQLException {
         int seqInt = Integer.parseInt(seq);
         if (dso.getType() == Constants.ITEM) {
             // clumsy way for now
@@ -147,12 +238,17 @@ public class ContentDao {
         throw new IllegalArgumentException("no such bitstream");
     }
 
-    private void getMetadataRefs(List<EntityRef> refList, String handle, Context ctx) throws SQLException {
-        // Currently, the only sets offered are partitions by schema of the metadata, but there is no
-        // reason one could not define, e.g. a 'public' subset of a given slice of metadata
+    private void getMetadataSetRefs(List<EntityRef> refList, String handle, Context ctx) throws SQLException {
+        // Currently, the only sets offered are schema partitions of the metadata - others would require new content API support
         for (MetadataSchema schema: MetadataSchema.findAll(ctx)) {
             refList.add(new EntityRef(schema.getName(), handle + "/mdset/" + schema.getName(), schema.getNamespace()));
         }
+    }
+
+    private void getMetadataViewRefs(List<EntityRef> refList, String handle, Context ctx) throws SQLException {
+        // Currently, the only views offered are 'short' and 'full'
+        refList.add(new EntityRef("short", handle + "/mdview/short", "short"));
+        refList.add(new EntityRef("full", handle + "/mdview/full", "full"));
     }
 
     private void getCommunityRefs(List<EntityRef> refList, Context ctx) throws SQLException {

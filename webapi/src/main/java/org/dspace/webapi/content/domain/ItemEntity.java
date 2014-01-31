@@ -26,8 +26,8 @@ public class ItemEntity extends ContentEntity {
     public ItemEntity(Item item) throws SQLException {
         super(item);
         Collection parent = item.getOwningCollection();
-        if (parent != null) {
-            parentHandle = parent.getHandle();
+        if (pid != null) {
+            parentPid = parent.getHandle();
         }
     }
 
@@ -42,7 +42,7 @@ public class ItemEntity extends ContentEntity {
     @Override
     public Map<String, String> getUriInjections() {
         Map<String, String> injectionMap = super.getUriInjections();
-        injectionMap.put("filters", handle + ":filters");
+        injectionMap.put("filters", pid + ":filters");
         return injectionMap;
     }
 

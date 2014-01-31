@@ -723,7 +723,8 @@ public class Collection extends DSpaceObject
      * @throws IOException
      * @throws AuthorizeException
      */
-    public void update() throws SQLException, IOException, AuthorizeException {
+    @Override
+    public void update() throws AuthorizeException, SQLException {
         // Check authorisation
         canEdit(true);
         log.info(LogManager.getHeader(context, "update_collection", "collection_id=" + getID()));

@@ -30,7 +30,7 @@ public class CommunityEntity extends ContentEntity {
         super(comm);
         Community parent = comm.getParentCommunity();
         if (parent != null) {
-            parentHandle = parent.getHandle();
+            parentPid = parent.getHandle();
         }
 
         Bitstream logoBS = comm.getLogo();
@@ -66,8 +66,8 @@ public class CommunityEntity extends ContentEntity {
     @Override
     public Map<String, String> getUriInjections() {
         Map<String, String> injectionMap = super.getUriInjections();
-        injectionMap.put("collections", handle + ":collections");
-        injectionMap.put("subcommunities", handle + ":subcommunities");
+        injectionMap.put("collections", pid + ":collections");
+        injectionMap.put("subcommunities", pid + ":subcommunities");
         if (logoPath != null) {
             injectionMap.put("logo", logoPath);
         }

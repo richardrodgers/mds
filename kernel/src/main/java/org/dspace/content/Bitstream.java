@@ -299,7 +299,6 @@ public class Bitstream extends DSpaceObject
         return getMetadataValue("dsl.description");
     }
 
-
     /**
      * Get the checksum of the content of the bitstream, for integrity checking
      * 
@@ -388,8 +387,7 @@ public class Bitstream extends DSpaceObject
      * 
      * @return the format of this bitstream
      */
-    public BitstreamFormat getFormat()
-    {
+    public BitstreamFormat getFormat() {
         return bitstreamFormat;
     }
 
@@ -403,8 +401,7 @@ public class Bitstream extends DSpaceObject
      *            unknown
      * @throws SQLException
      */
-    public void setFormat(BitstreamFormat f) throws SQLException
-    {
+    public void setFormat(BitstreamFormat f) throws SQLException {
         // FIXME: Would be better if this didn't throw an SQLException,
         // but we need to find the unknown format!
         if (f == null)
@@ -433,7 +430,8 @@ public class Bitstream extends DSpaceObject
      * @throws SQLException
      * @throws AuthorizeException
      */
-    public void update() throws SQLException, AuthorizeException {
+    @Override
+    public void update() throws AuthorizeException, SQLException {
         // Check authorisation
         AuthorizeManager.authorizeAction(context, this, Constants.WRITE);
         log.info(LogManager.getHeader(context, "update_bitstream", "bitstream_id=" + getID()));

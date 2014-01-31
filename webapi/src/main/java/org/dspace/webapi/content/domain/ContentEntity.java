@@ -12,7 +12,11 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.xml.bind.annotation.XmlSeeAlso;
+
 import org.dspace.content.DSpaceObject;
+import org.dspace.content.Bitstream;
+import org.dspace.core.Constants;
 import org.dspace.webapi.content.Injectable;
 
 /**
@@ -23,25 +27,34 @@ import org.dspace.webapi.content.Injectable;
  * @author richardrodgers
  */
 
+@XmlSeeAlso({CommunityEntity.class, CollectionEntity.class, ItemEntity.class, BitstreamEntity.class, MetadataEntity.class})
 public abstract class ContentEntity implements Injectable {
 
     private String name;
-    protected String handle;
+    protected String pid;
+    private String entityType;
     private URI selfUri;
-    protected String parentHandle;
+    protected String parentPid;
     private URI parentUri;
     private URI mdUri;
 
     public ContentEntity() {}
 
-    public ContentEntity(DSpaceObject dso) {
+    public ContentEntity(DSpaceObject dso) throws SQLException {
         name = dso.getName();
-        handle = dso.getHandle();
+        if (dso.getType() != Constants.BITSTREAM) {
+            pid = dso.getHandle();
+        } else {
+            Bitstream bs = (Bitstream)dso;
+            pid = bs.getParentObject().getHandle() + "." + bs.getSequenceID();
+        }
+        entityType = Constants.typeText[dso.getType()].toLowerCase();
     }
 
-    public ContentEntity(String name, String handle) {
+    public ContentEntity(String name, String pid, String entityType) {
         this.name = name;
-        this.handle = handle;
+        this.pid = pid;
+        this.entityType = entityType;
     }
 
     public String getName() {
@@ -52,12 +65,20 @@ public abstract class ContentEntity implements Injectable {
         this.name = name;
     }
 
-    public String getHandle() {
-        return handle;
+    public String getPid() {
+        return pid;
     }
 
-    public void setHandle(String handle) {
-        this.handle = handle;
+    public void setPid(String pid) {
+        this.pid = pid;
+    }
+
+    public String getEntityType() {
+        return entityType;
+    }
+
+    public void setEntityType(String entityType) {
+        this.entityType = entityType;
     }
 
     public URI getURI() {
@@ -87,11 +108,11 @@ public abstract class ContentEntity implements Injectable {
     @Override
     public Map<String, String> getUriInjections() {
         Map<String, String> injectionMap = new HashMap<>();
-        injectionMap.put("self", handle);
-        if (parentHandle != null) {
-            injectionMap.put("parent", parentHandle);
+        injectionMap.put("self", pid);
+        if (parentPid != null) {
+            injectionMap.put("parent", parentPid);
         }
-        injectionMap.put("mdsets", handle + ":mdsets");
+        injectionMap.put("mdsets", pid + ":mdsets");
         return injectionMap;
     }
 

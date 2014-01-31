@@ -29,8 +29,8 @@ public class CollectionEntity extends ContentEntity {
     public CollectionEntity(Collection coll) throws SQLException {
         super(coll);
         Community parent = coll.getCommunities().get(0);
-        if (parent != null) {
-            parentHandle = parent.getHandle();
+        if (pid != null) {
+            parentPid = parent.getHandle();
         }
         Bitstream logoBS = coll.getLogo();
         if (logoBS != null) {
@@ -57,7 +57,7 @@ public class CollectionEntity extends ContentEntity {
     @Override
     public Map<String, String> getUriInjections() {
         Map<String, String> injectionMap = super.getUriInjections();
-        injectionMap.put("items", handle + ":items");
+        injectionMap.put("items", pid + ":items");
         if (logoPath != null) {
             injectionMap.put("logo", logoPath);
         }

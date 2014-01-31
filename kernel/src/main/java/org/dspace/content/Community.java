@@ -399,7 +399,8 @@ public class Community extends DSpaceObject
     /**
      * Update the community metadata (including logo) to the database.
      */
-    public void update() throws SQLException, IOException, AuthorizeException {
+    @Override
+    public void update() throws AuthorizeException, SQLException {
         // Check authorisation
         canEdit();
         log.info(LogManager.getHeader(context, "update_community", "community_id=" + getID()));

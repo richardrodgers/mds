@@ -27,6 +27,30 @@
         <group>general</group>
     </task>
     <task>
+        <name>withdraw_item</name>
+        <description>Withdraw Item</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.general.Withdraw</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>general</group>
+    </task>
+    <task>
+        <name>reinstate_item</name>
+        <description>Reinstate withdrawn Item</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.general.Reinstate</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>general</group>
+    </task>
+    <task>
         <name>groovy_task</name>
         <description>Test groovy task that does nothing much</description>
         <type>task</type>

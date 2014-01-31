@@ -55,4 +55,12 @@ public class MetadataEntity extends ContentEntity {
     public void setType(String mdName) {
         this.mdName = mdName;
     }
+
+    public List<Statement> getStatements() {
+        return statements;
+    }
+
+    public void setStatements(List<Statement> statements) {
+        this.statements = statements;
+    }
 }

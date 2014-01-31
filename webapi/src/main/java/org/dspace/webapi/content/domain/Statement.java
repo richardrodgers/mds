@@ -50,6 +50,10 @@ public class Statement {
         this.qualifier = qualifier;
     }
 
+    public String getLanguage() {
+        return language;
+    }
+
     public String getValue() {
         return value;
     }
