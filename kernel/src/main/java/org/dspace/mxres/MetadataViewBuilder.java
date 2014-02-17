@@ -14,18 +14,18 @@ import org.dspace.storage.rdbms.DatabaseManager;
 import org.dspace.storage.rdbms.TableRow;
 
 /**
- * MetadataTemplateBuilder delivers MetadataTemplates, interpreting the
- * resource ID as a primary DB key to Template table.
+ * MetadataViewBuilder delivers MetadataViews, interpreting the
+ * resource ID as a primary DB key to View table.
  * 
  * @author richardrodgers
  */
 
-public class MetadataTemplateBuilder implements ResourceBuilder {
-    
-    public MetadataTemplateBuilder() {}
-    
+public class MetadataViewBuilder implements ResourceBuilder {
+
+     public MetadataViewBuilder() {}
+     
     /**
-     * Constructs a metadata template resource given an identifier.
+     * Constructs a metadata view resource given an identifier.
      * Identifier presumed to be unique within the resource type.
      * 
      * @parm context - the DSpace context
@@ -35,9 +35,9 @@ public class MetadataTemplateBuilder implements ResourceBuilder {
     @Override
     public ExtensibleResource build(Context context, String resId) {
         try {
-            TableRow tRow = DatabaseManager.find(context, "mdtemplate", Integer.valueOf(resId));
+            TableRow tRow = DatabaseManager.find(context, "mdview", Integer.valueOf(resId));
             if (tRow != null) {
-                return new MetadataTemplate(context, tRow);
+                return new MetadataView(context, tRow);
             }
         } catch (SQLException sqlE) {}
         return null;

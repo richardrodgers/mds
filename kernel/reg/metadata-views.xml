@@ -1,0 +1,198 @@
+<?xml version="1.0"?>
+
+<!--
+  - metadata-views.xml
+  -
+  - Named metadata sets for UI rendering
+  -->
+
+<dspace-metadata-views>
+
+  <metadata-view>
+    <name>mdview:community-dsl-full</name>
+    <scope>community-mdv-full</scope>
+    <rule>mdview:?,mdview:community-dsl-full</rule>
+  </metadata-view>
+
+  <metadata-view>
+    <name>mdview:collection-dsl-full</name>
+    <scope>collection-mdv-full</scope>
+    <rule>mdview:?,mdview:collection-dsl-full</rule>
+  </metadata-view>
+
+  <metadata-view>
+    <name>mdview:item-dc-brief</name>
+    <scope>item-mdv-brief</scope>
+    <!-- rule means that if the owning collection defines an item view, that supercedes this -->
+    <rule>^mdview:?,mdview:item-dc-brief</rule>
+  </metadata-view>
+
+  <metadata-view>
+    <name>mdview:item-dc-full</name>
+    <scope>item-mdv-full</scope>
+    <rule>^mdview:?,mdview:item-dc-full</rule>
+  </metadata-view>
+
+  <metadata-view>
+    <name>mdview:bitstream-dsl-brief</name>
+    <scope>bitstream-mdv-brief</scope>
+    <rule>mdview:bitstream-dsl-brief</rule>
+  </metadata-view>
+
+  <depiction>
+    <view>mdview:community-dsl-full</view>
+    <schema>dsl</schema>
+    <element>short_description</element>
+    <!-- unqualified -->
+    <label>Description</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+ <depiction>
+    <view>mdview:community-dsl-full</view>
+    <schema>dsl</schema>
+    <element>introductory_text</element>
+    <!-- unqualified -->
+    <label>Introduction</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:collection-dsl-full</view>
+    <schema>dsl</schema>
+    <element>short_description</element>
+    <!-- unqualified -->
+    <label>Description</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+ <depiction>
+    <view>mdview:collection-dsl-full</view>
+    <schema>dsl</schema>
+    <element>introductory_text</element>
+    <!-- unqualified -->
+    <label>Introduction</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-brief</view>
+    <schema>dc</schema>
+    <element>title</element>
+    <!-- unqualified -->
+    <label>Title</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-brief</view>
+    <schema>dc</schema>
+    <element>contributor</element>
+    <qualifier>author</qualifier>
+    <label>Author</label>
+    <render>concatenate</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-brief</view>
+    <schema>dc</schema>
+    <element>description</element>
+    <qualifier>abstract</qualifier>
+    <label>Abstract</label>
+    <render>concatenate</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-brief</view>
+    <schema>dc</schema>
+    <element>identifier</element>
+    <qualifier>uri</qualifier>
+    <label>URI</label>
+    <render>link</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>title</element>
+    <!-- unqualified -->
+    <label>Title</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>contributor</element>
+    <qualifier>author</qualifier>
+    <label>Author</label>
+    <render>concatenate</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>description</element>
+    <qualifier>abstract</qualifier>
+    <label>Abstract</label>
+    <render>concatenate</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>identifier</element>
+    <qualifier>uri</qualifier>
+    <label>URI</label>
+    <render>link</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:bitstream-dsl-brief</view>
+    <schema>dsl</schema>
+    <element>description</element>
+    <!-- unqualified  -->
+    <label>Description</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+</dspace-metadata-views>

@@ -259,6 +259,46 @@ public class HandleManager
     }
 
     /**
+     * Returns the object type associated with the handle, or -1
+     * if the handle is unassigned, unbound, etc. This method may be used to
+     * 'sex' handles without incurring the overhead of full object instantiation.
+     *
+     * @param context
+     *            DSpace context
+     * @param handle
+     *            The handle to resolve
+     * @return type
+     *            the object type id
+     * @exception IllegalStateException
+     *                If handle was found but is not bound to an object
+     * @exception SQLException
+     *                If a database error occurs
+     */
+    public static int resolveToType(Context context, String handle)
+            throws IllegalStateException, SQLException {
+
+        TableRow dbhandle = findHandleInternal(context, handle);
+
+        if (dbhandle == null) {
+            //If this is the Site-wide Handle, return Site type
+            if (handle.equals(Site.getSiteHandle())) {
+                return Constants.SITE;
+            }
+            //Otherwise, return -1 (i.e. handle not found in DB)
+            return -1;
+        }
+        // check if handle was allocated previously, but is currently not
+        // associated with a DSpaceObject 
+        // (this may occur when 'unbindHandle()' is called for an obj that was removed)
+        if ((dbhandle.isColumnNull("resource_type_id")) || (dbhandle.isColumnNull("resource_id"))) {
+            //if handle has been unbound, just return -1 (as this will result in a PageNotFound)
+            return -1;
+        }
+
+        return dbhandle.getIntColumn("resource_type_id");
+    }
+
+    /**
      * Return the object which handle maps to, or null. This is the object
      * itself, not a URL which points to it.
      * 

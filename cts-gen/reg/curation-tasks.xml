@@ -51,6 +51,18 @@
         <group>general</group>
     </task>
     <task>
+        <name>check_checksum</name>
+        <description>Compare Bitstream Checksums with Ingest Values</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.general.CheckChecksum</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>general</group>
+    </task>
+    <task>
         <name>groovy_task</name>
         <description>Test groovy task that does nothing much</description>
         <type>task</type>

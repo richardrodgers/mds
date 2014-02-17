@@ -57,7 +57,7 @@ public class Bitstream extends DSpaceObject
      * @throws SQLException
      */
     Bitstream(Context context, TableRow row) throws SQLException  {
-    	
+    
         this.context = context;
         tableRow = row;
 
@@ -196,11 +196,9 @@ public class Bitstream extends DSpaceObject
      * @throws SQLException
      */
     static Bitstream register(Context context, 
-    		int assetstore, String bitstreamPath)
-        	throws IOException, SQLException {
+           int assetstore, String bitstreamPath) throws IOException, SQLException {
         // Store the bits
-        int bitstreamID = BitstreamStorageManager.register(
-        		context, assetstore, bitstreamPath);
+        int bitstreamID = BitstreamStorageManager.register(context, assetstore, bitstreamPath);
 
         log.info(LogManager.getHeader(context,
             "create_bitstream",
@@ -243,7 +241,6 @@ public class Bitstream extends DSpaceObject
      */
     public void setSequenceID(int sid) {
         tableRow.setColumn("sequence_id", sid);
-        modifiedMetadata = true;
     }
 
     /**
@@ -286,7 +283,6 @@ public class Bitstream extends DSpaceObject
      */
     public void setSource(String n) {
         tableRow.setColumn("source", n);
-        modifiedMetadata = true;
     }
 
     /**

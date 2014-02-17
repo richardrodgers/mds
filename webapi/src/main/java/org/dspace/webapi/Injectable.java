@@ -5,7 +5,7 @@
  *
  * http://www.dspace.org/license/
  */
-package org.dspace.webapi.content;
+package org.dspace.webapi;
 
 import java.net.URI;
 import java.util.Map;
@@ -13,7 +13,8 @@ import java.util.Map;
 /**
  * Injectable interface allows resource URIs to
  * appear in domain entities through 'injection', decoupling
- * the entity from its resource mappings.
+ * the entity from its resource mappings. This means that
+ * domain entities need not be aware of any server environment.
  *
  * @author richardrodgers
  */

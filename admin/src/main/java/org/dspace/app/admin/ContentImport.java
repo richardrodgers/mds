@@ -204,16 +204,16 @@ public class ContentImport {
         try {
             parser.parseArgument(args);
             if (! importer.help) {
-            	context = new Context();
-            	String errmsg = importer.validateArguments(context);
-            	if (errmsg != null) {
-            		throw new CmdLineException(parser, errmsg);
-            	}
-            	status = importer.importData(context);
-            	context.complete();
+                context = new Context();
+                String errmsg = importer.validateArguments(context);
+                if (errmsg != null) {
+                    throw new CmdLineException(parser, errmsg);
+                }
+                status = importer.importData(context);
+                context.complete();
             } else {
-            	parser.printUsage(System.err);
-            	status = 0;
+                parser.printUsage(System.err);
+                status = 0;
             }
         }  catch (CmdLineException clE) {
             System.err.println(clE.getMessage());
@@ -319,13 +319,13 @@ public class ContentImport {
             context.turnOffAuthorisationSystem();
 
             if (action.equals(Action.add))  {
-            	addObjects(context, mapFileName);
+                addObjects(context, mapFileName);
             } else if (action.equals(Action.replace)) {
-            	replaceObjects(context, mapFileName);
+                replaceObjects(context, mapFileName);
             } else {
-            	if (verbose) {
-            		System.out.println("No action to take");
-            	}
+                if (verbose) {
+                    System.out.println("No action to take");
+                }
             }
 
         } catch (Exception e)  {
@@ -333,9 +333,9 @@ public class ContentImport {
             System.out.println(e);
             status = 1;
         } finally {
-        	if (mapOut != null) {
-        		mapOut.close();
-        	}
+            if (mapOut != null) {
+                mapOut.close();
+            }
         }
 
         if (isTest)  {
@@ -379,7 +379,7 @@ public class ContentImport {
     private void explodeZip(ZipInputStream in) throws Exception {
     
         ZipEntry entry = null;
-    	while ((entry = in.getNextEntry()) != null) {
+        while ((entry = in.getNextEntry()) != null) {
             if (entry.isDirectory()) {
                 if (! new File(sourceDir, entry.getName()).mkdir())  {
                     log.error("Unable to create contents directory: " + entry.getName());
@@ -408,23 +408,23 @@ public class ContentImport {
                 in.closeEntry();
                 out.close();
             }
-    	}
-    	in.close();
+        }
+        in.close();
     }
     
     private DSpaceObject resolveRoot(Context context, String objectId) throws SQLException {
-    	
+    
         if (objectId.indexOf('/') != -1) {
             // string has a / so it must be a handle - try and resolve it
-         	return HandleManager.resolveToObject(context, objectId);
+            return HandleManager.resolveToObject(context, objectId);
         } else {
             // not a handle, try to treat it as a UUID
-        	return DSpaceObject.findByObjectID(context, objectId);
+            return DSpaceObject.findByObjectID(context, objectId);
         }
     }
     
     private List<Collection> resolveCollections(Context context, List<String> collIds) throws Exception {
-    	
+    
         List<Collection> collections = new ArrayList<Collection>(collIds.size());
         // validate each collection arg to see if it's a real collection
         int i = 0;
@@ -570,7 +570,7 @@ public class ContentImport {
     }
 
     private int deleteObjects(Context c, String mapFile) throws Exception  {
-    	
+    
     	if (verbose) {
     		System.out.println("Deleting objects listed in mapfile: " + mapFile);
     	}
@@ -584,7 +584,7 @@ public class ContentImport {
         while (iterator.hasNext()) {
             String objId = myhash.get(iterator.next());
             if (verbose) {
-        		System.out.println("Deleting object " + objId);
+                System.out.println("Deleting object " + objId);
             }
             if (objId.indexOf('/') != -1) {
                 deleteObject(c, objId);
@@ -604,45 +604,65 @@ public class ContentImport {
                               Community.create(null, c);     
         // now load metadata, etc
         loadMetadata(c, community, workingDir);
-        // add logo file if presents
-        File logoFile = new File(workingDir, "logo");
-        if (logoFile.exists()) {
-            FileInputStream in = new FileInputStream(logoFile);
+        // add logo file if present
+        File[] logos = workingDir.listFiles(new FilenameFilter() {
+            public boolean accept(File file, String name) {
+                return name.startsWith("logo");
+            }
+        });
+        if (logos.length > 0) {
+            FileInputStream in = new FileInputStream(logos[0]);
             community.setLogo(in);
             in.close();
         }
-        
         community.update();
+        // now set the logo format as best we can from the file suffix
+        if (logos.length > 0) {
+            Bitstream logoBs = community.getLogo();
+            String suffix = logos[0].getName().substring(logos[0].getName().lastIndexOf(".") + 1);
+            logoBs.setFormat(BitstreamFormat.findByShortDescription(c, suffix));
+            logoBs.update();
+        }
         
         if (mapOut != null) {
             mapOut.println(workingDir.getName() + " " + community.getHandle());
         }
         // now descend into any sub-structure
         for (String dirName : workingDir.list(directoryFilter)) {
-        	if (dirName.startsWith("community")) {
-        		addCommunityTree(c, community, new File(workingDir, dirName), mapOut);
-        	} else if (dirName.startsWith("collection")) {
-        		addCollectionTree(c, community, new File(workingDir, dirName), mapOut);
-        	}
+            if (dirName.startsWith("community")) {
+                addCommunityTree(c, community, new File(workingDir, dirName), mapOut);
+            } else if (dirName.startsWith("collection")) {
+                addCollectionTree(c, community, new File(workingDir, dirName), mapOut);
+            }
         }
     }
     
     private void addCollectionTree(Context c, Community parent, File workingDir,
-    						       PrintWriter mapOut) throws Exception {
-    	
-    	Collection collection =  parent.createCollection();
-    	
+                                   PrintWriter mapOut) throws Exception {
+    
+        Collection collection =  parent.createCollection();
+    
         // now load metadata, etc
-    	loadMetadata(c, collection, workingDir);
+        loadMetadata(c, collection, workingDir);
         // add logo file if present
-        File logoFile = new File(workingDir, "logo");
-        if (logoFile.exists()) {
-        	FileInputStream in = new FileInputStream(logoFile);
-        	collection.setLogo(in);
-        	in.close();
+        File[] logos = workingDir.listFiles(new FilenameFilter() {
+            public boolean accept(File file, String name) {
+                return name.startsWith("logo");
+            }
+        });
+        if (logos.length > 0) {
+            FileInputStream in = new FileInputStream(logos[0]);
+            collection.setLogo(in);
+            in.close();
         }
-        
         collection.update();
+        // now set the logo format as best we can from the file suffix
+        if (logos.length > 0) {
+            Bitstream logoBs = collection.getLogo();
+            String suffix = logos[0].getName().substring(logos[0].getName().lastIndexOf(".") + 1);
+            logoBs.setFormat(BitstreamFormat.findByShortDescription(c, suffix));
+            logoBs.update();
+        }
         
         if (mapOut != null) {
             mapOut.println(workingDir.getName() + " " + collection.getHandle());
@@ -1058,16 +1078,16 @@ public class ContentImport {
     }
     
     private static NodeList xPathFind(Node element, String match) {
-    	if (factory == null) {
-    		factory = XPathFactory.newInstance();
-    		xpath = factory.newXPath();
-    	}
-    	try {
-    		XPathExpression exp = xpath.compile(match);
-    		return (NodeList)exp.evaluate(element, XPathConstants.NODESET);
-    	} catch (Exception e) {
-    		log.error("Error evaluating expression: '" + match + "'", e);
-    	}
-    	return null;
+        if (factory == null) {
+            factory = XPathFactory.newInstance();
+            xpath = factory.newXPath();
+        }
+        try {
+            XPathExpression exp = xpath.compile(match);
+            return (NodeList)exp.evaluate(element, XPathConstants.NODESET);
+        } catch (Exception e) {
+            log.error("Error evaluating expression: '" + match + "'", e);
+        }
+        return null;
     }
 }

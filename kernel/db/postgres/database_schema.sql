@@ -113,6 +113,8 @@ CREATE SEQUENCE xresmap_seq;
 CREATE SEQUENCE email_template_seq;
 CREATE SEQUENCE mdtemplate_seq;
 CREATE SEQUENCE mdtemplatevalue_seq;
+CREATE SEQUENCE mdview_seq;
+CREATE SEQUENCE mddisplay_seq;
 CREATE SEQUENCE command_seq;
 CREATE SEQUENCE cjournal_seq;
 CREATE SEQUENCE ctask_seq;
@@ -791,6 +793,29 @@ CREATE TABLE mdtemplatevalue
   metadata_field_id    INTEGER REFERENCES MetadataFieldRegistry(metadata_field_id),
   text_value           TEXT,
   text_lang            VARCHAR(24)
+);
+
+------------------------------------------------------
+-- mdview table
+------------------------------------------------------
+CREATE TABLE mdview
+(
+  mdview_id          INTEGER PRIMARY KEY DEFAULT NEXTVAL('mdview_seq'),
+  description        TEXT
+);
+
+------------------------------------------------------
+-- mddisplay table
+------------------------------------------------------
+CREATE TABLE mddisplay
+(
+  mddisplay_id         INTEGER PRIMARY KEY DEFAULT NEXTVAL('mddisplay_seq'),
+  mdview_id            INTEGER REFERENCES mdview(mdview_id),
+  metadata_field_id    INTEGER REFERENCES MetadataFieldRegistry(metadata_field_id),
+  label                TEXT,
+  render_type          TEXT,
+  wrapper              TEXT,
+  disp_lang            VARCHAR(24)
 );
 
 -------------------------------------------------------

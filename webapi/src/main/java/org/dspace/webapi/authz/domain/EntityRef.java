@@ -5,7 +5,7 @@
  *
  * http://www.dspace.org/license/
  */
-package org.dspace.webapi.content.domain;
+package org.dspace.webapi.authz.domain;
 
 import java.net.URI;
 import java.util.HashMap;
@@ -16,7 +16,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import org.dspace.webapi.Injectable;
 
 /**
- * A reference to a resource entity
+ * A reference to an AuthZ resource entity
  *
  * @author richardrodgers
  */
@@ -25,15 +25,15 @@ import org.dspace.webapi.Injectable;
 public class EntityRef implements Injectable {
 
     private String name;
-    private String pid;
+    private int id;
     private String entityType;
     private URI resourceUri;
 
     public EntityRef() {}
 
-    public EntityRef(String name, String pid, String entityType) {
+    public EntityRef(String name, int id, String entityType) {
         this.name = name;
-        this.pid = pid;
+        this.id = id;
         this.entityType = entityType;
     }
 
@@ -45,12 +45,12 @@ public class EntityRef implements Injectable {
         this.name = name;
     }
 
-    public String getPid() {
-        return pid;
+    public int getId() {
+        return id;
     }
 
-    public void setPid(String pid) {
-        this.pid = pid;
+    public void setId(int id) {
+        this.id = id;
     }
 
     public String getEntityType() {
@@ -72,7 +72,7 @@ public class EntityRef implements Injectable {
     @Override
     public Map<String, String> getUriInjections() {
         Map<String, String> injectionMap = new HashMap<>();
-        injectionMap.put("uri", pid);
+        injectionMap.put("uri", entityType + ":" + id);
         return injectionMap;
     }
 

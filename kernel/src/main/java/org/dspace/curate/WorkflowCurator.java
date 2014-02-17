@@ -8,7 +8,6 @@
 package org.dspace.curate;
 
 import org.dspace.content.Item;
-import java.util.Arrays;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -190,13 +189,13 @@ public class WorkflowCurator {
                 if (step < 4) {
                     Group wfGroup = wfi.getCollection().getWorkflowGroup(step);
                     if (wfGroup != null) {
-                        epList.addAll(Arrays.asList(Group.allMembers(c, wfGroup)));
+                        epList.addAll(Group.allMembers(c, wfGroup));
                     }
                 }
             } else if ("$colladmin".equals(contact)) {
                 Group adGroup = wfi.getCollection().getAdministrators();
                 if (adGroup != null) {
-                    epList.addAll(Arrays.asList(Group.allMembers(c, adGroup)));
+                    epList.addAll(Group.allMembers(c, adGroup));
                 }
             } else if ("$siteadmin".equals(contact)) {
                 EPerson siteEp = EPerson.findByEmail(c, 
@@ -214,7 +213,7 @@ public class WorkflowCurator {
                 // assume it is an arbitrary group name
                 Group group = Group.findByName(c, contact);
                 if (group != null) {
-                    epList.addAll(Arrays.asList(Group.allMembers(c, group)));
+                    epList.addAll(Group.allMembers(c, group));
                 } 
             }
         }

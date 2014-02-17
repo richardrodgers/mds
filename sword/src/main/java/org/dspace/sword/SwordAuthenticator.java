@@ -400,13 +400,12 @@ public class SwordAuthenticator
 	 */
 	public boolean isInGroup(Group group, EPerson eperson)
 	{
-		EPerson[] eps = group.getMembers();
+		List<EPerson> eps = group.getMembers();
 		Group[] groups = group.getMemberGroups();
 
 		// is the user in the current group
-		for (int i = 0; i < eps.length; i++)
-		{
-			if (eperson.getID() == eps[i].getID())
+		for (EPerson ep : eps) {
+			if (eperson.getID() == ep.getID())
 			{
 				return true;
 			}

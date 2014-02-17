@@ -323,14 +323,14 @@ public class Community extends DSpaceObject
     @Override
     public String getHandle() {
         if (handle == null) {
-        	try {
-				handle = HandleManager.findHandle(context, this);
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				//e.printStackTrace();
-			}
+            try {
+                handle = HandleManager.findHandle(context, this);
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+                //e.printStackTrace();
+            }
         }
-    	return handle;
+        return handle;
     }
 
     /**
@@ -380,6 +380,7 @@ public class Community extends DSpaceObject
             // give it some standard attributes
             newLogo.setSequenceID(1);
             newLogo.setName("logo");
+            newLogo.update();
             tableRow.setColumn("logo_bitstream_id", newLogo.getID());
             logo = newLogo;
 

@@ -100,20 +100,20 @@ import org.dspace.storage.rdbms.DatabaseManager;
  * @author richardrodgers
  */
 public final class Installer {
-	// expected directory for executables
-	private static final String BIN_DIR = "bin";
-	// expected directory for configuration
-	private static final String CONF_DIR = "conf";
-	// expected directory for DDL code
-	private static final String DDL_DIR = "db";
-	// expected name for DDL 'up' definition
-	private static final String DDL_UPFILE = "database_schema.sql";
-	// expected name for DDL 'down' definition
-	private static final String DDL_DOWNFILE = "clean-database.sql";
-	// expected directory for jars
-	private static final String LIB_DIR = "lib";
-	// expected directory for module source
-	private static final String SRC_DIR = "src";
+    // expected directory for executables
+    private static final String BIN_DIR = "bin";
+    // expected directory for configuration
+    private static final String CONF_DIR = "conf";
+    // expected directory for DDL code
+    private static final String DDL_DIR = "db";
+    // expected name for DDL 'up' definition
+    private static final String DDL_UPFILE = "database_schema.sql";
+    // expected name for DDL 'down' definition
+    private static final String DDL_DOWNFILE = "clean-database.sql";
+    // expected directory for jars
+    private static final String LIB_DIR = "lib";
+    // expected directory for module source
+    private static final String SRC_DIR = "src";
     // directory where modules reside
     private static final String MODULES_DIR = "modules";
     // directory where reassembled WAR files reside

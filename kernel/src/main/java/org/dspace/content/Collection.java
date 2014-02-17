@@ -374,6 +374,10 @@ public class Collection extends DSpaceObject
         } else {
             Bitstream newLogo = Bitstream.create(context, is);
             tableRow.setColumn("logo_bitstream_id", newLogo.getID());
+            // give it some standard attributes
+            newLogo.setSequenceID(1);
+            newLogo.setName("logo");
+            newLogo.update();
             logo = newLogo;
 
             // now create policy for logo bitstream

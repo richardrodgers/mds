@@ -525,21 +525,19 @@ public class Group extends DSpaceObject
      * @return   Array of EPerson objects
      * @throws SQLException
      */
-    public static EPerson[] allMembers(Context c, Group g)
-            throws SQLException
-    {
+    public static List<EPerson> allMembers(Context c, Group g)
+            throws SQLException {
         List<EPerson> epersonList = new ArrayList<EPerson>();
 
         Set<Integer> myEpeople = allMemberIDs(c, g);
         // now convert those Integers to EPerson objects
         Iterator<Integer> i = myEpeople.iterator();
 
-        while (i.hasNext())
-        {
+        while (i.hasNext()) {
             epersonList.add(EPerson.find(c, (i.next()).intValue()));
         }
 
-        return epersonList.toArray(new EPerson[epersonList.size()]);
+        return epersonList;
     }
 
     /**
@@ -730,7 +728,7 @@ public class Group extends DSpaceObject
      * 
      * @return array of all groups in the site
      */
-    public static Group[] findAll(Context context, int sortField)
+    public static List<Group> findAll(Context context, int sortField)
             throws SQLException
     {
         String s;
@@ -761,7 +759,7 @@ public class Group extends DSpaceObject
         {
             List<TableRow> gRows = rows.toList();
 
-            Group[] groups = new Group[gRows.size()];
+            List<Group> groups = new ArrayList<>(gRows.size());;
 
             for (int i = 0; i < gRows.size(); i++)
             {
@@ -773,11 +771,11 @@ public class Group extends DSpaceObject
 
                 if (fromCache != null)
                 {
-                    groups[i] = fromCache;
+                    groups.add(fromCache);
                 }
                 else
                 {
-                    groups[i] = new Group(context, row);
+                    groups.add(new Group(context, row));
                 }
             }
 
@@ -1036,14 +1034,9 @@ public class Group extends DSpaceObject
     /**
      * Return EPerson members of a Group
      */
-    public EPerson[] getMembers()
-    {
+    public List<EPerson> getMembers() {
         loadData(); // make sure all data is loaded
-
-        EPerson[] myArray = new EPerson[epeople.size()];
-        myArray = (EPerson[]) epeople.toArray(myArray);
-
-        return myArray;
+        return epeople;
     }
    
     /**

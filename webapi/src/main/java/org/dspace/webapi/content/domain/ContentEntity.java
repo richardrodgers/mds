@@ -17,7 +17,7 @@ import javax.xml.bind.annotation.XmlSeeAlso;
 import org.dspace.content.DSpaceObject;
 import org.dspace.content.Bitstream;
 import org.dspace.core.Constants;
-import org.dspace.webapi.content.Injectable;
+import org.dspace.webapi.Injectable;
 
 /**
  * ContentEntity is the abstract base class for
@@ -27,7 +27,7 @@ import org.dspace.webapi.content.Injectable;
  * @author richardrodgers
  */
 
-@XmlSeeAlso({CommunityEntity.class, CollectionEntity.class, ItemEntity.class, BitstreamEntity.class, MetadataEntity.class})
+@XmlSeeAlso({CommunityEntity.class, CollectionEntity.class, ItemEntity.class, BitstreamEntity.class, MetadataEntity.class, ViewEntity.class})
 public abstract class ContentEntity implements Injectable {
 
     private String name;

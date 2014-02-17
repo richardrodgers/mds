@@ -22,6 +22,9 @@ public class BitstreamEntity extends ContentEntity {
 
     private String mediaPath;
     private URI mediaUrl;
+    private String name;
+    private long mediaSize;
+    private String format;
 
     public BitstreamEntity() {}
 
@@ -32,6 +35,8 @@ public class BitstreamEntity extends ContentEntity {
             parentPid = parent.getHandle();
         }
         mediaPath = parentPid + "." + bitstream.getSequenceID() + "/media/" + bitstream.getName();
+        mediaSize = bitstream.getSize();
+        format = bitstream.getFormatDescription();
     }
 
     public URI getMediaUrl() {
@@ -40,6 +45,30 @@ public class BitstreamEntity extends ContentEntity {
 
     public void setMediaUrl(URI mediaUrl) {
         this.mediaUrl = mediaUrl;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public long getMediaSize() {
+        return mediaSize;
+    }
+
+    public void setMediaSize(long mediaSize) {
+        this.mediaSize = mediaSize;
+    }
+
+    public String getFormat() {
+        return format;
+    }
+
+    public void setFormat(String format) {
+        this.format = format;
     }
 
     @Override

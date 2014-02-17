@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -28,12 +29,15 @@ import org.dspace.content.DSpaceObject;
 import org.dspace.content.MDValue;
 import org.dspace.content.MetadataSchema;
 import org.dspace.handle.HandleManager;
+import org.dspace.mxres.MetadataView;
+import org.dspace.mxres.ResourceMap;
 import org.dspace.webapi.content.domain.BitstreamEntity;
 import org.dspace.webapi.content.domain.CommunityEntity;
 import org.dspace.webapi.content.domain.CollectionEntity;
 import org.dspace.webapi.content.domain.ContentEntity;
 import org.dspace.webapi.content.domain.ItemEntity;
 import org.dspace.webapi.content.domain.MetadataEntity;
+import org.dspace.webapi.content.domain.ViewEntity;
 import org.dspace.webapi.content.domain.EntityRef;
 import org.dspace.webapi.content.domain.Statement;
 
@@ -65,10 +69,9 @@ public class ContentDao {
     }
 
     public ContentEntity getEntity(String prefix, String id) throws SQLException {
-        String[] idParts = id.split("\\.");
         Context ctx = new Context();
         DSpaceObject dso = resolveDso(ctx, prefix, id);
-        ContentEntity entity = resolveEntity(ctx, dso, idParts[1]);
+        ContentEntity entity = resolveEntity(dso);
         ctx.complete();
         return entity;
     }
@@ -97,16 +100,15 @@ public class ContentDao {
                 default: break;
             }
         }
-        ContentEntity entity = resolveEntity(ctx, dso, null);
+        ContentEntity entity = resolveEntity(dso);
         ctx.complete();
         return entity;
     }
 
     public ContentEntity removeEntity(String prefix, String id) throws AuthorizeException, IOException, SQLException {
-        String[] idParts = id.split("\\.");
         Context ctx = new Context();
         DSpaceObject dso = resolveDso(ctx, prefix, id);
-        ContentEntity entity = resolveEntity(ctx, dso, idParts[1]);
+        ContentEntity entity = resolveEntity(dso);
         // removal means that the parent removes the child, except if no parent, then direct delete
         DSpaceObject parent = dso.getParentObject();
         if (parent == null) {
@@ -128,58 +130,39 @@ public class ContentDao {
     }
 
     public MetadataEntity getMetadataSet(String prefix, String id, String name) throws SQLException {
-        String handle = prefix + "/" + id;
-        MetadataEntity entity = null;
         Context ctx = new Context();
-        DSpaceObject dso = HandleManager.resolveToObject(ctx, handle);
-        if (dso == null) {
-            ctx.complete();
-            throw new IllegalArgumentException("no such entity");
-        }
-        entity = new MetadataEntity(dso, name);
+        DSpaceObject dso = resolveDso(ctx, prefix, id);
+        MetadataEntity entity = new MetadataEntity(dso, name);
         ctx.complete();
         return entity;
     }
 
-    public MetadataEntity getMetadataView(String prefix, String id, String name) throws SQLException {
-        String handle = prefix + "/" + id;
-        MetadataEntity entity = null;
+    public ViewEntity getMetadataView(String prefix, String id, String name) throws SQLException {
         Context ctx = new Context();
-        DSpaceObject dso = HandleManager.resolveToObject(ctx, handle);
-        if (dso == null) {
-            ctx.complete();
-            throw new IllegalArgumentException("no such entity");
-        }
-        entity = new MetadataEntity(dso, name);
+        DSpaceObject dso = resolveDso(ctx, prefix, id);
+        // now look up view for this name
+        ViewEntity entity = new ViewEntity(ctx, dso, name);
         ctx.complete();
         return entity;
     }
 
      public MetadataEntity updateMetadata(String prefix, String id, String name, MetadataEntity updEntity) throws AuthorizeException, SQLException {
-        String handle = prefix + "/" + id;
-        MetadataEntity entity = null;
         Context ctx = new Context();
-        DSpaceObject dso = HandleManager.resolveToObject(ctx, handle);
-        if (dso == null) {
-            ctx.complete();
-            throw new IllegalArgumentException("no such entity");
-        }
+        DSpaceObject dso = resolveDso(ctx, prefix, id);
         // clear all metadata in the set, then add back entity content
         dso.clearMetadata(name, MDValue.ANY, MDValue.ANY, MDValue.ANY);
         for (Statement stmt : updEntity.getStatements()) {
             dso.addMetadata(name, stmt.getElement(), stmt.getQualifier(), stmt.getLanguage(), stmt.getValue());
         }
         dso.update();
-        entity = new MetadataEntity(dso, name);
+        MetadataEntity entity = new MetadataEntity(dso, name);
         ctx.complete();
         return entity;
     }
 
     public MediaReader getMediaReader(String prefix, String id) throws AuthorizeException, IOException, SQLException {
-        String[] parts = id.split("\\."); 
         Context ctx = new Context();
-        DSpaceObject dso = resolveDso(ctx, prefix, id);
-        Bitstream bitstream = findBitstream(ctx, dso, parts[1]);
+        Bitstream bitstream = (Bitstream)resolveDso(ctx, prefix, id);
         MediaReader reader = new MediaReader(bitstream.retrieve(), bitstream.getFormat().getMIMEType(), bitstream.getSize());
         ctx.complete();
         return reader;
@@ -193,18 +176,26 @@ public class ContentDao {
         } 
         DSpaceObject dso = HandleManager.resolveToObject(ctx, prefix + "/" + lid);
         if (dso == null) {
-            ctx.complete();
+            ctx.abort();
             throw new IllegalArgumentException("no such entity");
+        }
+        // if there is a sequence id, descend to bitstream
+        if (parts.length > 1) {
+            dso = findBitstream(ctx, dso, parts[1]);
+            if (dso == null) {
+                ctx.abort();
+                throw new IllegalArgumentException("no such entity");
+            }          
         }
         return dso;
     }
 
-    private ContentEntity resolveEntity(Context ctx, DSpaceObject dso, String seqId) throws SQLException {
+    private ContentEntity resolveEntity(DSpaceObject dso) throws SQLException {
         switch (dso.getType()) {
             case Constants.COMMUNITY : return new CommunityEntity((Community)dso);
             case Constants.COLLECTION : return new CollectionEntity((Collection)dso);
-            case Constants.ITEM : if (seqId == null) return new ItemEntity((Item)dso);
-                                  else return new BitstreamEntity(findBitstream(ctx, dso, seqId));
+            case Constants.ITEM : return new ItemEntity((Item)dso);
+            case Constants.BITSTREAM : return new BitstreamEntity((Bitstream)dso);
             default: return null;
         }
     }
@@ -246,9 +237,17 @@ public class ContentDao {
     }
 
     private void getMetadataViewRefs(List<EntityRef> refList, String handle, Context ctx) throws SQLException {
-        // Currently, the only views offered are 'short' and 'full'
-        refList.add(new EntityRef("short", handle + "/mdview/short", "short"));
-        refList.add(new EntityRef("full", handle + "/mdview/full", "full"));
+        ResourceMap<MetadataView> viewMap = new ResourceMap(MetadataView.class, ctx);
+        // determine what kind of object handle belongs to
+        String id = handle.substring(handle.indexOf("/") + 1);
+        int objType = (id.indexOf(".") > 0) ? Constants.BITSTREAM : HandleManager.resolveToType(ctx, handle);
+        String keyPat = Constants.typeText[objType].toLowerCase() + "-mdv-"; 
+        Iterator<String> viewIter = viewMap.ruleKeysLike(keyPat).iterator();
+        // Typically, the only views offered are 'brief' and 'full', but it's user-configurable
+        while (viewIter.hasNext()) {
+            String view = viewIter.next().substring(keyPat.length());
+            refList.add(new EntityRef(view, handle + "/mdview/" + view, view));
+        }
     }
 
     private void getCommunityRefs(List<EntityRef> refList, Context ctx) throws SQLException {

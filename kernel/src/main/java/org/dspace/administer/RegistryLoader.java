@@ -10,6 +10,8 @@ package org.dspace.administer;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Stack;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -33,6 +35,10 @@ import org.dspace.content.NonUniqueMetadataException;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
 import org.dspace.curate.TaskResolver;
+import org.dspace.mxres.MetadataView;
+import org.dspace.mxres.MetadataViewBuilder;
+import org.dspace.mxres.MDFieldDisplay;
+import org.dspace.mxres.ResourceMap;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
@@ -60,6 +66,7 @@ public class RegistryLoader {
         METADATA_TYPES("dspace-dc-types"),
         CURATION_TASKS("dspace-curation-tasks"),
         COMMANDS("dspace-commands"),
+        METADATA_VIEWS("dspace-metadata-views"),
         REGISTRY_REFS("dspace-registry-refs");
 
         private final String element;
@@ -158,6 +165,8 @@ public class RegistryLoader {
                     loadCurationTasks(context, document);
                 }  else if (type.equals(LoaderType.COMMANDS)) {
                     loadCommands(context, document);
+                }  else if (type.equals(LoaderType.METADATA_VIEWS)) {
+                    loadMetadataViews(context, document);
                 }
             }
         }
@@ -357,6 +366,153 @@ public class RegistryLoader {
         field.setQualifier(qualifier);
         field.setScopeNote(scopeNote);
         field.create(context);
+    }
+
+    /**
+     * Load Metadata Views
+     * 
+     * @param context
+     *            DSpace context object
+     * @param filename
+     *            the filename of the XML file to load
+     * @throws NonUniqueMetadataException
+     */
+    public static void loadMetadataViews(Context context, String filename)
+            throws SQLException, IOException, ParserConfigurationException,
+            SAXException, TransformerException, AuthorizeException,
+            NonUniqueMetadataException {
+        loadMetadataViews(context, loadXML(filename));
+    }
+
+    /**
+     * Load Metadata Views
+     * 
+     * @param context
+     *            DSpace context object
+     * @param document
+     *            the XML document to load
+     * @throws NonUniqueMetadataException
+     */
+    public static void loadMetadataViews(Context context, Document document)
+            throws SQLException, IOException, SAXException,
+            TransformerException, AuthorizeException,
+            NonUniqueMetadataException {
+
+        // Get the nodes corresponding to views
+        String path = LoaderType.METADATA_VIEWS.getElement() + "/metadata-view";
+        NodeList viewNodes = xPathFind(document, path);
+        Map<String, ViewLoader> viewMap = new HashMap<>();
+
+        // Add each view
+        for (int i = 0; i < viewNodes.getLength(); i++)  {
+            Node n = viewNodes.item(i);
+            ViewLoader vld = loadMDView(context, n);
+            viewMap.put(vld.view.getDescription(), vld);
+        }
+
+        log.info(LogManager.getHeader(context, "load_metadata_views",
+                "number_views_loaded=" + viewNodes.getLength()));
+        
+        // Get the nodes corresponding to depictions
+        String dpath = LoaderType.METADATA_VIEWS.getElement() + "/depiction";
+        NodeList dpNodes = xPathFind(document, dpath);
+
+        // Add each one to indicated view
+        for (int i = 0; i < dpNodes.getLength(); i++) {
+            Node n = dpNodes.item(i);
+            loadDepiction(context, n, viewMap);
+        }
+
+        ResourceMap<MetadataView> resMap = new ResourceMap(MetadataView.class, context);
+        for (String key : viewMap.keySet()) {
+            ViewLoader vl = viewMap.get(key);
+            MetadataView view = vl.view;
+            // map the resource
+            resMap.addResource(view.getDescription(), String.valueOf(view.getID()));
+            // add the rule
+            resMap.addRule(vl.scope, vl.rule);
+            //view.update();
+        }
+        // also install a builder for this resource type
+        resMap.setBuilder(MetadataViewBuilder.class.getName());
+
+        log.info(LogManager.getHeader(context, "load_metadata_views",
+                "number_depictions_loaded=" + dpNodes.getLength()));
+    }
+
+    /**
+     * Load Metadata Views
+     * 
+     * @param context
+     * @param node
+     */
+    private static ViewLoader loadMDView(Context context, Node node) 
+            throws TransformerException, SQLException, AuthorizeException, 
+            NonUniqueMetadataException {
+        // Get the values
+        String name = getElementData(node, "name");
+        String scope = getElementData(node, "scope");
+        String rule = getElementData(node, "rule");
+
+        // Check if the schema exists already
+        MetadataView mdview = null; //MetadataSchema.find(context, shortname);
+        ViewLoader loader = null;
+        if (mdview == null) {
+            // If not create it.
+            mdview = MetadataView.create(context);
+            mdview.setDescription(name);
+            loader = new ViewLoader();
+            loader.view = mdview;
+            loader.scope = scope;
+            loader.rule = rule;
+        }
+
+        return loader;
+    }
+
+    private static class ViewLoader {
+        public MetadataView view;
+        public String scope;
+        public String rule;
+    }
+
+     /**
+     * Process a node in the bitstream format registry XML file. The node must
+     * be a "bitstream-type" node
+     * 
+     * @param context
+     *            DSpace context object
+     * @param node
+     *            the node in the DOM tree
+     * @throws NonUniqueMetadataException
+     */
+    private static void loadDepiction(Context context, Node node, Map<String, ViewLoader> viewMap)
+            throws SQLException, IOException, TransformerException,
+            AuthorizeException, NonUniqueMetadataException {
+        // Get the values
+        String viewName = getElementData(node, "view");
+        String schema = getElementData(node, "schema");
+        String element = getElementData(node, "element");
+        String qualifier = getElementData(node, "qualifier");
+        String label = getElementData(node, "label");
+        String render = getElementData(node, "render");
+        String wrapper = getElementData(node, "wrapper");
+        String language = getElementData(node, "language");
+
+        // Find the matching view
+        ViewLoader vl = viewMap.get(viewName);
+        if (vl != null) {
+            MetadataView viewObj = vl.view;
+            String key = schema + "." + element;
+            if (qualifier != null && qualifier.length() > 0) {
+                key += "." + qualifier;
+            }
+            MDFieldDisplay mdfd = new MDFieldDisplay(key, label, render, wrapper, language);
+            viewObj.addViewField(mdfd);
+        } else {
+            log.info(LogManager.getHeader(context, "load_depiction",
+                "unmatched_view=" + viewName));
+        }
     }
 
     /**

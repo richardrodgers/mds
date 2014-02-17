@@ -542,7 +542,7 @@ public class WorkflowManager
             if ((mygroup != null) && !(mygroup.isEmpty()))
             {
                 // get a list of all epeople in group (or any subgroups)
-                EPerson[] epa = Group.allMembers(c, mygroup);
+                List<EPerson> epa = Group.allMembers(c, mygroup);
                 
                 // there were reviewers, change the state
                 //  and add them to the list
@@ -584,7 +584,7 @@ public class WorkflowManager
             if ((mygroup != null) && !(mygroup.isEmpty()))
             {
                 //get a list of all epeople in group (or any subgroups)
-                EPerson[] epa = Group.allMembers(c, mygroup);
+                List<EPerson> epa = Group.allMembers(c, mygroup);
                 
                 // there were approvers, change the state
                 //  timestamp, and add them to the list
@@ -621,7 +621,7 @@ public class WorkflowManager
             if ((mygroup != null) && !(mygroup.isEmpty()))
             {
                 // get a list of all epeople in group (or any subgroups)
-                EPerson[] epa = Group.allMembers(c, mygroup);
+                List<EPerson> epa = Group.allMembers(c, mygroup);
                 
                 // there were editors, change the state
                 //  timestamp, and add them to the list
@@ -863,16 +863,14 @@ public class WorkflowManager
 
     // creates workflow tasklist entries for a workflow
     // for all the given EPeople
-    private static void createTasks(Context c, WorkflowItem wi, EPerson[] epa)
-            throws SQLException
-    {
+    private static void createTasks(Context c, WorkflowItem wi, List<EPerson> eps)
+            throws SQLException {
         // create a tasklist entry for each eperson
-        for (int i = 0; i < epa.length; i++)
-        {
+        for (EPerson ep : eps) {
             // can we get away without creating a tasklistitem class?
             // do we want to?
             TableRow tr = DatabaseManager.row("tasklistitem");
-            tr.setColumn("eperson_id", epa[i].getID());
+            tr.setColumn("eperson_id", ep.getID());
             tr.setColumn("workflow_id", wi.getID());
             DatabaseManager.insert(c, tr);
         }
@@ -924,7 +922,7 @@ public class WorkflowManager
     }
 
     private static void notifyGroupOfTask(Context c, WorkflowItem wi,
-            Group mygroup, EPerson[] epa) throws SQLException, IOException
+            Group mygroup, List<EPerson> epa) throws SQLException, IOException
     {
         // check to see if notification is turned off
         // and only do it once - delete key after notification has
@@ -951,9 +949,8 @@ public class WorkflowManager
 
                 String message = "";
 
-                for (int i = 0; i < epa.length; i++)
-                {
-                    Locale supportedLocale = I18nUtil.getEPersonLocale(epa[i]);
+                for (EPerson ep : epa) {
+                    Locale supportedLocale = I18nUtil.getEPersonLocale(ep);
                     Email email = ConfigurationManager.getEmail(I18nUtil.getEmailFilename(supportedLocale, "submit_task"));
                     email.addArgument(title);
                     email.addArgument(coll.getMetadata("name"));
@@ -979,7 +976,7 @@ public class WorkflowManager
                     }
                     email.addArgument(message);
                     email.addArgument(getMyDSpaceLink());
-                    email.addRecipient(epa[i].getEmail());
+                    email.addRecipient(ep.getEmail());
                     email.send();
                 }
             }

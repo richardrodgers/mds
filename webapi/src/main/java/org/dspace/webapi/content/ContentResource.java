@@ -14,6 +14,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
+import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -35,8 +36,10 @@ import org.slf4j.LoggerFactory;
 
 import org.dspace.authorize.AuthorizeException;
 
+import org.dspace.webapi.Injectable;
 import org.dspace.webapi.content.domain.ContentEntity;
 import org.dspace.webapi.content.domain.MetadataEntity;
+import org.dspace.webapi.content.domain.ViewEntity;
 import org.dspace.webapi.content.domain.EntityRef;
 
 /**
@@ -63,6 +66,7 @@ public class ContentResource {
 
     // create a new root in the content hierarchy - i.e a top-level community
     @POST @Path("/")
+    @Consumes({APPLICATION_XML, APPLICATION_JSON})
     public ContentEntity createRoot(EntityRef entityRef) {
         ContentEntity entity = null;
          try {
@@ -118,6 +122,7 @@ public class ContentResource {
 
     // create an entity sub-resource
     @POST @Path("{prefix}/{id}/{subres}")
+    @Consumes({APPLICATION_XML, APPLICATION_JSON})
     public ContentEntity createContent(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("subres") String subres, EntityRef entityRef) {
         ContentEntity entity = null;
         try {
@@ -157,8 +162,8 @@ public class ContentResource {
 
     // get an entity metadata view
     @GET @Path("{prefix}/{id}/mdview/{name}")
-    public MetadataEntity getMetadataView(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("name") String name) {
-        MetadataEntity mdEntity = null;
+    public ViewEntity getMetadataView(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("name") String name) {
+        ViewEntity mdEntity = null;
         try {
             mdEntity = contentDao.getMetadataView(prefix, id, name);
         } catch (SQLException sqlE) {
@@ -173,6 +178,7 @@ public class ContentResource {
 
     // update an entity metadata set
     @PUT @Path("{prefix}/{id}/mdset/{name}")
+    @Consumes({APPLICATION_XML, APPLICATION_JSON})
     public MetadataEntity updateMetadata(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("name") String name, MetadataEntity updEntity) {
         MetadataEntity mdEntity = null;
         try {
