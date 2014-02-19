@@ -338,7 +338,8 @@ CREATE TABLE MetadataSchemaRegistry
 (
   metadata_schema_id INTEGER PRIMARY KEY DEFAULT NEXTVAL('metadataschemaregistry_seq'),
   namespace          VARCHAR(256) UNIQUE,
-  short_id           VARCHAR(32) UNIQUE
+  short_id           VARCHAR(32) UNIQUE,
+  sealed             BOOL
 );
 
 CREATE TABLE MetadataFieldRegistry

@@ -182,9 +182,27 @@ to individual DSOs, there is no meaningful notion of discovery. To obtain the li
 
 where the content identifiers ('1721.1/2') are the same as those exposed in the content API.
 
+### Registry API ###
 
+The registry API allows administrators to maintain the various registries used to support the content. Currently the metadata schema/field registry,
+and the bitstream format registries are exposed in the API. All API endpoints appear under the 'registry' path. To obtain a representation of
+a metadata schema, field or bitstream format, use the system-assigned identifier:
 
+    registry/schema/2
+    registry/field/14
+    registry/format/42
 
+This same URI is used to update (PUT), or remove (DELETE). To create an object, POST to:
+
+    registry/schemas
+    registry/fields
+    registry/formats
+
+Metadata fields each belong to a schema, so you can obtain an entity reference list of them for a particular schema with:
+
+    registry/schema/2/fields
+
+Metadata schemas in mds can be marked as _sealed_, meaning that one should not add or remove fields belonging to the schema. This is useful for non-extensible schema such as dcterms. The API will enforce this policy, and returns a 403 Forbidden in response to attempts to create or delete fields in sealed schemas. Moreover, the sealed attribute in the schema may not be changed via the API.
 
 
 
