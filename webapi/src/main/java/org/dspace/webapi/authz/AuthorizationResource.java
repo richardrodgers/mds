@@ -124,7 +124,7 @@ public class AuthorizationResource {
 
     // create a new EPerson
     @POST @Path("epeople")
-    public EPersonEntity createEPerson(EPersonEntity epEntity) {
+    public Response createEPerson(EPersonEntity epEntity) {
         EPersonEntity newEntity = null;
         try (org.dspace.core.Context context = new org.dspace.core.Context()) {
             newEntity =  authzDao.createEPerson(context, epEntity);
@@ -134,7 +134,7 @@ public class AuthorizationResource {
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         }
         inject(newEntity);
-        return newEntity;
+        return Response.created(newEntity.getURI()).entity(newEntity).build();
     }
 
     // update an EPerson
@@ -156,20 +156,15 @@ public class AuthorizationResource {
 
     // remove an EPerson
     @DELETE @Path("eperson/{id}")
-    public EPersonEntity removeEPerson(@PathParam("id") int id) {
-        EPersonEntity entity = null;
+    public Response removeEPerson(@PathParam("id") int id) {
         try (org.dspace.core.Context context = new org.dspace.core.Context()) {
-            entity = authzDao.removeEPerson(context, id);
-            context.complete();
+            authzDao.removeEPerson(context, id);
+            return Response.noContent().build();
         } catch (AuthorizeException authE) {
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
-        } catch (IllegalArgumentException iaE) {
-            throw new WebApplicationException(Response.Status.NOT_FOUND);
         } catch (SQLException sqlE) {
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         }
-        inject(entity);
-        return entity;
     }
     
     @GET @Path("groups")
@@ -205,7 +200,7 @@ public class AuthorizationResource {
 
     // create a new group
     @POST @Path("groups")
-    public GroupEntity createGroup(GroupEntity entity) {
+    public Response createGroup(GroupEntity entity) {
         GroupEntity newEntity = null;
          try {
             newEntity = authzDao.createGroup(entity);
@@ -216,7 +211,7 @@ public class AuthorizationResource {
         }
         // Inject URIs into this entity
         inject(newEntity);
-        return newEntity;
+        return Response.created(newEntity.getURI()).entity(newEntity).build();
     }
 
     // update a group
@@ -270,11 +265,10 @@ public class AuthorizationResource {
 
     // remove a member from a group
     @DELETE @Path("group/{gid}/{mtype}/{mid}")
-    public LinkEntity removeGroupMember(@PathParam("gid") int gid, @PathParam("mtype") String mtype, @PathParam("mid") int mid) {
-        LinkEntity entity = null;
+    public Response removeGroupMember(@PathParam("gid") int gid, @PathParam("mtype") String mtype, @PathParam("mid") int mid) {
         try (org.dspace.core.Context context = new org.dspace.core.Context()) {
-            entity = authzDao.removeGroupMember(context, gid, mtype, mid);
-            context.complete();
+            authzDao.removeGroupMember(context, gid, mtype, mid);
+            return Response.noContent().build();
         } catch (AuthorizeException authE) {
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
         } catch (IllegalArgumentException iaE) {
@@ -282,26 +276,19 @@ public class AuthorizationResource {
         } catch (SQLException sqlE) {
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         }
-        inject(entity);
-        return entity;
     }
 
     // remove a group
     @DELETE @Path("group/{id}")
-    public GroupEntity removeGroup(@PathParam("id") int id) {
-        GroupEntity entity = null;
+    public Response removeGroup(@PathParam("id") int id) {
         try (org.dspace.core.Context context = new org.dspace.core.Context()) {
-            entity = authzDao.removeGroup(context, id);
-            context.complete();
+            authzDao.removeGroup(context, id);
+            return Response.noContent().build();
         } catch (AuthorizeException authE) {
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
-        } catch (IllegalArgumentException iaE) {
-            throw new WebApplicationException(Response.Status.NOT_FOUND);
         } catch (SQLException sqlE) {
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         }
-        inject(entity);
-        return entity;
     }
 
     // return an entity-list of group members and groups
@@ -328,7 +315,7 @@ public class AuthorizationResource {
 
     // create a new policy
     @POST @Path("policies")
-    public PolicyEntity createPolicy(PolicyEntity entity) {
+    public Response createPolicy(PolicyEntity entity) {
         PolicyEntity newEntity = null;
          try {
             newEntity = authzDao.createPolicy(entity);
@@ -339,7 +326,7 @@ public class AuthorizationResource {
         }
         // Inject URIs into this entity
         inject(newEntity);
-        return newEntity;
+        return Response.created(newEntity.getURI()).entity(newEntity).build();
     }
 
     // update a policy
@@ -359,20 +346,15 @@ public class AuthorizationResource {
 
     // remove a policy
     @DELETE @Path("policy/{id}")
-    public PolicyEntity removePolicy(@PathParam("id") int id) {
-        PolicyEntity entity = null;
+    public Response removePolicy(@PathParam("id") int id) {
         try (org.dspace.core.Context context = new org.dspace.core.Context()) {
-            entity = authzDao.removePolicy(context, id);
-            context.complete();
+            authzDao.removePolicy(context, id);
+            return Response.noContent().build();
         } catch (AuthorizeException authE) {
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
-        } catch (IllegalArgumentException iaE) {
-            throw new WebApplicationException(Response.Status.NOT_FOUND);
         } catch (SQLException sqlE) {
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         }
-        inject(entity);
-        return entity;
     }
 
     // get a resource's policies

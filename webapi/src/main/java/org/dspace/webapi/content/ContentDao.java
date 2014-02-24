@@ -105,10 +105,9 @@ public class ContentDao {
         return entity;
     }
 
-    public ContentEntity removeEntity(String prefix, String id) throws AuthorizeException, IOException, SQLException {
+    public void removeEntity(String prefix, String id) throws AuthorizeException, IOException, SQLException {
         Context ctx = new Context();
         DSpaceObject dso = resolveDso(ctx, prefix, id);
-        ContentEntity entity = resolveEntity(dso);
         // removal means that the parent removes the child, except if no parent, then direct delete
         DSpaceObject parent = dso.getParentObject();
         if (parent == null) {
@@ -126,7 +125,6 @@ public class ContentDao {
             }
         }
         ctx.complete();
-        return entity;
     }
 
     public MetadataEntity getMetadataSet(String prefix, String id, String name) throws SQLException {

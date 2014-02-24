@@ -67,7 +67,7 @@ public class ContentResource {
     // create a new root in the content hierarchy - i.e a top-level community
     @POST @Path("/")
     @Consumes({APPLICATION_XML, APPLICATION_JSON})
-    public ContentEntity createRoot(EntityRef entityRef) {
+    public Response createRoot(EntityRef entityRef) {
         ContentEntity entity = null;
          try {
             entity = contentDao.createEntity(null, null, null, entityRef);
@@ -78,7 +78,7 @@ public class ContentResource {
         }
         // Inject URIs into this entity
         inject(entity);
-        return entity;
+        return Response.created(entity.getURI()).entity(entity).build();
     }
 
     // get a content entity (community, collection, item, bitstream)
@@ -99,10 +99,10 @@ public class ContentResource {
 
     // remove a content entity
     @DELETE @Path("{prefix}/{id}")
-    public ContentEntity removeContent(@PathParam("prefix") String prefix, @PathParam("id") String id) {
-        ContentEntity entity = null;
+    public Response removeContent(@PathParam("prefix") String prefix, @PathParam("id") String id) {
         try {
-            entity = contentDao.removeEntity(prefix, id);
+            contentDao.removeEntity(prefix, id);
+            return Response.noContent().build();
         } catch (AuthorizeException authE) {
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
         } catch (IllegalArgumentException iaE) {
@@ -110,8 +110,6 @@ public class ContentResource {
         } catch (IOException | SQLException sqlE) {
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         }
-        inject(entity);
-        return entity;
     }
 
     // get an entity sub-resource list
@@ -123,7 +121,7 @@ public class ContentResource {
     // create an entity sub-resource
     @POST @Path("{prefix}/{id}/{subres}")
     @Consumes({APPLICATION_XML, APPLICATION_JSON})
-    public ContentEntity createContent(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("subres") String subres, EntityRef entityRef) {
+    public Response createContent(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("subres") String subres, EntityRef entityRef) {
         ContentEntity entity = null;
         try {
             entity = contentDao.createEntity(prefix, id, subres, entityRef);
@@ -135,13 +133,13 @@ public class ContentResource {
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         }
         inject(entity);
-        return entity;
+        return Response.created(entity.getURI()).entity(entity).build();
     }
 
     // get an item's filtered bitstreams
-    @GET @Path("{prefix}/{id}/filter/{filter}")
-    public List<EntityRef> getItemBitstreams(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("filter") String filter) {
-        return getRefList(prefix + "/" + id, "bitstream", filter);
+    @GET @Path("{prefix}/{id}/filter/{name}")
+    public List<EntityRef> getItemBitstreams(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("name") String name) {
+        return getRefList(prefix + "/" + id, "bitstream", name);
     }
 
     // get an entity metadata set

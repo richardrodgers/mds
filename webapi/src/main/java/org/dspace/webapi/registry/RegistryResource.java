@@ -124,7 +124,7 @@ public class RegistryResource {
 
     // create a new metadata schema
     @POST @Path("schemas")
-    public SchemaEntity createSchema(SchemaEntity entity) {
+    public Response createSchema(SchemaEntity entity) {
         SchemaEntity newEntity = null;
         try (org.dspace.core.Context context = new org.dspace.core.Context()) {
             newEntity =  regDao.createSchema(context, entity);
@@ -134,7 +134,7 @@ public class RegistryResource {
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         }
         inject(newEntity);
-        return newEntity;
+        return Response.created(newEntity.getURI()).entity(newEntity).build();
     }
 
     // update a metadata schema
@@ -156,20 +156,15 @@ public class RegistryResource {
 
     // remove a metadata schema
     @DELETE @Path("schema/{id}")
-    public SchemaEntity removeSchema(@PathParam("id") int id) {
-        SchemaEntity entity = null;
+    public Response removeSchema(@PathParam("id") int id) {
         try (org.dspace.core.Context context = new org.dspace.core.Context()) {
-            entity = regDao.removeSchema(context, id);
-            context.complete();
+            regDao.removeSchema(context, id);
+            return Response.noContent().build();
         } catch (AuthorizeException authE) {
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
-        } catch (IllegalArgumentException iaE) {
-            throw new WebApplicationException(Response.Status.NOT_FOUND);
         } catch (SQLException sqlE) {
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         }
-        inject(entity);
-        return entity;
     }
     
     @GET @Path("fields")
@@ -205,7 +200,7 @@ public class RegistryResource {
 
     // create a new group
     @POST @Path("fields")
-    public FieldEntity createField(FieldEntity entity) {
+    public Response createField(FieldEntity entity) {
         FieldEntity newEntity = null;
          try {
             newEntity = regDao.createField(entity);
@@ -218,7 +213,7 @@ public class RegistryResource {
         }
         // Inject URIs into this entity
         inject(newEntity);
-        return newEntity;
+        return Response.created(newEntity.getURI()).entity(newEntity).build();
     }
     
     // update a field
@@ -240,20 +235,15 @@ public class RegistryResource {
 
     // remove a field
     @DELETE @Path("field/{id}")
-    public FieldEntity removeField(@PathParam("id") int id) {
-        FieldEntity entity = null;
+    public Response removeField(@PathParam("id") int id) {
         try (org.dspace.core.Context context = new org.dspace.core.Context()) {
-            entity = regDao.removeField(context, id);
-            context.complete();
+            regDao.removeField(context, id);
+            return Response.noContent().build();
         } catch (AuthorizeException authE) {
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
-        } catch (IllegalArgumentException iaE) {
-            throw new WebApplicationException(Response.Status.NOT_FOUND);
         } catch (SQLException sqlE) {
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         }
-        inject(entity);
-        return entity;
     }
 
     // look up a format by ID
@@ -274,7 +264,7 @@ public class RegistryResource {
 
     // create a new format
     @POST @Path("formats")
-    public FormatEntity createFormat(FormatEntity entity) {
+    public Response createFormat(FormatEntity entity) {
         FormatEntity newEntity = null;
          try {
             newEntity = regDao.createFormat(entity);
@@ -285,7 +275,7 @@ public class RegistryResource {
         }
         // Inject URIs into this entity
         inject(newEntity);
-        return newEntity;
+        return Response.created(newEntity.getURI()).entity(newEntity).build();
     }
 
     // update a format
@@ -305,20 +295,15 @@ public class RegistryResource {
 
     // remove a format
     @DELETE @Path("format/{id}")
-    public FormatEntity removePolicy(@PathParam("id") int id) {
-        FormatEntity entity = null;
+    public Response removeFormat(@PathParam("id") int id) {
         try (org.dspace.core.Context context = new org.dspace.core.Context()) {
-            entity = regDao.removeFormat(context, id);
-            context.complete();
+            regDao.removeFormat(context, id);
+            return Response.noContent().build();
         } catch (AuthorizeException authE) {
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
-        } catch (IllegalArgumentException iaE) {
-            throw new WebApplicationException(Response.Status.NOT_FOUND);
         } catch (SQLException sqlE) {
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         }
-        inject(entity);
-        return entity;
     }
 
     private List<EntityRef> getRefList(int id, String refType, String targType) {

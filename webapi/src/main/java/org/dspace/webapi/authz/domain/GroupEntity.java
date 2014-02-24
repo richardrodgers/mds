@@ -80,7 +80,7 @@ public class GroupEntity implements Injectable {
     @Override
     public Map<String, String> getUriInjections() {
         Map<String, String> injectionMap = new HashMap<>();
-        injectionMap.put("self", String.valueOf(id));
+        injectionMap.put("self", "group:" + id);
         injectionMap.put("members", "group:" + id + ":members");
         injectionMap.put("groups", "group:" + id + ":groupmembers");
         return injectionMap;

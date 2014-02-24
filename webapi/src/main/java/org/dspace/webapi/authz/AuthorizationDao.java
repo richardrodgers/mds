@@ -99,18 +99,16 @@ public class AuthorizationDao {
         return new EPersonEntity(eperson);
     }
 
-    public EPersonEntity removeEPerson(Context context, int id) throws AuthorizeException, SQLException {
+    public void removeEPerson(Context context, int id) throws AuthorizeException, SQLException {
         EPerson eperson = EPerson.find(context, id);
-        if (eperson == null) {
-            throw new IllegalArgumentException("No such EPerson: " + id);
+        if (eperson != null) {
+            try {
+                eperson.delete();
+                context.complete();
+            } catch (EPersonDeletionException epdEx) {
+                throw new AuthorizeException("wrong - change this");
+            }
         }
-        EPersonEntity entity = new EPersonEntity(eperson);
-        try {
-            eperson.delete();
-        } catch (EPersonDeletionException epdEx) {
-             throw new AuthorizeException("wrong - change this");
-        }
-        return entity;
     }
 
     public GroupEntity getGroup(Context context, int id) throws SQLException {
@@ -202,42 +200,33 @@ public class AuthorizationDao {
         return link;
     }
 
-    public LinkEntity removeGroupMember(Context context, int gid, String mtype, int mid) throws AuthorizeException, SQLException {
+    public void removeGroupMember(Context context, int gid, String mtype, int mid) throws AuthorizeException, SQLException {
         Group group = Group.find(context, gid);
-        LinkEntity link = null;
-        if (group == null) {
-            throw new IllegalArgumentException("No such Group: " + gid);
-        }
-        if ("eperson".equals(mtype)) {
-            EPerson eperson = EPerson.find(context, mid);
-            if (eperson == null) {
-                throw new IllegalArgumentException("No such EPerson: " + mid);
+        if (group != null) {
+            if ("eperson".equals(mtype)) {
+                EPerson eperson = EPerson.find(context, mid);
+                if (eperson != null) {
+                    group.removeMember(eperson);
+                    group.update();
+                    context.complete();
+                }
+            } else if ("group".equals(mtype)) {
+                Group memgroup = Group.find(context, mid);
+                if (memgroup != null) {
+                    group.removeMember(memgroup);
+                    group.update();
+                    context.complete();
+                }
             }
-            group.removeMember(eperson);
-            group.update();
-            link = new LinkEntity(group, eperson);
-        } else if ("group".equals(mtype)) {
-            Group memgroup = Group.find(context, mid);
-            if (memgroup == null) {
-                throw new IllegalArgumentException("No such member Group: " + mid);
-            }
-            group.removeMember(memgroup);
-            group.update();
-            link = new LinkEntity(group, memgroup);
-        } else {
-            throw new IllegalArgumentException("No such member type: " + mtype);
         }
-        return link;
     }
 
-    public GroupEntity removeGroup(Context context, int id) throws AuthorizeException, SQLException {
+    public void removeGroup(Context context, int id) throws AuthorizeException, SQLException {
         Group group = Group.find(context, id);
-        if (group == null) {
-            throw new IllegalArgumentException("No such Group: " + id);
+        if (group != null) {
+            group.delete();
+            context.complete();
         }
-        GroupEntity entity = new GroupEntity(group);
-        group.delete();
-        return entity;
     }
 
     public PolicyEntity getPolicy(Context context, int id) throws SQLException {
@@ -268,14 +257,12 @@ public class AuthorizationDao {
         return new PolicyEntity(policy);
     }
 
-    public PolicyEntity removePolicy(Context context, int id) throws AuthorizeException, SQLException {
+    public void removePolicy(Context context, int id) throws AuthorizeException, SQLException {
         ResourcePolicy policy = ResourcePolicy.find(context, id);
-        if (policy == null) {
-            throw new IllegalArgumentException("No such policy: " + id);
+        if (policy != null) {
+            policy.delete();
+            context.complete();
         }
-        PolicyEntity entity = new PolicyEntity(policy);
-        policy.delete();
-        return entity;
     }
 
     public List<EntityRef> getPolicyReferences(String prefix, String id) throws SQLException {

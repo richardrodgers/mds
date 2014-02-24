@@ -100,14 +100,12 @@ public class RegistryDao {
         return new SchemaEntity(schema);
     }
 
-    public SchemaEntity removeSchema(Context context, int id) throws AuthorizeException, SQLException {
+    public void removeSchema(Context context, int id) throws AuthorizeException, SQLException {
         MetadataSchema schema = MetadataSchema.find(context, id);
-        if (schema == null) {
-            throw new IllegalArgumentException("No such metadata schema: " + id);
+        if (schema != null) {
+            schema.delete(context);
+            context.complete();
         }
-        SchemaEntity entity = new SchemaEntity(schema);
-        schema.delete(context);
-        return entity;
     }
 
     public FieldEntity getField(Context context, int id) throws SQLException {
@@ -148,14 +146,12 @@ public class RegistryDao {
         return new FieldEntity(field);
     }
 
-    public FieldEntity removeField(Context context, int id) throws AuthorizeException, SQLException {
+    public void removeField(Context context, int id) throws AuthorizeException, SQLException {
         MetadataField field = MetadataField.find(context, id);
-        if (field == null) {
-            throw new IllegalArgumentException("No such metadata field: " + id);
+        if (field != null) {
+            field.delete(context);
+            context.complete();
         }
-        FieldEntity entity = new FieldEntity(field);
-        field.delete(context);
-        return entity;
     }
 
     public FormatEntity getFormat(Context context, int id) throws SQLException {
@@ -186,14 +182,12 @@ public class RegistryDao {
         return new FormatEntity(format);
     }
 
-    public FormatEntity removeFormat(Context context, int id) throws AuthorizeException, SQLException {
+    public void removeFormat(Context context, int id) throws AuthorizeException, SQLException {
         BitstreamFormat format = BitstreamFormat.find(context, id);
-        if (format == null) {
-            throw new IllegalArgumentException("No such bitstream format: " + id);
+        if (format != null) {
+            format.delete();
+            context.complete();
         }
-        FormatEntity entity = new FormatEntity(format);
-        format.delete();
-        return entity;
     }
 
     public List<EntityRef> getReferences(int id, String sourceType, String targetType) throws SQLException {
