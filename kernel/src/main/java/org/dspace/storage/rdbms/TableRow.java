@@ -379,25 +379,11 @@ public class TableRow
     public void setColumn(String column, boolean b)
     {
         String canonicalized = canonicalizeAndCheck(column);
-        if (DatabaseManager.isOracle())
-        {
-            // if oracle, use 1 or 0 for true/false
-            Integer value = b ? Integer.valueOf(1) : Integer.valueOf(0);
-            if (!value.equals(data.get(canonicalized)))
-            {
-                data.put(canonicalized, value);
-                changed.put(canonicalized, Boolean.TRUE);
-            }
-        }
-        else
-        {
-            // default to postgres true/false
-            Boolean value = b ? Boolean.TRUE : Boolean.FALSE;
-            if (!value.equals(data.get(canonicalized)))
-            {
-                data.put(canonicalized, value);
-                changed.put(canonicalized, Boolean.TRUE);
-            }
+        // default to postgres true/false
+        Boolean value = b ? Boolean.TRUE : Boolean.FALSE;
+        if (!value.equals(data.get(canonicalized))) {
+            data.put(canonicalized, value);
+            changed.put(canonicalized, Boolean.TRUE);
         }
     }
 

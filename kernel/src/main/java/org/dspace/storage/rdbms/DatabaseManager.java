@@ -70,23 +70,6 @@ public class DatabaseManager
 
     private static Map<String, String> insertSQL = new HashMap<String, String>();
 
-    private static boolean isOracle = false;
-    private static boolean isPostgres = false;
-
-    static
-    {
-        if ("oracle".equals(ConfigurationManager.getProperty("db.name")))
-        {
-            isOracle = true;
-            isPostgres = false;
-        }
-        else
-        {
-            isOracle = false;
-            isPostgres = true;
-        }
-    }
-
     /** DataSource (retrieved from jndi */
     private static DataSource dataSource = null;
     private static String sqlOnBorrow = null;
@@ -122,11 +105,6 @@ public class DatabaseManager
      */
     protected DatabaseManager()
     {
-    }
-
-    public static boolean isOracle()
-    {
-        return isOracle;
     }
     
     /**
@@ -649,16 +627,7 @@ public class DatabaseManager
      */
     public static void insert(Context context, TableRow row) throws SQLException
     {
-        int newID;
-        if (isPostgres)
-        {
-            newID = doInsertPostgres(context, row);
-        }
-        else
-        {
-            newID = doInsertGeneric(context, row);
-        }
-
+        int newID = doInsertPostgres(context, row);
         row.setColumn(getPrimaryKeyColumn(row), newID);
     }
 
@@ -828,14 +797,7 @@ public class DatabaseManager
      *            The name of the table.
      * @return The canonical name of the table.
      */
-    static String canonicalize(String table)
-    {
-        // Oracle expects upper-case table names
-        if (isOracle)
-        {
-            return (table == null) ? null : table.toUpperCase();
-        }
-
+    static String canonicalize(String table) {
         // default database postgres wants lower-case table names
         return (table == null) ? null : table.toLowerCase();
     }
@@ -1077,22 +1039,7 @@ public class DatabaseManager
 
                 case Types.INTEGER:
                 case Types.NUMERIC:
-                    if (isOracle)
-                    {
-                        long longValue = results.getLong(i);
-                        if (longValue <= (long)Integer.MAX_VALUE)
-                        {
-                            row.setColumn(name, (int) longValue);
-                        }
-                        else
-                        {
-                            row.setColumn(name, longValue);
-                        }
-                    }
-                    else
-                    {
-                        row.setColumn(name, results.getInt(i));
-                    }
+                    row.setColumn(name, results.getInt(i));
                     break;
 
                 case Types.DECIMAL:
@@ -1102,17 +1049,6 @@ public class DatabaseManager
 
                 case Types.DOUBLE:
                     row.setColumn(name, results.getDouble(i));
-                    break;
-
-                case Types.CLOB:
-                    if (isOracle)
-                    {
-                        row.setColumn(name, results.getString(i));
-                    }
-                    else
-                    {
-                        throw new IllegalArgumentException("Unsupported JDBC type: " + jdbctype);
-                    }
                     break;
 
                 case Types.VARCHAR:
@@ -1454,31 +1390,14 @@ public class DatabaseManager
                     log.error("Error retrieving JNDI context: " + jndiName, e);
                 }
 
-                if (dataSource != null)
-                {
-                    if (isOracle)
-                    {
-                        sqlOnBorrow = "ALTER SESSION SET current_schema=" + ConfigurationManager.getProperty("db.username").trim().toUpperCase();
-                    }
-
+                if (dataSource != null) {
                     log.debug("Using JNDI dataSource: " + jndiName);
-                }
-                else
-                {
+                } else {
                     log.info("Unable to locate JNDI dataSource: " + jndiName);
                 }
             }
 
-            if (isOracle)
-            {
-                if (!Strings.isNullOrEmpty(ConfigurationManager.getProperty("db.postgres.schema")))
-                {
-                    sqlOnBorrow = "SET SEARCH_PATH TO " + ConfigurationManager.getProperty("db.postgres.schema").trim();
-                }
-            }
-
-            if (dataSource == null)
-            {
+            if (dataSource == null) {
                 if (!Strings.isNullOrEmpty(jndiName))
                 {
                     log.info("Falling back to creating own Database pool");
@@ -1590,14 +1509,7 @@ public class DatabaseManager
                         break;
 
                     case Types.INTEGER:
-                        if (isOracle)
-                        {
-                            statement.setLong(count, row.getLongColumn(column));
-                        }
-                        else
-                        {
-                            statement.setInt(count, row.getIntColumn(column));
-                        }
+                        statement.setInt(count, row.getIntColumn(column));
                         break;
 
                     case Types.NUMERIC:
@@ -1608,18 +1520,6 @@ public class DatabaseManager
 
                     case Types.BIGINT:
                         statement.setLong(count, row.getLongColumn(column));
-                        break;
-
-                    case Types.CLOB:
-                        if (isOracle)
-                        {
-                            // Support CLOBs in place of TEXT columns in Oracle
-                            statement.setString(count, row.getStringColumn(column));
-                        }
-                        else
-                        {
-                            throw new IllegalArgumentException("Unsupported JDBC type: " + jdbctype);
-                        }
                         break;
 
                     case Types.VARCHAR:
@@ -1773,16 +1673,9 @@ public class DatabaseManager
         try
         {
             // Get an ID (primary key) for this row by using the "getnextid"
-            // SQL function in Postgres, or directly with sequences in Oracle
-            if (isOracle)
-            {
-                statement = context.getHandle().getConnection().prepareStatement("SELECT " + table + "_seq" + ".nextval FROM dual");
-            }
-            else
-            {
-                statement = context.getHandle().getConnection().prepareStatement("SELECT getnextid(?) AS result");
-                loadParameters(statement, new Object[] { table });
-            }
+            // SQL function in Postgres
+            statement = context.getHandle().getConnection().prepareStatement("SELECT getnextid(?) AS result");
+            loadParameters(statement, new Object[] { table });
             rs = statement.executeQuery();
             rs.next();
             newID = rs.getInt(1);

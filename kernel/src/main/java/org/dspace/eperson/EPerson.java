@@ -19,7 +19,6 @@ import com.google.common.base.Objects;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.content.DSpaceObject;
-import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
@@ -233,64 +232,29 @@ public class EPerson extends DSpaceObject
      * 
      * @return array of EPerson objects
      */
-    public static EPerson[] search(Context context, String query, int offset, int limit) 
-    		throws SQLException	{
-		String params = "%"+query.toLowerCase()+"%";
+    public static EPerson[] search(Context context, String query, int offset, int limit) throws SQLException {
+        String params = "%"+query.toLowerCase()+"%";
         StringBuffer queryBuf = new StringBuffer();
         queryBuf.append("SELECT * FROM eperson WHERE eperson_id = ? OR ");
         queryBuf.append("LOWER(firstname) LIKE LOWER(?) OR LOWER(lastname) LIKE LOWER(?) OR LOWER(email) LIKE LOWER(?) ORDER BY lastname, firstname ASC ");
 
-        // Add offset and limit restrictions - Oracle requires special code
-        if ("oracle".equals(ConfigurationManager.getProperty("db.name")))
-        {
-            // First prepare the query to generate row numbers
-            if (limit > 0 || offset > 0)
-            {
-                queryBuf.insert(0, "SELECT /*+ FIRST_ROWS(n) */ rec.*, ROWNUM rnum  FROM (");
-                queryBuf.append(") ");
-            }
-
-            // Restrict the number of rows returned based on the limit
-            if (limit > 0)
-            {
-                queryBuf.append("rec WHERE rownum<=? ");
-                // If we also have an offset, then convert the limit into the maximum row number
-                if (offset > 0)
-                {
-                    limit += offset;
-                }
-            }
-
-            // Return only the records after the specified offset (row number)
-            if (offset > 0)
-            {
-                queryBuf.insert(0, "SELECT * FROM (");
-                queryBuf.append(") WHERE rnum>?");
-            }
+        if (limit > 0) {
+            queryBuf.append(" LIMIT ? ");
         }
-        else
-        {
-            if (limit > 0)
-            {
-                queryBuf.append(" LIMIT ? ");
-            }
 
-            if (offset > 0)
-            {
-                queryBuf.append(" OFFSET ? ");
-            }
+        if (offset > 0) {
+            queryBuf.append(" OFFSET ? ");
         }
 
         String dbquery = queryBuf.toString();
 
         // When checking against the eperson-id, make sure the query can be made into a number
-		Integer int_param;
-		try {
-			int_param = Integer.valueOf(query);
-		}
-		catch (NumberFormatException e) {
-			int_param = Integer.valueOf(-1);
-		}
+        Integer int_param;
+        try {
+            int_param = Integer.valueOf(query);
+        } catch (NumberFormatException e) {
+            int_param = Integer.valueOf(-1);
+        }
 
         // Create the parameter array, including limit and offset if part of the query
         Object[] paramArr = new Object[] {int_param,params,params,params};
@@ -354,39 +318,28 @@ public class EPerson extends DSpaceObject
      * 
      * @return the number of epeople matching the query
      */
-    public static int searchResultCount(Context context, String query)
-    	throws SQLException
-	{
-		String dbquery = "%"+query.toLowerCase()+"%";
-		Long count;
-		
-		// When checking against the eperson-id, make sure the query can be made into a number
-		Integer int_param;
-		try {
-			int_param = Integer.valueOf(query);
-		}
-		catch (NumberFormatException e) {
-			int_param = Integer.valueOf(-1);
-		}
-		
-		// Get all the epeople that match the query
-		TableRow row = DatabaseManager.querySingle(context,
-		        "SELECT count(*) as epcount FROM eperson WHERE eperson_id = ? OR " +
-		        "LOWER(firstname) LIKE LOWER(?) OR LOWER(lastname) LIKE LOWER(?) OR LOWER(email) LIKE LOWER(?)",
-		        new Object[] {int_param,dbquery,dbquery,dbquery});
-				
-		// use getIntColumn for Oracle count data
-        if ("oracle".equals(ConfigurationManager.getProperty("db.name")))
-        {
-            count = Long.valueOf(row.getIntColumn("epcount"));
+    public static int searchResultCount(Context context, String query) throws SQLException {
+        String dbquery = "%"+query.toLowerCase()+"%";
+        Long count;
+
+        // When checking against the eperson-id, make sure the query can be made into a number
+        Integer int_param;
+        try {
+             int_param = Integer.valueOf(query);
+        } catch (NumberFormatException e) {
+             int_param = Integer.valueOf(-1);
         }
-        else  //getLongColumn works for postgres
-        {
-            count = Long.valueOf(row.getLongColumn("epcount"));
-        }
+
+        // Get all the epeople that match the query
+        TableRow row = DatabaseManager.querySingle(context,
+                "SELECT count(*) as epcount FROM eperson WHERE eperson_id = ? OR " +
+                "LOWER(firstname) LIKE LOWER(?) OR LOWER(lastname) LIKE LOWER(?) OR LOWER(email) LIKE LOWER(?)",
+                new Object[] {int_param,dbquery,dbquery,dbquery});
+
+        count = Long.valueOf(row.getLongColumn("epcount"));
         
-		return count.intValue();
-	}
+        return count.intValue();
+    }
     
     /**
      * Find all the epeople that match a particular query

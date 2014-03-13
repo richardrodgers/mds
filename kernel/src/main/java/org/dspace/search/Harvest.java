@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.content.DSpaceObject;
 import org.dspace.content.Item;
-import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
@@ -160,29 +159,20 @@ public class Harvest
              *
              * Got that? ;-)
              */
-        	boolean selfGenerated = false;
+            boolean selfGenerated = false;
             if (endDate.length() == 20)
             {
                 endDate = endDate.substring(0, 19) + ".999Z";
                 selfGenerated = true;
             }
 
-        	query += " AND item.last_modified <= ? ";
+            query += " AND item.last_modified <= ? ";
             parameters.add(toTimestamp(endDate, selfGenerated));
         }
 
-        if (!withdrawn)
-        {
+        if (!withdrawn) {
             // Exclude withdrawn items
-            if ("oracle".equals(ConfigurationManager.getProperty("db.name")))
-            {
-                query += " AND withdrawn=0 ";
-            }
-            else
-            {
-                // postgres uses booleans
-                query += " AND withdrawn=false ";
-            }
+            query += " AND withdrawn=false ";
         }
 
         // Order by item ID, so that for a given harvest the order will be

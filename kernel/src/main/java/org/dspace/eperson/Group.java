@@ -27,7 +27,6 @@ import org.dspace.authorize.AuthorizeManager;
 import org.dspace.content.Collection;
 import org.dspace.content.Community;
 import org.dspace.content.DSpaceObject;
-import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
@@ -821,64 +820,28 @@ public class Group extends DSpaceObject
      * 
      * @return array of Group objects
      */
-    public static Group[] search(Context context, String query, int offset, int limit)
-    		throws SQLException
-	{
-		String params = "%"+query.toLowerCase()+"%";
+    public static Group[] search(Context context, String query, int offset, int limit) throws SQLException {
+        String params = "%"+query.toLowerCase()+"%";
         StringBuffer queryBuf = new StringBuffer();
-		queryBuf.append("SELECT * FROM epersongroup WHERE LOWER(name) LIKE LOWER(?) OR eperson_group_id = ? ORDER BY name ASC ");
-		
-        // Add offset and limit restrictions - Oracle requires special code
-        if ("oracle".equals(ConfigurationManager.getProperty("db.name")))
-        {
-            // First prepare the query to generate row numbers
-            if (limit > 0 || offset > 0)
-            {
-                queryBuf.insert(0, "SELECT /*+ FIRST_ROWS(n) */ rec.*, ROWNUM rnum  FROM (");
-                queryBuf.append(") ");
-            }
+        queryBuf.append("SELECT * FROM epersongroup WHERE LOWER(name) LIKE LOWER(?) OR eperson_group_id = ? ORDER BY name ASC ");
 
-            // Restrict the number of rows returned based on the limit
-            if (limit > 0)
-            {
-                queryBuf.append("rec WHERE rownum<=? ");
-                // If we also have an offset, then convert the limit into the maximum row number
-                if (offset > 0)
-                {
-                    limit += offset;
-                }
-            }
-
-            // Return only the records after the specified offset (row number)
-            if (offset > 0)
-            {
-                queryBuf.insert(0, "SELECT * FROM (");
-                queryBuf.append(") WHERE rnum>?");
-            }
+        if (limit > 0) {
+            queryBuf.append(" LIMIT ? ");
         }
-        else
-        {
-            if (limit > 0)
-            {
-                queryBuf.append(" LIMIT ? ");
-            }
 
-            if (offset > 0)
-            {
-                queryBuf.append(" OFFSET ? ");
-            }
+        if (offset > 0) {
+            queryBuf.append(" OFFSET ? ");
         }
 
         String dbquery = queryBuf.toString();
 
         // When checking against the eperson-id, make sure the query can be made into a number
-		Integer int_param;
-		try {
-			int_param = Integer.valueOf(query);
-		}
-		catch (NumberFormatException e) {
-			int_param = Integer.valueOf(-1);
-		}
+        Integer int_param;
+        try {
+            int_param = Integer.valueOf(query);
+        } catch (NumberFormatException e) {
+            int_param = Integer.valueOf(-1);
+        }
 
         // Create the parameter array, including limit and offset if part of the query
         Object[] paramArr = new Object[]{params, int_param};
@@ -942,12 +905,10 @@ public class Group extends DSpaceObject
      * 
      * @return the number of groups matching the query
      */
-    public static int searchResultCount(Context context, String query)
-    	throws SQLException
-	{
+    public static int searchResultCount(Context context, String query) throws SQLException {
 		String params = "%"+query.toLowerCase()+"%";
 		String dbquery = "SELECT count(*) as gcount FROM epersongroup WHERE LOWER(name) LIKE LOWER(?) OR eperson_group_id = ? ";
-		
+
 		// When checking against the eperson-id, make sure the query can be made into a number
 		Integer int_param;
 		try {
@@ -956,23 +917,14 @@ public class Group extends DSpaceObject
 		catch (NumberFormatException e) {
 			int_param = Integer.valueOf(-1);
 		}
-		
+
 		// Get all the epeople that match the query
 		TableRow row = DatabaseManager.querySingle(context, dbquery, new Object[] {params, int_param});
-		
-		// use getIntColumn for Oracle count data
-		Long count;
-        if ("oracle".equals(ConfigurationManager.getProperty("db.name")))
-        {
-            count = Long.valueOf(row.getIntColumn("gcount"));
-        }
-        else  //getLongColumn works for postgres
-        {
-            count = Long.valueOf(row.getLongColumn("gcount"));
-        }
 
-		return count.intValue();
-	}
+        Long count = Long.valueOf(row.getLongColumn("gcount"));
+
+        return count.intValue();
+    }
     
     
     /**

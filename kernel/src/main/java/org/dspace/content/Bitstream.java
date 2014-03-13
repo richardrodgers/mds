@@ -18,7 +18,6 @@ import org.slf4j.LoggerFactory;
 
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
-import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
@@ -440,7 +439,6 @@ public class Bitstream extends DSpaceObject
      * @throws SQLException
      */
     void delete() throws AuthorizeException, SQLException {
-        boolean oracle = "oracle".equals(ConfigurationManager.getProperty("db.name"));
         // changed to a check on remove
         // Check authorisation
         //AuthorizeManager.authorizeAction(bContext, this, Constants.DELETE);
@@ -455,8 +453,7 @@ public class Bitstream extends DSpaceObject
         AuthorizeManager.removeAllPolicies(context, this);
 
         // Remove references to primary bitstreams in bundle
-        String query = "update bundle set primary_bitstream_id = ";
-        query += (oracle ? "''" : "Null") + " where primary_bitstream_id = ? ";
+        String query = "update bundle set primary_bitstream_id = Null where primary_bitstream_id = ? ";
         DatabaseManager.updateQuery(context, query, tableRow.getIntColumn("bitstream_id"));
         
         // Remove any metadata
