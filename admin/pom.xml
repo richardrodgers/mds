@@ -7,15 +7,6 @@
     <description>DSpace administrative applications.</description>
     <url>http://projects.dspace.org/dspace-api</url>
 
-    <!--
-       A Parent POM that Maven inherits DSpace Defaults
-       POM attributes from. -->
-    <parent>
-        <artifactId>dspace-pom</artifactId>
-        <groupId>org.dspace</groupId>
-        <version>12</version>
-    </parent>
-
     <properties>
         <modscope>cliapp</modscope>
     </properties>
@@ -25,10 +16,12 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.0.2</version>
+                <version>2.3.2</version>
                 <configuration>
                     <debug>true</debug>
                     <showDeprecation>true</showDeprecation>
+                    <source>1.7</source>
+                    <target>1.7</target>
                 </configuration>
             </plugin>
             <plugin>

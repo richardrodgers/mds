@@ -7,16 +7,6 @@
     <name>DSpace SWORD v2</name>
     <description>DSpace SWORD v2 Deposit Service Provider Web Application</description>
 
-    <!--
-       A Parent POM that Maven inherits DSpace Default
-       POM attributes from.
-    -->
-    <parent>
-        <groupId>org.dspace</groupId>
-        <artifactId>dspace-pom</artifactId>
-        <version>12</version>
-    </parent>
-
     <properties>
         <deployAs>sword</deployAs>
     </properties>
@@ -29,6 +19,17 @@
         </filters>
     -->
         <plugins>
+            <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>2.3.2</version>
+            <configuration>
+                <debug>true</debug>
+                <showDeprecation>true</showDeprecation>
+                <source>1.7</source>
+                <target>1.7</target>
+            </configuration>
+          </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-war-plugin</artifactId>
@@ -101,21 +102,6 @@
 
 
     <profiles>
-        <profile>
-            <id>oracle-support</id>
-            <activation>
-                <property>
-                    <name>db.name</name>
-                    <value>oracle</value>
-                </property>
-            </activation>
-            <dependencies>
-                <dependency>
-                    <groupId>com.oracle</groupId>
-                    <artifactId>ojdbc6</artifactId>
-                </dependency>
-            </dependencies>
-        </profile>
         <profile>
             <id>postgres-support</id>
             <activation>

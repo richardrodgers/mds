@@ -8,14 +8,6 @@
     <url>http://projects.dspace.org/dspace-api</url>
 
     <!--
-       A Parent POM that Maven inherits DSpace Defaults
-       POM attributes from. -->
-    <parent>
-        <groupId>org.dspace</groupId>
-        <artifactId>dspace-pom</artifactId>
-        <version>12</version>
-    </parent>
-    <!--
        The Subversion repository location is used by Continuum to update against
        when changes have occurred, this spawns a new build cycle and releases snapshots
        into the snapshot repository below.
@@ -34,10 +26,12 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.0.2</version>
+                <version>2.3.2</version>
                 <configuration>
                     <debug>true</debug>
                     <showDeprecation>true</showDeprecation>
+                    <source>1.7</source>
+                    <target>1.7</target>
                 </configuration>
             </plugin>
             <plugin>
