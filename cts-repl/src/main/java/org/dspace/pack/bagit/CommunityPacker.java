@@ -51,7 +51,7 @@ public class CommunityPacker implements Packer {
 
     @Override
     public File pack(File packDir) throws AuthorizeException, SQLException, IOException {
-        Filler filler = new Filler(packDir);
+        Filler filler = new Filler(packDir.toPath());
         // set base object properties
         filler.metadata(BAG_TYPE, "AIP");
 
@@ -70,7 +70,7 @@ public class CommunityPacker implements Packer {
         if (logo != null) {
             filler.payload("logo", logo.retrieve());
         }
-        return filler.toPackage(archFmt);
+        return filler.toPackage(archFmt).toFile();
     }
 
     @Override
@@ -78,7 +78,7 @@ public class CommunityPacker implements Packer {
         if (archive == null) {
             throw new IOException("Missing archive for community: " + community.getHandle());
         }
-        Bag bag = new Loader(archive).load();
+        Bag bag = new Loader(archive.toPath()).load();
         // add the metadata
         BagUtils.readMetadata(community, bag.payloadStream("metadata.xml"));
         // also install logo or set to null

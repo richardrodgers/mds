@@ -52,7 +52,7 @@ public class CollectionPacker implements Packer {
 
     @Override
     public File pack(File packDir) throws AuthorizeException, IOException, SQLException {
-        Filler filler = new Filler(packDir);
+        Filler filler = new Filler(packDir.toPath());
         // categorize bag
         filler.metadata(BAG_TYPE, "AIP");
 
@@ -72,7 +72,7 @@ public class CollectionPacker implements Packer {
         if (logo != null) {
             filler.payload("logo", logo.retrieve());
         }
-        return filler.toPackage(archFmt);
+        return filler.toPackage(archFmt).toFile();
     }
 
     @Override
@@ -80,7 +80,7 @@ public class CollectionPacker implements Packer {
         if (archive == null) {
             throw new IOException("Missing archive for collection: " + collection.getHandle());
         }
-        Bag bag = new Loader(archive).load();
+        Bag bag = new Loader(archive.toPath()).load();
         // add the metadata
         BagUtils.readMetadata(collection, bag.payloadStream("metadata.xml"));
           // also install logo or set to null

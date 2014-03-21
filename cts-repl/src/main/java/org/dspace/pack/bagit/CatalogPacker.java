@@ -53,7 +53,7 @@ public class CatalogPacker implements Packer {
 
     @Override
     public File pack(File packDir) throws IOException {
-        Filler filler = new Filler(packDir);
+        Filler filler = new Filler(packDir.toPath());
         // set base object properties
         filler.metadata(BAG_TYPE, "MAN");
 
@@ -73,7 +73,7 @@ public class CatalogPacker implements Packer {
             }
             fwriter.close();
         }
-        return filler.toPackage();
+        return filler.toPackage().toFile();
     }
 
     @Override
@@ -81,7 +81,7 @@ public class CatalogPacker implements Packer {
         if (archive == null) {
             throw new IOException("Missing archive for catalog: " + objectId);
         }
-        Bag bag = new Loader(archive).load();
+        Bag bag = new Loader(archive.toPath()).load();
         // just populate the member list
         ownerId = bag.property("data/object", OWNER_ID).get(0);
         members = new ArrayList<String>();

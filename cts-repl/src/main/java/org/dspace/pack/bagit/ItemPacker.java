@@ -58,7 +58,7 @@ public class ItemPacker implements Packer {
 
     @Override
     public File pack(File packDir) throws AuthorizeException, IOException, SQLException {
-        Filler filler = new Filler(packDir);
+        Filler filler = new Filler(packDir.toPath());
         // set base object properties
         filler.metadata(BAG_TYPE, "AIP");
 
@@ -119,7 +119,7 @@ public class ItemPacker implements Packer {
             }
         }
         //return archive;
-        return filler.toPackage(archFmt);
+        return filler.toPackage(archFmt).toFile();
     }
 
     @Override
@@ -127,7 +127,7 @@ public class ItemPacker implements Packer {
         if (archive == null || ! archive.exists()) {
             throw new IOException("Missing archive for item: " + item.getHandle());
         }
-        Bag bag = new Loader(archive).load();
+        Bag bag = new Loader(archive.toPath()).load();
         // add the metadata first
         BagUtils.readMetadata(item, bag.payloadStream("metadata.xml"));
         // proceed to bundle data & metadata
@@ -135,7 +135,7 @@ public class ItemPacker implements Packer {
         for (String relPath : directory.keySet()) {
             File bfile = null;
             try { 
-                bfile = bag.payloadFile(relPath);
+                bfile = bag.payloadFile(relPath).toFile();
             } catch (IllegalAccessException iee) {}
             // only bundles are directories
             //if (! new File(relpAhbfile.isDirectory()) {

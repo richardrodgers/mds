@@ -7,6 +7,14 @@
     <description>DSpace common business logic.</description>
     <url>http://projects.dspace.org/dspace-api</url>
 
+    <repositories>
+      <repository>
+        <id>central</id>
+        <name>bintray</name>
+        <url>http://jcenter.bintray.com</url>
+      </repository>
+    </repositories>
+
     <build>
         <plugins>
             <plugin>
@@ -76,7 +84,7 @@
         <dependency>
             <groupId>edu.mit.lib</groupId>
             <artifactId>bagit</artifactId>
-            <version>0.1</version>
+            <version>0.2</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
@@ -93,7 +101,7 @@
           <artifactId>args4j</artifactId>
           <version>2.0.26</version>
         </dependency>
-  		<dependency>
+        <dependency>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-api</artifactId>
           <version>1.7.5</version>

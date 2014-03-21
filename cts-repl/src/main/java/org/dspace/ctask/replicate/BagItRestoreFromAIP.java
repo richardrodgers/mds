@@ -116,7 +116,7 @@ public class BagItRestoreFromAIP extends AbstractCurationTask {
         String objId = repMan.storageId(id, archFmt);
         File archive = repMan.fetchObject(storeGroupName, objId);
         if (archive != null) {
-            Bag bag = new Loader(archive).load();
+            Bag bag = new Loader(archive.toPath()).load();
             Properties props = new Properties();
             props.load(bag.payloadStream(OBJFILE));
             String type = props.getProperty(OBJECT_TYPE);
