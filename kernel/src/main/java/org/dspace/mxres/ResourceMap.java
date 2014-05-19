@@ -32,8 +32,9 @@ import org.dspace.storage.rdbms.TableRowIterator;
  * (known as 'resource composition language' expressions). The intent of MXR
  * is to provide an integration point for such resource management, rather
  * than including all sorts of resources themselves in the core distribution.
- * Therefore only one resource type is implemented in this package: metadata
- * templates. See {@link org.dspace.mxres.MetadataTemplate} Since these were
+ * Therefore only a few resource types are implemented in this package: metadata
+ * templates, and metadata views. See {@link org.dspace.mxres.MetadataTemplate} 
+ * See {@link org.dspace.mxres.MetdataView} Since the former (templates) were
  * provided as 'Item templates' as a core DSpace API service, they are retained
  * for rough backwards compatibility. Other resource types (e.g. submission
  * input forms, submission steps, workflow curation steps, etc), are intended
@@ -215,41 +216,46 @@ public class ResourceMap<T extends ExtensibleResource> {
                 int idx = token.indexOf(":");
                 String name = token.substring(0, idx);
                 DSpaceObject myDso = dso;
-                while (name.startsWith("^")) {
+                while (myDso != null && name.startsWith("^")) {
                     myDso = myDso.getParentObject();
                     name = name.substring(1);
                 }
                 String value = token.substring(idx + 1);
                 if ("?".equals(value)) {
                     // try to look up
-                    value = myDso.getAttribute(scope, name);
+                    value = (myDso != null) ? myDso.getAttribute(scope, name) : null;
                     if (value == null) {
                         continue;
                     }
                 }
-                // is there an instance of resource mapped?
-                String resId = getResource("instance", name + ":" + value);
-                if (resId != null) {
-                    // create a builder to construct the resource
-                    String builderName = getBuilder();
-                    if (builderName != null) {
-                        try {
-                            ResourceBuilder builder = (ResourceBuilder)Class.forName(builderName).newInstance();
-                            return (T)builder.build(context, resId);
-                        } catch (ClassNotFoundException cfnE) {
-                            log.error("Class not found for builder: " + clazz.getName());
-                        } catch (InstantiationException | IllegalAccessException instE) {
-                            log.error("Error instantiating builder: " + clazz.getName());
-                        }
-                    } else {
-                        log.error("No builder configured for resource class: "  + clazz.getName());
-                    }
-                } else {
-                    log.info("No resource found for key: " + name + ":" + value);
-                }
+                return mappedResource(name + ":" + value);
             }
         } else {
             log.info("No rule found for key: " + scope);
+        }
+        return null;
+    }
+
+    public T mappedResource(String key) throws SQLException {
+        // is there an instance of resource mapped?
+        String resId = getResource("instance", key);
+        if (resId != null) {
+            // create a builder to construct the resource
+            String builderName = getBuilder();
+            if (builderName != null) {
+                try {
+                    ResourceBuilder builder = (ResourceBuilder)Class.forName(builderName).newInstance();
+                    return (T)builder.build(context, resId);
+                } catch (ClassNotFoundException cfnE) {
+                    log.error("Class not found for builder: " + clazz.getName());
+                } catch (InstantiationException | IllegalAccessException instE) {
+                    log.error("Error instantiating builder: " + clazz.getName());
+                }
+            } else {
+                log.error("No builder configured for resource class: "  + clazz.getName());
+            }
+        } else {
+            log.info("No resource found for key: " + key);
         }
         return null;
     }

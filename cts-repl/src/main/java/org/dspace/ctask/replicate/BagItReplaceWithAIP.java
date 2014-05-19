@@ -7,24 +7,21 @@
  */
 package org.dspace.ctask.replicate;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.sql.SQLException;
 
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.Bundle;
-import org.dspace.content.Collection;
-import org.dspace.content.Community;
 import org.dspace.content.DSpaceObject;
 import org.dspace.content.Item;
 import org.dspace.content.MDValue;
-import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Constants;
 import org.dspace.curate.AbstractCurationTask;
 import org.dspace.curate.Curator;
 import org.dspace.curate.Mutative;
-import org.dspace.pack.Packer;
-import org.dspace.pack.PackerFactory;
+import org.dspace.pack.Packager;
+import org.dspace.pack.PackingSpec;
 
 /**
  * BagItReplaceWithAIP task will instate the replica representation of the object in
@@ -35,11 +32,6 @@ import org.dspace.pack.PackerFactory;
  */
 @Mutative
 public class BagItReplaceWithAIP extends AbstractCurationTask {
-
-    private String archFmt = ConfigurationManager.getProperty("replicate", "packer.archfmt");
-
-    // Group where all AIPs are stored
-    private final String storeGroupName = ConfigurationManager.getProperty("replicate", "group.aip.name");
     
     /**
      * Perform the 'Replace with AIP' task.
@@ -54,11 +46,11 @@ public class BagItReplaceWithAIP extends AbstractCurationTask {
     public int perform(DSpaceObject dso) throws AuthorizeException, IOException, SQLException { 
         ReplicaManager repMan = ReplicaManager.instance();
         // overwrite with AIP data
-        Packer packer = PackerFactory.instance(dso);
+        PackingSpec spec = repMan.packingSpec(dso);
         int status = Curator.CURATE_FAIL;
         String result = null;
-        String objId = repMan.storageId(dso.getHandle(), archFmt);
-        File archive = repMan.fetchObject(storeGroupName, objId);
+        String objId = repMan.storageId(dso.getHandle(), spec.getFormat());
+        Path archive = repMan.fetchObject(objId);
         if (archive != null)  {
             // clear object where necessary
             if (dso.getType() == Constants.ITEM) {
@@ -68,16 +60,9 @@ public class BagItReplaceWithAIP extends AbstractCurationTask {
                     item.removeBundle(bundle);
                 }   
             }
-            packer.unpack(archive);
+            Packager.fromPackage(dso, spec, archive);
             // now update the dso
-            int type = dso.getType();
-            if (type == Constants.ITEM) {
-                ((Item)dso).update();
-            } else if (type == Constants.COLLECTION) {
-                ((Collection)dso).update();
-            } else if (type == Constants.COMMUNITY) {
-                ((Community)dso).update();
-            }
+            dso.update();
             status = Curator.CURATE_SUCCESS;
             result = "Object: " + dso.getHandle() + " replaced from AIP";
         } else {

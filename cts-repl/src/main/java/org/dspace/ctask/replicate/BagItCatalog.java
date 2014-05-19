@@ -5,39 +5,38 @@
  *
  * http://www.dspace.org/license/
  */
-package org.dspace.pack.bagit;
+package org.dspace.ctask.replicate;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 
 import edu.mit.lib.bagit.Bag;
 import edu.mit.lib.bagit.Filler;
 import edu.mit.lib.bagit.Loader;
 
-import org.dspace.pack.Packer;
-import static org.dspace.pack.PackerFactory.*;
+import org.dspace.pack.bagit.BagUtils;
+import static org.dspace.pack.bagit.BagUtils.*;
 
 /**
- * CatalogPacker packs and unpacks Object catalogs in Bagit format. These
+ * BagItCatalog packs and unpacks Object catalogs in Bagit format. These
  * catalogs are typically used as deletion 'receipts' - i.e. records of what
  * was deleted.
  *
  * @author richardrodgers
  */
-public class CatalogPacker implements Packer {
+public class BagItCatalog {
 
     private String objectId = null;
     private String ownerId = null;
     private List<String> members = null;
 
-    public CatalogPacker(String objectId) {
+    public BagItCatalog(String objectId) {
         this.objectId = objectId;
     }
     
-    public CatalogPacker(String objectId, String ownerId, List<String> members) {
+    public BagItCatalog(String objectId, String ownerId, List<String> members) {
         this.objectId = objectId;
         this.ownerId = ownerId;
         this.members = members;
@@ -51,9 +50,8 @@ public class CatalogPacker implements Packer {
         return members;
     }
 
-    @Override
-    public File pack(File packDir) throws IOException {
-        Filler filler = new Filler(packDir.toPath());
+    public Path pack(Path packDir) throws IOException {
+        Filler filler = new Filler(packDir);
         // set base object properties
         filler.metadata(BAG_TYPE, "MAN");
 
@@ -73,15 +71,14 @@ public class CatalogPacker implements Packer {
             }
             fwriter.close();
         }
-        return filler.toPackage().toFile();
+        return filler.toPackage();
     }
 
-    @Override
-    public void unpack(File archive) throws IOException {
+    public void unpack(Path archive) throws IOException {
         if (archive == null) {
             throw new IOException("Missing archive for catalog: " + objectId);
         }
-        Bag bag = new Loader(archive.toPath()).load();
+        Bag bag = new Loader(archive).load();
         // just populate the member list
         ownerId = bag.property("data/object", OWNER_ID).get(0);
         members = new ArrayList<String>();
@@ -93,21 +90,5 @@ public class CatalogPacker implements Packer {
             }
             reader.close();
         }
-    }
-
-    @Override
-    public long size(String method) {
-        // not currently implemented
-        return 0L;
-    }
-
-    @Override
-    public void setContentFilter(String filter)  {
-       // no-op
-    }
-
-    @Override
-    public void setReferenceFilter(String filter) {
-        throw new UnsupportedOperationException("Not supported yet.");
     }
 }

@@ -4,9 +4,12 @@
   - metadata-views.xml
   -
   - Named metadata sets for UI rendering
+  - or other metadata disseminations
   -->
 
 <dspace-metadata-views>
+
+  <!-- community views  -->
 
   <metadata-view>
     <name>mdview:community-dsl-full</name>
@@ -14,11 +17,17 @@
     <rule>mdview:?,mdview:community-dsl-full</rule>
   </metadata-view>
 
+  <!-- collection views  -->
+
   <metadata-view>
     <name>mdview:collection-dsl-full</name>
     <scope>collection-mdv-full</scope>
     <rule>mdview:?,mdview:collection-dsl-full</rule>
   </metadata-view>
+
+  <!-- item views  -->
+
+  <!-- brief view is for base item splash page  -->
 
   <metadata-view>
     <name>mdview:item-dc-brief</name>
@@ -27,11 +36,39 @@
     <rule>^mdview:?,mdview:item-dc-brief</rule>
   </metadata-view>
 
+  <!-- short view is for search result and browse item lists -->
+
+  <metadata-view>
+    <name>mdview:item-dc-short</name>
+    <scope>item-mdv-brief</scope>
+    <rule>mdview:item-dc-short</rule>
+  </metadata-view>
+
+  <!-- dc-html view is for meta tags in item html header -->
+
+  <metadata-view>
+    <name>mdview:item-dc-html</name>
+    <scope>item-mdv-html</scope>
+    <rule>mdview:item-dc-html</rule>
+  </metadata-view>
+
+  <!-- dc-gsoc view is for Google Scholar meta tags in item html header -->
+
+  <metadata-view>
+    <name>mdview:item-dc-gsch</name>
+    <scope>item-mdv-gsch</scope>
+    <rule>mdview:item-dc-gsch</rule>
+  </metadata-view>
+
+  <!-- full view is for dump of metadata on html page -->
+
   <metadata-view>
     <name>mdview:item-dc-full</name>
     <scope>item-mdv-full</scope>
     <rule>^mdview:?,mdview:item-dc-full</rule>
   </metadata-view>
+
+  <!-- bitstream brief view is for bitstream metadata on item page -->
 
   <metadata-view>
     <name>mdview:bitstream-dsl-brief</name>
@@ -39,11 +76,22 @@
     <rule>mdview:bitstream-dsl-brief</rule>
   </metadata-view>
 
+  <!-- bitstream full view is for bitstream metadata on bitstream page -->
+
+  <metadata-view>
+    <name>mdview:bitstream-dsl-full</name>
+    <scope>bitstream-mdv-full</scope>
+    <rule>mdview:bitstream-dsl-full</rule>
+  </metadata-view>
+
+  <!-- depictions are the field-specific parts of views -->
+
   <depiction>
     <view>mdview:community-dsl-full</view>
     <schema>dsl</schema>
     <element>short_description</element>
-    <!-- unqualified -->
+    <qualifier></qualifier>
+    <altname></altname>
     <label>Description</label>
     <render></render>
     <wrapper></wrapper>
@@ -55,7 +103,8 @@
     <view>mdview:community-dsl-full</view>
     <schema>dsl</schema>
     <element>introductory_text</element>
-    <!-- unqualified -->
+    <qualifier></qualifier>
+    <altname></altname>
     <label>Introduction</label>
     <render></render>
     <wrapper></wrapper>
@@ -67,7 +116,8 @@
     <view>mdview:collection-dsl-full</view>
     <schema>dsl</schema>
     <element>short_description</element>
-    <!-- unqualified -->
+    <qualifier></qualifier>
+    <altname></altname>
     <label>Description</label>
     <render></render>
     <wrapper></wrapper>
@@ -79,19 +129,23 @@
     <view>mdview:collection-dsl-full</view>
     <schema>dsl</schema>
     <element>introductory_text</element>
-    <!-- unqualified -->
+    <qualifier></qualifier>
+    <altname></altname>
     <label>Introduction</label>
     <render></render>
     <wrapper></wrapper>
     <language></language>
     <place></place>
   </depiction>
+
+  <!-- item-dc-brief used in basic page views -->
 
   <depiction>
     <view>mdview:item-dc-brief</view>
     <schema>dc</schema>
     <element>title</element>
-    <!-- unqualified -->
+    <qualifier></qualifier>
+    <altname></altname>
     <label>Title</label>
     <render></render>
     <wrapper></wrapper>
@@ -104,8 +158,9 @@
     <schema>dc</schema>
     <element>contributor</element>
     <qualifier>author</qualifier>
+    <altname></altname>
     <label>Author</label>
-    <render>concatenate</render>
+    <render>join(";")</render>
     <wrapper></wrapper>
     <language></language>
     <place></place>
@@ -116,6 +171,7 @@
     <schema>dc</schema>
     <element>description</element>
     <qualifier>abstract</qualifier>
+    <altname></altname>
     <label>Abstract</label>
     <render>concatenate</render>
     <wrapper></wrapper>
@@ -128,8 +184,78 @@
     <schema>dc</schema>
     <element>identifier</element>
     <qualifier>uri</qualifier>
+    <altname></altname>
     <label>URI</label>
     <render>link</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+   <!-- item-dc-short used in browse/search/recent submissions page views -->
+
+  <depiction>
+    <view>mdview:item-dc-short</view>
+    <schema>dc</schema>
+    <element>title</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>Title</label>
+    <render>objref</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-short</view>
+    <schema>dc</schema>
+    <element>contributor</element>
+    <qualifier>author</qualifier>
+    <altname></altname>
+    <label>Author</label>
+    <render>join(";")</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-short</view>
+    <schema>dc</schema>
+    <element>date</element>
+    <qualifier>issued</qualifier>
+    <altname></altname>
+    <label> </label>
+    <render></render>
+    <wrapper>()</wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-short</view>
+    <schema>dc</schema>
+    <element>description</element>
+    <qualifier>abstract</qualifier>
+    <altname></altname>
+    <label>Abstract</label>
+    <render>truncate(100)</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <!-- item-dc-full is a view exposing all non-administrative dc metadata -->
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>contributor</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
     <wrapper></wrapper>
     <language></language>
     <place></place>
@@ -138,9 +264,10 @@
   <depiction>
     <view>mdview:item-dc-full</view>
     <schema>dc</schema>
-    <element>title</element>
-    <!-- unqualified -->
-    <label>Title</label>
+    <element>contributor</element>
+    <qualifier>advisor</qualifier>
+    <altname></altname>
+    <label></label>
     <render></render>
     <wrapper></wrapper>
     <language></language>
@@ -152,8 +279,9 @@
     <schema>dc</schema>
     <element>contributor</element>
     <qualifier>author</qualifier>
-    <label>Author</label>
-    <render>concatenate</render>
+    <altname>author</altname>
+    <label></label>
+    <render></render>
     <wrapper></wrapper>
     <language></language>
     <place></place>
@@ -162,10 +290,258 @@
   <depiction>
     <view>mdview:item-dc-full</view>
     <schema>dc</schema>
-    <element>description</element>
-    <qualifier>abstract</qualifier>
-    <label>Abstract</label>
-    <render>concatenate</render>
+    <element>contributor</element>
+    <qualifier>editor</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>contributor</element>
+    <qualifier>illustrator</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>contributor</element>
+    <qualifier>other</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>coverage</element>
+    <qualifier>spatial</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>coverage</element>
+    <qualifier>temporal</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>date</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>date</element>
+    <qualifier>accessioned</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>date</element>
+    <qualifier>available</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>date</element>
+    <qualifier>copyright</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>date</element>
+    <qualifier>created</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>date</element>
+    <qualifier>issued</qualifier>
+    <altname>datePublished</altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>date</element>
+    <qualifier>submitted</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>identifier</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>identifier</element>
+    <qualifier>citation</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>identifier</element>
+    <qualifier>govdoc</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>identifier</element>
+    <qualifier>isbn</qualifier>
+    <altname>isbn</altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>identifier</element>
+    <qualifier>issn</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>identifier</element>
+    <qualifier>sici</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>identifier</element>
+    <qualifier>ismn</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>identifier</element>
+    <qualifier>other</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
     <wrapper></wrapper>
     <language></language>
     <place></place>
@@ -176,8 +552,1145 @@
     <schema>dc</schema>
     <element>identifier</element>
     <qualifier>uri</qualifier>
-    <label>URI</label>
-    <render>link</render>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>description</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>description</element>
+    <qualifier>abstract</qualifier>
+    <altname></altname>
+    <label></label>
+    <render>concatenate</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <!-- omitting dc.description.provenance -->
+
+   <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>description</element>
+    <qualifier>sponsorship</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>description</element>
+    <qualifier>statementofresponsibility</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>description</element>
+    <qualifier>tableofcontents</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+   <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>description</element>
+    <qualifier>uri</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>format</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>format</element>
+    <qualifier>extent</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>format</element>
+    <qualifier>medium</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>format</element>
+    <qualifier>mimetype</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>language</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>language</element>
+    <qualifier>iso</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>publisher</element>
+    <qualifier></qualifier>
+    <altname>publisher</altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+   <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>isformatof</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>ispartofseries</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>haspart</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>isversionof</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>hasversion</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>isbasedon</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>requires</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>replaces</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>isreplacedby</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>isreferencedby</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>uri</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>rights</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>rights</element>
+    <qualifier>uri</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>subject</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>subject</element>
+    <qualifier>classification</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>subject</element>
+    <qualifier>ddc</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>subject</element>
+    <qualifier>lcc</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>subject</element>
+    <qualifier>lcsh</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>subject</element>
+    <qualifier>mesh</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>subject</element>
+    <qualifier>other</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>title</element>
+    <qualifier></qualifier>
+    <altname>name</altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>title</element>
+    <qualifier>alternative</qualifier>
+    <altname></altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-full</view>
+    <schema>dc</schema>
+    <element>type</element>
+    <qualifier></qualifier>
+    <altname>genre</altname>
+    <label></label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <!-- depictions for item-dc-html, a view used to embed DC metadata in html link and meta elements -->
+
+   <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>contributor</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>DC.contributor</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+   <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>contributor</element>
+    <qualifier>author</qualifier>
+    <altname></altname>
+    <label>DC.creator</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+   <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>coverage</element>
+    <qualifier>spatial</qualifier>
+    <altname></altname>
+    <label>DCTERMS.spatial</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>coverage</element>
+    <qualifier>temporal</qualifier>
+    <altname></altname>
+    <label>DCTERMS.temporal</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+   <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>creator</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>DC.creator</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>date</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>DC.date</label>
+    <render>DCTERMS.W3CDTF</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>date</element>
+    <qualifier>accessioned</qualifier>
+    <altname></altname>
+    <label>DCTERMS.dateAccepted</label>
+    <render>DCTERMS.W3CDTF</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>date</element>
+    <qualifier>available</qualifier>
+    <altname></altname>
+    <label>DCTERMS.available</label>
+    <render>DCTERMS.W3CDTF</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>date</element>
+    <qualifier>copyright</qualifier>
+    <altname></altname>
+    <label>DCTERMS.dateCopyrighted</label>
+    <render>DCTERMS.W3CDTF</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>date</element>
+    <qualifier>created</qualifier>
+    <altname></altname>
+    <label>DCTERMS.created</label>
+    <render>DCTERMS.W3CDTF</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>date</element>
+    <qualifier>issued</qualifier>
+    <altname></altname>
+    <label>DCTERMS.issued</label>
+    <render>DCTERMS.W3CDTF</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>identifier</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>DC.identifier</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>identifier</element>
+    <qualifier>citation</qualifier>
+    <altname></altname>
+    <label>DCTERMS.bibliographicCitation</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>identifier</element>
+    <qualifier>uri</qualifier>
+    <altname></altname>
+    <label>DC.identifier</label>
+    <render>DCTERMS.URI</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>description</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>DC.description</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+   <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>description</element>
+    <qualifier>abstract</qualifier>
+    <altname></altname>
+    <label>DCTERMS.abstract</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>description</element>
+    <qualifier>tableofcontents</qualifier>
+    <altname></altname>
+    <label>DCTERMS.tableOfContents</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>description</element>
+    <qualifier>uri</qualifier>
+    <altname></altname>
+    <label>DC.description</label>
+    <render>DCTERMS.URI</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>format</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>DC.format</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>format</element>
+    <qualifier>extent</qualifier>
+    <altname></altname>
+    <label>DCTERMS.extent</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>format</element>
+    <qualifier>medium</qualifier>
+    <altname></altname>
+    <label>DCTERMS.medium</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>language</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>DC.language</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>language</element>
+    <qualifier>iso</qualifier>
+    <altname></altname>
+    <label>DC.language</label>
+    <render>DCTERMS.RFC1766</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>publisher</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>DC.publisher</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>DC.relation</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>isformatof</qualifier>
+    <altname></altname>
+    <label>DCTERMS.isFormatOf</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>ispartof</qualifier>
+    <altname></altname>
+    <label>DCTERMS.isPartOf</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>haspart</qualifier>
+    <altname></altname>
+    <label>DCTERMS.hasPart</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>isversionof</qualifier>
+    <altname></altname>
+    <label>DCTERMS.isVersionOf</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>hasversion</qualifier>
+    <altname></altname>
+    <label>DCTERMS.hasVersion</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>isreferencedby</qualifier>
+    <altname></altname>
+    <label>DCTERMS.isReferencedBy</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>requires</qualifier>
+    <altname></altname>
+    <label>DCTERMS.requires</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>replaces</qualifier>
+    <altname></altname>
+    <label>DCTERMS.replaces</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>isreplacedby</qualifier>
+    <altname></altname>
+    <label>DCTERMS.isReplacedBy</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>uri</qualifier>
+    <altname></altname>
+    <label>DC.relation</label>
+    <render>DCTERMS.URI</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>rights</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <!-- correction from DC.relation -->
+    <label>DC.rights</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>rights</element>
+    <qualifier>uri</qualifier>
+    <altname></altname>
+    <label>DC.rights</label>
+    <render>DCTERMS.URI</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>source</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>DC.source</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>source</element>
+    <qualifier>uri</qualifier>
+    <altname></altname>
+    <label>DC.source</label>
+    <render>DCTERMS.URI</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>subject</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>DC.subject</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>subject</element>
+    <qualifier>ddc</qualifier>
+    <altname></altname>
+    <label>DC.subject</label>
+    <render>DCTERMS.DDC</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>subject</element>
+    <qualifier>lcc</qualifier>
+    <altname></altname>
+    <label>DC.subject</label>
+    <render>DCTERMS.LCC</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>subject</element>
+    <qualifier>lcsh</qualifier>
+    <altname></altname>
+    <label>DC.subject</label>
+    <render>DCTERMS.LCSH</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>subject</element>
+    <qualifier>mesh</qualifier>
+    <altname></altname>
+    <label>DC.subject</label>
+    <render>DCTERMS.MESH</render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>title</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>DC.title</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>title</element>
+    <qualifier>alternative</qualifier>
+    <altname></altname>
+    <label>DCTERMS.alternative</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-html</view>
+    <schema>dc</schema>
+    <element>type</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>DC.type</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-gsch</view>
+    <schema>dc</schema>
+    <element>contributor</element>
+    <qualifier>author</qualifier>
+    <altname></altname>
+    <label>citation_author</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-gsch</view>
+    <schema>dc</schema>
+    <element>date</element>
+    <qualifier>issued</qualifier>
+    <altname></altname>
+    <label>citation_publication_date</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
+
+  <depiction>
+    <view>mdview:item-dc-gsch</view>
+    <schema>dc</schema>
+    <element>title</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>citation_title</label>
+    <render></render>
     <wrapper></wrapper>
     <language></language>
     <place></place>
@@ -187,7 +1700,8 @@
     <view>mdview:bitstream-dsl-brief</view>
     <schema>dsl</schema>
     <element>description</element>
-    <!-- unqualified  -->
+    <qualifier></qualifier>
+    <altname></altname>
     <label>Description</label>
     <render></render>
     <wrapper></wrapper>

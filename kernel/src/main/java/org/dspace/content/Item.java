@@ -632,6 +632,30 @@ public class Item extends DSpaceObject
     }
 
     /**
+     * Get the Item bitstream with given sequence ID, or null if no
+     * Bitstream exists with given sequence ID. Optimization for
+     * crawling the bundle sets to find a bitstream with a given sequence ID
+     *
+     * @param sequenceID the Item-relative sequence ID
+     * @return bitstream the bitstream
+     */
+    public Bitstream getBitstreamBySequenceID(int sequenceID) throws SQLException {
+        TableRow tr = DatabaseManager.querySingle(context,
+                        "SELECT bitstream.* FROM bitstream, item2bundle, bundle2bitstream " +
+                        "WHERE bitstream.sequence_id= ? " +
+                        "AND item2bundle.item_id= ? " +
+                        "AND item2bundle.bundle_id=bundle2bitstream.bundle_id " +
+                        "AND bundle2bitstream.bitstream_id=bitstream.bitstream_id",
+                        sequenceID, getID());
+        if (tr == null) {
+            log.debug(LogManager.getHeader(context, "get_bitstream_by_sequence_id",
+                                   "not_found,item_id=" + getID() + "sequence_id=" + sequenceID));
+            return null;
+        }
+        return new Bitstream(context, tr);
+    }
+
+    /**
      * Remove just the DSpace license from an item This is useful to update the
      * current DSpace license, in case the user must accept the DSpace license
      * again (either the item was rejected, or resumed after saving)

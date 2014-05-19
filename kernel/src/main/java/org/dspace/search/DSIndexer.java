@@ -1,4 +1,4 @@
-/**
+    /**
  * The contents of this file are subject to the license and copyright
  * detailed in the LICENSE and NOTICE files at the root of the source
  * tree and available online at
@@ -451,11 +451,11 @@ public class DSIndexer {
      * @throws IOException
      */
     private IndexingTask buildItemTask(Item item, IndexConfig config) throws SQLException, IOException {
-    	String handle = item.getHandle();
-    	IndexingTask task = new IndexingTask(IndexingTask.Action.UPDATE);
-    	task.addField(DOCUMENT_KEY, handle);
+        String handle = item.getHandle();
+        IndexingTask task = new IndexingTask(IndexingTask.Action.UPDATE);
+        task.addField(DOCUMENT_KEY, handle);
         task.addFieldSet(buildCommon(item));
-    	
+    
         log.debug("Building Item: " + handle);
         
         // generic item metadata
@@ -533,23 +533,23 @@ public class DSIndexer {
      * Create map of all fields common to DSOs
      */
     private Map<String, String> buildCommon(DSpaceObject dso) throws SQLException {
-    	Map<String, String> fieldMap = new HashMap<String, String>();
-    	// always record last update
-    	fieldMap.put(LAST_INDEXED_FIELD, Long.toString(System.currentTimeMillis()));
-    	fieldMap.put(DOCUMENT_STATUS_FIELD, "archived");
-    	fieldMap.put("search.resourcetype", Integer.toString(dso.getType()));
-    	fieldMap.put("search.resourceid", Integer.toString(dso.getID()));
-    	String handle = dso.getHandle();
-    	if (handle != null) {
-    		fieldMap.put("handle", handle);
-    		fieldMap.put("default", handle);
-    	}
-    	StringBuffer sb = new StringBuffer();
-    	int type = dso.getType();
-    	if (type == Constants.COLLECTION) {
-    		for (Community community : ((Collection)dso).getCommunities()) {
-    			sb.append(" m").append(community.getID());
-    		}
+        Map<String, String> fieldMap = new HashMap<String, String>();
+        // always record last update
+        fieldMap.put(LAST_INDEXED_FIELD, Long.toString(System.currentTimeMillis()));
+        fieldMap.put(DOCUMENT_STATUS_FIELD, "archived");
+        fieldMap.put("search.resourcetype", Integer.toString(dso.getType()));
+        fieldMap.put("search.resourceid", Integer.toString(dso.getID()));
+        String handle = dso.getHandle();
+        if (handle != null) {
+            fieldMap.put("handle", handle);
+            fieldMap.put("default", handle);
+        }
+        StringBuffer sb = new StringBuffer();
+        int type = dso.getType();
+        if (type == Constants.COLLECTION) {
+            for (Community community : ((Collection)dso).getCommunities()) {
+                sb.append(" m").append(community.getID());
+            }
     	} else if (type == Constants.ITEM) {
        		for (Community community : ((Item)dso).getCommunities()) {
     			sb.append(" m").append(community.getID());
@@ -625,7 +625,7 @@ public class DSIndexer {
     	public IndexConfig(String indexName, String svcInfo) {
     		this.indexName = indexName;
     		// try to load service
-    		String[] parts = svcInfo.split("@");
+    		String[] parts = svcInfo.split("\\|");
     		try {
     			service = (IndexService)Class.forName(parts[0]).newInstance();
     		} catch (Exception e) {}

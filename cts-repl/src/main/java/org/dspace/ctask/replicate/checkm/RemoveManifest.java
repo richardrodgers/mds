@@ -8,14 +8,14 @@
 package org.dspace.ctask.replicate.checkm;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.SQLException;
 
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.*;
-import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Context;
 import org.dspace.ctask.replicate.ReplicaManager;
 import org.dspace.curate.AbstractCurationTask;
@@ -35,9 +35,6 @@ import org.dspace.curate.Distributive;
  */
 @Distributive
 public class RemoveManifest extends AbstractCurationTask {
-
-    // Group where all Manifests are stored
-    private final String manifestGroupName = ConfigurationManager.getProperty("replicate", "group.manifest.name");
     
     /**
      * Removes replicas of passed object from the replica store.
@@ -71,7 +68,7 @@ public class RemoveManifest extends AbstractCurationTask {
      */
     private void remove(ReplicaManager repMan, DSpaceObject dso) throws IOException, SQLException {    
         String objId = repMan.storageId(dso.getHandle(), TransmitManifest.MANIFEST_EXTENSION);
-        repMan.removeObject(manifestGroupName, objId);
+        repMan.removeObject(repMan.manifestGroupName(), objId);
         report("Removing manifest for: " + objId);
         if (dso instanceof Collection) {
             try (BoundedIterator<Item> iter = ((Collection)dso).getItems()) {
@@ -138,22 +135,24 @@ public class RemoveManifest extends AbstractCurationTask {
      * @throws IOException 
      */
     private void deleteManifest(ReplicaManager repMan, String id) throws IOException {
-        File manFile = repMan.fetchObject(manifestGroupName, id);
+        Path manFile = repMan.fetchManifest(id);
         if (manFile != null) {
-            BufferedReader reader = new BufferedReader(new FileReader(manFile));
-            String line = null;
-            while ((line = reader.readLine()) != null) {
-                if (! line.startsWith("#")) {
-                    String entry = line.substring(0, line.indexOf("|"));
-                    if (entry.indexOf("-") > 0) {
-                        // it's another manifest - fetch & delete it
-                        deleteManifest(repMan, entry);
+            try (BufferedReader reader = Files.newBufferedReader(manFile, StandardCharsets.UTF_8)) {
+            //BufferedReader reader = new BufferedReader(new FileReader(manFile.toFile()));
+                String line = null;
+                while ((line = reader.readLine()) != null) {
+                    if (! line.startsWith("#")) {
+                        String entry = line.substring(0, line.indexOf("|"));
+                        if (entry.indexOf("-") > 0) {
+                            // it's another manifest - fetch & delete it
+                            deleteManifest(repMan, entry);
+                        }
                     }
                 }
             }
-            reader.close();
+            //reader.close();
             report("Removing manifest for: " + id);
-            repMan.removeObject(manifestGroupName, id);
+            repMan.removeObject(repMan.manifestGroupName(), id);
         }
     }
 }

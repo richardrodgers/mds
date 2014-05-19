@@ -7,9 +7,10 @@
  */
 package org.dspace.ctask.replicate.store;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
 /**
@@ -19,7 +20,7 @@ import java.nio.file.StandardCopyOption;
  * testing and validating the replication service, not as a production replica
  * store. Note in particular that certain filesystem limits on number of files
  * in a directory may limit its use. It stores replicas as archive files.
- * Also note that MountableObjectStore differs only from LocalObjectStore in
+ * Also note that MountableObjectStore differs from LocalObjectStore only in
  * that all objects are copied, rather than moved (renamed). This will result
  * in slower performance, but may be required when more complex storage
  * architectures (e.g. an NFS-mounted storage) are used.
@@ -32,12 +33,12 @@ public class MountableObjectStore extends LocalObjectStore {
     public MountableObjectStore() {}
 
     @Override
-    public long transferObject(String group, File file) throws IOException {
+    public long transferObject(String group, Path file) throws IOException {
         // local transfer is a simple matter of copying the file,
         // we don't bother checking if replica is really new, since
         // local deletes/copies are cheap
-        File archFile = new File(storeDir + File.separator + group, file.getName());
-        Files.copy(file.toPath(), archFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-        return file.length();
+        Path archFile = Paths.get(storeDir, group, file.getFileName().toString());
+        Files.copy(file, archFile, StandardCopyOption.REPLACE_EXISTING);
+        return Files.size(file);
     }
 }

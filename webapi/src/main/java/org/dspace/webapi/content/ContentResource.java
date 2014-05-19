@@ -78,7 +78,7 @@ public class ContentResource {
         }
         // Inject URIs into this entity
         inject(entity);
-        return Response.created(entity.getURI()).entity(entity).build();
+        return Response.created(entity.getURI()).build();
     }
 
     // get a content entity (community, collection, item, bitstream)
@@ -133,7 +133,7 @@ public class ContentResource {
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         }
         inject(entity);
-        return Response.created(entity.getURI()).entity(entity).build();
+        return Response.created(entity.getURI()).build();
     }
 
     // get an item's filtered bitstreams
@@ -144,11 +144,13 @@ public class ContentResource {
 
     // get an entity metadata set
     @GET @Path("{prefix}/{id}/mdset/{name}")
-    public MetadataEntity getMetadataSet(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("name") String name) {
+    public ContentEntity getMetadataSet(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("name") String name) {
         MetadataEntity mdEntity = null;
         try {
             mdEntity = contentDao.getMetadataSet(prefix, id, name);
         } catch (SQLException sqlE) {
+            log.error("SQL exception: " + sqlE.getMessage());
+            sqlE.printStackTrace();
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         } catch (IllegalArgumentException iaE) {
             throw new WebApplicationException(Response.Status.NOT_FOUND);
@@ -160,7 +162,7 @@ public class ContentResource {
 
     // get an entity metadata view
     @GET @Path("{prefix}/{id}/mdview/{name}")
-    public ViewEntity getMetadataView(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("name") String name) {
+    public ContentEntity getMetadataView(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("name") String name) {
         ViewEntity mdEntity = null;
         try {
             mdEntity = contentDao.getMetadataView(prefix, id, name);
@@ -177,7 +179,7 @@ public class ContentResource {
     // update an entity metadata set
     @PUT @Path("{prefix}/{id}/mdset/{name}")
     @Consumes({APPLICATION_XML, APPLICATION_JSON})
-    public MetadataEntity updateMetadata(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("name") String name, MetadataEntity updEntity) {
+    public ContentEntity updateMetadata(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("name") String name, MetadataEntity updEntity) {
         MetadataEntity mdEntity = null;
         try {
             mdEntity = contentDao.updateMetadata(prefix, id, name, updEntity);
@@ -206,6 +208,43 @@ public class ContentResource {
         } catch (AuthorizeException authE) {
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
         }
+    }
+
+    // get an entity package object
+    @GET @Path("{prefix}/{id}/package/{name}")
+    public Response getPackage(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("name") String name) {
+        try {
+            PackageReader reader = contentDao.getPackageReader(prefix, id, name);
+            return Response.ok(reader.getStream()).type(reader.getMimeType()).build();
+         } catch (IllegalArgumentException iaE) {
+            throw new WebApplicationException(Response.Status.NOT_FOUND);
+        } catch (IOException | SQLException exp) {
+            log.error("SQL exception: " + exp.getMessage());
+            exp.printStackTrace();
+            throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
+        } catch (AuthorizeException authE) {
+            log.error("Auth exception: " + authE.getMessage());
+            authE.printStackTrace();
+            throw new WebApplicationException(Response.Status.UNAUTHORIZED);
+        }
+    }
+
+    // create an entity from a packaged representation (SIP)
+    @POST @Path("{prefix}/{id}/package/{name}")
+    @Consumes("application/zip")
+    public Response contentFromPackage(@PathParam("prefix") String prefix, @PathParam("id") String id, @PathParam("name") String name, InputStream in) {
+        ContentEntity entity = null;
+        try {
+            entity = contentDao.entityFromPackage(prefix, id, name, in);
+        } catch (AuthorizeException authE) {
+            throw new WebApplicationException(Response.Status.UNAUTHORIZED);
+        } catch (IllegalArgumentException iaE) {
+            throw new WebApplicationException(Response.Status.NOT_FOUND);
+        } catch (IOException | SQLException sqlE) {
+            throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
+        }
+        inject(entity);
+        return Response.created(entity.getURI()).build();
     }
 
     private void inject(Injectable injectable) {

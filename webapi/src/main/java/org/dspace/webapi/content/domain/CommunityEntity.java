@@ -23,6 +23,9 @@ public class CommunityEntity extends ContentEntity {
     private URI logo;
     private URI subcommunityUri;
     private URI collectionUri;
+    private URI mdUri;
+    private URI mdviewUri;
+    private URI packageUri;
     
     public CommunityEntity() {}
 
@@ -63,6 +66,30 @@ public class CommunityEntity extends ContentEntity {
         this.subcommunityUri = subcommunityUri;
     }
 
+    public URI getMetadataUri() {
+        return mdUri;
+    }
+
+    public void setMetadataUri(URI mdUri) {
+        this.mdUri = mdUri;
+    }
+
+    public URI getMetadataViewUri() {
+        return mdviewUri;
+    }
+
+    public void setMetadataViewUri(URI mdviewUri) {
+        this.mdviewUri = mdviewUri;
+    }
+
+    public URI getPackageUri() {
+        return packageUri;
+    }
+
+    public void setPackageUri(URI packageUri) {
+        this.packageUri = packageUri;
+    }
+
     @Override
     public Map<String, String> getUriInjections() {
         Map<String, String> injectionMap = super.getUriInjections();
@@ -71,6 +98,9 @@ public class CommunityEntity extends ContentEntity {
         if (logoPath != null) {
             injectionMap.put("logo", logoPath);
         }
+        injectionMap.put("mdsets", pid + ":mdsets");
+        injectionMap.put("mdviews", pid + ":mdviews");
+        injectionMap.put("packages", pid + ":packages");
         return injectionMap;
     }
 
@@ -80,6 +110,9 @@ public class CommunityEntity extends ContentEntity {
             case "collections": setCollections(uri); break;
             case "subcommunities": setSubcommunities(uri); break;
             case "logo": setLogo(uri); break;
+            case "mdsets": setMetadataUri(uri); break;
+            case "mdviews": setMetadataViewUri(uri); break;
+            case "packages": setPackageUri(uri); break;
             default: super.injectUri(key, uri); break;
         }
     }

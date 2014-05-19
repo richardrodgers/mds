@@ -7,12 +7,12 @@
  */
 package org.dspace.ctask.replicate.store;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -41,8 +41,7 @@ public class DuraCloudObjectStore implements ObjectStore {
     // DuraCloud store
     private ContentStore dcStore = null;
     
-    public DuraCloudObjectStore() {
-    }
+    public DuraCloudObjectStore() {}
 
     @Override
     public void init() throws IOException {
@@ -63,7 +62,7 @@ public class DuraCloudObjectStore implements ObjectStore {
     }
 
     @Override
-    public long fetchObject(String group, String id, File file) throws IOException {
+    public long fetchObject(String group, String id, Path file) throws IOException {
         long size = 0L;
         try {
              // DEBUG REMOVE
@@ -77,19 +76,15 @@ public class DuraCloudObjectStore implements ObjectStore {
             // DEBUG remove
             start = System.currentTimeMillis();
             InputStream in = content.getStream();
-            Files.copy(in, file.toPath());
+            Files.copy(in, file);
             in.close();
             //out.close();
              // DEBUG REMOVE
             elapsed = System.currentTimeMillis() - start;
             //System.out.println("DC fetch download: " + elapsed);
-        }
-        catch (NotFoundException nfE)
-        {
+        } catch (NotFoundException nfE) {
             // no object - no-op
-        }
-        catch (ContentStoreException csE)
-        {
+        } catch (ContentStoreException csE) {
             throw new IOException(csE);
         }
         return size;
@@ -123,116 +118,91 @@ public class DuraCloudObjectStore implements ObjectStore {
     }
 
     @Override
-    public long transferObject(String group, File file) throws IOException {
+    public long transferObject(String group, Path file) throws IOException {
         long size = 0L;
-        String chkSum = com.google.common.io.Files.hash(file, Hashing.md5()).toString(); //Utils.checksum(file, "MD5");
+        String chkSum = com.google.common.io.Files.hash(file.toFile(), Hashing.md5()).toString(); //Utils.checksum(file, "MD5");
         // make sure this is a different file from what replica store has
         // to avoid network I/O tax
         try
         {
-            Map<String, String> attrs = dcStore.getContentProperties(getSpaceID(group), getContentPrefix(group) + file.getName());
+            Map<String, String> attrs = dcStore.getContentProperties(getSpaceID(group), getContentPrefix(group) + file.getFileName().toString());
             if (! chkSum.equals(attrs.get(ContentStore.CONTENT_CHECKSUM)))
             {
                 size = uploadReplica(group, file, chkSum);
             }
-        }
-        catch (NotFoundException nfE)
-        {
+        } catch (NotFoundException nfE) {
             // no extant replica - proceed
             size = uploadReplica(group, file, chkSum);
-        }
-        catch (ContentStoreException csE)
-        {
+        } catch (ContentStoreException csE) {
             throw new IOException(csE);
         }
         // delete staging file
-        file.delete();
+        Files.delete(file);
         return size;
     }
 
-    private long uploadReplica(String group, File file, String chkSum) throws IOException
-    {
-        try
-        {
+    private long uploadReplica(String group, Path file, String chkSum) throws IOException {
+        try {
             //@TODO: We shouldn't need to pass a hardcoded MIME Type. Unfortunately, DuraCloud, 
             // as of 1.3, doesn't properly determine a file's MIME Type. In future it should.
             String mimeType = "application/octet-stream";
-            if(file.getName().endsWith(".zip"))
+            String fileName = file.getFileName().toString();
+            if(fileName.endsWith(".zip"))
                 mimeType = "application/zip";
-            else if (file.getName().endsWith(".tgz"))
+            else if (fileName.endsWith(".tgz"))
                 mimeType = "application/x-gzip";
-            else if(file.getName().endsWith(".txt"))
+            else if(fileName.endsWith(".txt"))
                 mimeType = "text/plain";
             
-            dcStore.addContent(getSpaceID(group), getContentPrefix(group) + file.getName(),
-                               new FileInputStream(file), file.length(),
+            dcStore.addContent(getSpaceID(group), getContentPrefix(group) + fileName,
+                               new FileInputStream(file.toFile()), Files.size(file),
                                mimeType, chkSum,
                                new HashMap<String, String>());
         
-            return file.length();
-        }
-        catch (ContentStoreException csE)
-        {
+            return Files.size(file);
+        } catch (ContentStoreException csE) {
             throw new IOException(csE);
         }
     }
 
     @Override
-    public long moveObject(String srcGroup, String destGroup, String id) throws IOException
-    {
+    public long moveObject(String srcGroup, String destGroup, String id) throws IOException {
         // get file-size metadata before moving the content
         long size = 0L;
-        try
-        {
+        try {
             Map<String, String> attrs = dcStore.getContentProperties(getSpaceID(srcGroup), getContentPrefix(srcGroup) + id);
             size = Long.valueOf(attrs.get(ContentStore.CONTENT_SIZE));
             dcStore.moveContent(getSpaceID(srcGroup), getContentPrefix(srcGroup) + id, 
                                 getSpaceID(destGroup), getContentPrefix(destGroup) + id);
-        }
-        catch (NotFoundException nfE)
-        {
+        } catch (NotFoundException nfE) {
             // no replica - no-op
-        }
-        catch (ContentStoreException csE)
-        {
+        } catch (ContentStoreException csE) {
             throw new IOException(csE);
         }
         return size;
     }
     
     @Override
-    public String objectAttribute(String group, String id, String attrName) throws IOException
-    {
-        try
-        {
+    public String objectAttribute(String group, String id, String attrName) throws IOException {
+        try {
             Map<String, String> attrs = dcStore.getContentProperties(getSpaceID(group), getContentPrefix(group) + id);
             
-            if ("checksum".equals(attrName))
-            {
+            if ("checksum".equals(attrName)) {
                 return attrs.get(ContentStore.CONTENT_CHECKSUM);
-            }
-            else if ("sizebytes".equals(attrName))
-            {
+            } else if ("sizebytes".equals(attrName)) {
                 return attrs.get(ContentStore.CONTENT_SIZE);
-            }
-            else if ("modified".equals(attrName))
-            {
+            } else if ("modified".equals(attrName)) {
                 return attrs.get(ContentStore.CONTENT_MODIFIED);
             }
             return null;
-        }
-        catch (NotFoundException nfE)
-        {
+        } catch (NotFoundException nfE) {
             return null;
-        }
-        catch (ContentStoreException csE)
-        {
+        } catch (ContentStoreException csE) {
             throw new IOException(csE);
         }
     }
     
-    private static String localProperty(String name)
-    {
+    private static String localProperty(String name) {
         return ConfigurationManager.getProperty("duracloud", name);
     }
     
@@ -246,8 +216,7 @@ public class DuraCloudObjectStore implements ObjectStore {
      * @param String group name
      * @return DuraCloud Space ID
      */
-    private String getSpaceID(String group)
-    {
+    private String getSpaceID(String group) {
         //If group contains a forward or backslash, then the
         //Space ID is whatever is before that slash
         if(group!=null && group.contains("/"))
@@ -266,8 +235,7 @@ public class DuraCloudObjectStore implements ObjectStore {
      * @param String group name
      * @return content prefix (ending with a forward slash)
      */
-    private String getContentPrefix(String group)
-    {
+    private String getContentPrefix(String group)  {
         //If group contains a forward or backslash, then the
         // content prefix is whatever is after that slash
         if(group!=null && group.contains("/"))

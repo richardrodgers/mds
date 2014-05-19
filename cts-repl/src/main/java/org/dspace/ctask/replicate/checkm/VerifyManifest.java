@@ -11,7 +11,6 @@ package org.dspace.ctask.replicate.checkm;
 import java.io.IOException;
 
 import org.dspace.content.DSpaceObject;
-import org.dspace.core.ConfigurationManager;
 import org.dspace.ctask.replicate.ReplicaManager;
 import org.dspace.curate.AbstractCurationTask;
 import org.dspace.curate.Curator;
@@ -36,9 +35,6 @@ import org.dspace.curate.Suspendable;
 @Suspendable(invoked=Curator.Invoked.INTERACTIVE)
 public class VerifyManifest extends AbstractCurationTask {
 
-    // Group where all Manifests are stored
-    private final String manifestGroupName = ConfigurationManager.getProperty("replicate", "group.manifest.name");
-
     /**
      * Perform the 'Verify Manifest' task
      * @param dso the DSpace Object to be verified
@@ -49,7 +45,7 @@ public class VerifyManifest extends AbstractCurationTask {
     public int perform(DSpaceObject dso) throws IOException {
         ReplicaManager repMan = ReplicaManager.instance();
         String objId = repMan.storageId(dso.getHandle(), TransmitManifest.MANIFEST_EXTENSION);
-        boolean found = repMan.objectExists(manifestGroupName, objId);
+        boolean found = repMan.objectExists(repMan.manifestGroupName(), objId);
         String result = "Manifest for object: " + dso.getHandle() + " found: " + found;
         report(result);
         setResult(result);

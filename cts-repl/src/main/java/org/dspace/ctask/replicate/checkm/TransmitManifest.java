@@ -8,15 +8,16 @@
 
 package org.dspace.ctask.replicate.checkm;
 
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 
-import com.google.common.io.Files;
+//import com.google.common.io.Files;
 import com.google.common.hash.Hashing;
 import com.google.common.hash.HashCode;
 
@@ -55,7 +56,7 @@ public class TransmitManifest extends AbstractCurationTask {
     private static String template = null;
     
     // Group where all Manifests will be stored
-    private final String manifestGroupName = ConfigurationManager.getProperty("replicate", "group.manifest.name");
+    //private final String manifestGroupName = ConfigurationManager.getProperty("replicate", "group.manifest.name");
     
     static {
         template = ConfigurationManager.getProperty("replicate", "checkm.template");
@@ -74,7 +75,7 @@ public class TransmitManifest extends AbstractCurationTask {
     @Override
     public int perform(DSpaceObject dso) throws AuthorizeException, IOException, SQLException {
         ReplicaManager repMan = ReplicaManager.instance();
-        File manFile = null;
+        Path manFile = null;
         switch (dso.getType()) {
             case Constants.ITEM : 
                 manFile = itemManifest(repMan, (Item)dso); break;
@@ -90,11 +91,10 @@ public class TransmitManifest extends AbstractCurationTask {
             default: break;
         }
             
-        repMan.transferObject(manifestGroupName, manFile);
+        repMan.transferManifest(manFile);
         setResult("Created manifest for: " + dso.getHandle());
         return Curator.CURATE_SUCCESS;
-    }
-    
+    } 
     
     /**
      * Generate a manifest for the DSpace Site. Also
@@ -106,24 +106,24 @@ public class TransmitManifest extends AbstractCurationTask {
      * @throws IOException
      * @throws SQLException 
      */
-    private File siteManifest(ReplicaManager repMan, Site site) throws IOException, SQLException {
+    private Path siteManifest(ReplicaManager repMan, Site site) throws IOException, SQLException {
         //Manifests stored as text files
         String filename = repMan.storageId(site.getHandle(), MANIFEST_EXTENSION);
         
         log.debug("Creating manifest for: " + site.getHandle());
         
         //Create site manifest
-        File manFile = repMan.stage(manifestGroupName, filename);
+        Path manFile = repMan.stage(repMan.manifestGroupName(), filename);
         Writer writer = manifestWriter(manFile);
         int count = 0;
         
         BoundedIterator<Community> topIter = Community.findAllTop(Curator.curationContext());
         //Create top-level community manifests & transfer each
         while (topIter.hasNext()) {
-            File scFile = communityManifest(repMan, topIter.next());
+            Path scFile = communityManifest(repMan, topIter.next());
             writer.write(tokenized(scFile) + "\n");
             count++;
-            repMan.transferObject(manifestGroupName, scFile);
+            repMan.transferManifest(scFile);
         }
         if (count == 0) {
             // write EOF marker to prevent confusion if container empty
@@ -144,31 +144,31 @@ public class TransmitManifest extends AbstractCurationTask {
      * @throws IOException
      * @throws SQLException 
      */
-    private File communityManifest(ReplicaManager repMan, Community comm) throws IOException, SQLException {
+    private Path communityManifest(ReplicaManager repMan, Community comm) throws IOException, SQLException {
         //Manifests stored as text files
         String filename = repMan.storageId(comm.getHandle(), MANIFEST_EXTENSION);
         
         log.debug("Creating manifest for: " + comm.getHandle());
         
         //Create community manifest
-        File manFile = repMan.stage(manifestGroupName, filename);
+        Path manFile = repMan.stage(repMan.manifestGroupName(), filename);
         Writer writer = manifestWriter(manFile);
         int count = 0;
         //Create sub-community manifests & transfer each
         BoundedIterator<Community> scIter = comm.getSubcommunities();
         while (scIter.hasNext()) {
-            File scFile = communityManifest(repMan, scIter.next());
+            Path scFile = communityManifest(repMan, scIter.next());
             writer.write(tokenized(scFile) + "\n");
             count++;
-            repMan.transferObject(manifestGroupName, scFile); 
+            repMan.transferManifest(scFile); 
         }
         //Create collection manifests & transfer each
         BoundedIterator<Collection> colIter = comm.getCollections();
         while (colIter.hasNext()) {
-            File colFile = collectionManifest(repMan, colIter.next());
+            Path colFile = collectionManifest(repMan, colIter.next());
             writer.write(tokenized(colFile) + "\n");
             count++;
-            repMan.transferObject(manifestGroupName, colFile);
+            repMan.transferManifest(colFile);
         }
         if (count == 0) {
             // write EOF marker to prevent confusion if container empty
@@ -189,24 +189,24 @@ public class TransmitManifest extends AbstractCurationTask {
      * @throws IOException
      * @throws SQLException 
      */
-    private File collectionManifest(ReplicaManager repMan, Collection coll) throws IOException, SQLException {
+    private Path collectionManifest(ReplicaManager repMan, Collection coll) throws IOException, SQLException {
          //Manifests stored as text files
         String filename = repMan.storageId(coll.getHandle(), MANIFEST_EXTENSION);
        
         log.debug("Creating manifest for: " + coll.getHandle());
         
         //Create Collection manifest
-        File manFile = repMan.stage(manifestGroupName, filename);
+        Path manFile = repMan.stage(repMan.manifestGroupName(), filename);
         Writer writer = manifestWriter(manFile);
         int count = 0;
         
         //Create all Item manifests & transfer each
         try (BoundedIterator<Item> ii = coll.getItems()) {
             while (ii.hasNext()) {
-                File itemMan = itemManifest(repMan, ii.next());
+                Path itemMan = itemManifest(repMan, ii.next());
                 count++;
                 writer.write(tokenized(itemMan) + "\n");
-                repMan.transferObject(manifestGroupName, itemMan);
+                repMan.transferManifest(itemMan);
             }
         }
         if (count == 0) {
@@ -226,13 +226,13 @@ public class TransmitManifest extends AbstractCurationTask {
      * @throws IOException
      * @throws SQLException 
      */
-    private File itemManifest(ReplicaManager repMan, Item item) throws IOException, SQLException {
+    private Path itemManifest(ReplicaManager repMan, Item item) throws IOException, SQLException {
         String filename = repMan.storageId(item.getHandle(), MANIFEST_EXTENSION);
         
         log.debug("Creating manifest for: " + item.getHandle());
         
         //Create Item manifest
-        File manFile = repMan.stage(manifestGroupName, filename);
+        Path manFile = repMan.stage(repMan.manifestGroupName(), filename);
         Writer writer = manifestWriter(manFile);
        
         // look through all ORIGINAL bitstreams, and add
@@ -300,15 +300,15 @@ public class TransmitManifest extends AbstractCurationTask {
      * @return reference to Writer
      * @throws IOException 
      */
-    private Writer manifestWriter(File file) throws IOException {
-        FileWriter writer = new FileWriter(file);
+    private Writer manifestWriter(Path file) throws IOException {
+        FileWriter writer = new FileWriter(file.toFile());
         writer.write("#%checkm_" + CKM_VSN + "\n");
         // write out template as explanatory metadata
         writer.write("# " + template + "\n");
         return writer;
     }
 
-    private String tokenized(File file) throws IOException {
+    private String tokenized(Path file) throws IOException {
         int i = 0;
         StringBuilder sb = new StringBuilder();
         for (String token : Arrays.asList(template.split("\\|"))) {
@@ -317,7 +317,7 @@ public class TransmitManifest extends AbstractCurationTask {
                 switch (i) {
                     case 0:
                         // what URL/name format?
-                        sb.append(file.getName());
+                        sb.append(file.getFileName().toString());
                         break;
                     case 1:
                         // Checksum algorithm
@@ -326,16 +326,16 @@ public class TransmitManifest extends AbstractCurationTask {
                     case 2:
                         // Checksum
                         // test this! RLR
-                        sb.append(Files.hash(file, Hashing.md5()).toString());
+                        sb.append(com.google.common.io.Files.hash(file.toFile(), Hashing.md5()).toString());
                         //sb.append(Utils.checksum(file, "md5"));
                         break;
                     case 3:
                         // length
-                        sb.append(file.length());
+                        sb.append(Files.size(file));
                         break;
                     case 4:
                         // modified - use item level data?
-                        sb.append(file.lastModified());
+                        sb.append(Files.getLastModifiedTime(file).toMillis());
                         break;
                     case 5:
                          // target name - skip for now

@@ -7,9 +7,11 @@
  */
 package org.dspace.ctask.replicate.store;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 //import com.google.common.io.Files;
 import com.google.common.hash.Hashing;
@@ -37,26 +39,25 @@ public class LocalObjectStore implements ObjectStore {
     protected String storeDir = null;
     
     // need no-arg constructor for PluginManager
-    public LocalObjectStore() {
-    }
+    public LocalObjectStore() {}
 
     @Override
     public void init() throws IOException {
         storeDir = ConfigurationManager.getProperty("replicate", "store.dir");
-        File storeFile = new File(storeDir);
-        if (! storeFile.exists()) {
-            storeFile.mkdirs();
+        Path storePath = Paths.get(storeDir);
+        if (Files.notExists(storePath)) {
+            Files.createDirectories(storePath);
         }
     }
 
     @Override
-    public long fetchObject(String group, String id, File file) throws IOException {
+    public long fetchObject(String group, String id, Path file) throws IOException {
         // locate archive and copy to file
         long size = 0L;
-        File archFile = new File(storeDir + File.separator + group, id);
-        if (archFile.exists()) {
-            size = archFile.length();
-            Files.copy(archFile.toPath(), file.toPath());
+        Path archFile = Paths.get(storeDir, group, id);
+        if (Files.exists(archFile)) {
+            size = Files.size(archFile);
+            Files.copy(archFile, file);
         }
         return size;
     }
@@ -64,50 +65,49 @@ public class LocalObjectStore implements ObjectStore {
     @Override
     public boolean objectExists(String group, String id) {
         // do we have a copy in our managed area?
-        return new File(storeDir + File.separator + group, id).exists();
+        return Files.exists(Paths.get(storeDir, group, id));
     }
 
     @Override
-    public long removeObject(String group, String id) {
+    public long removeObject(String group, String id) throws IOException {
         // remove file if present
         long size = 0L;
-        File remFile = new File(storeDir + File.separator + group, id);
-        if (remFile.exists()) {
-            size = remFile.length();
-            remFile.delete();
+        Path remFile = Paths.get(storeDir, group, id);
+        if (Files.exists(remFile)) {
+            size = Files.size(remFile);
+            Files.delete(remFile);
         }
         return size;
     }
 
     @Override
-    public long transferObject(String group, File file) throws IOException {
+    public long transferObject(String group, Path file) throws IOException {
         // local transfer is a simple matter of renaming the file,
         // we don't bother checking if replica is really new, since
         // local deletes/copies are cheap
-        File archDir = new File(storeDir, group);
-        if (! archDir.isDirectory())  {
-            archDir.mkdirs();
+        Path archDir = Paths.get(storeDir, group);
+        if (! Files.isDirectory(archDir))  {
+            Files.createDirectories(archDir);
         }
-        File archFile = new File(archDir, file.getName());
-        if (archFile.exists()) {
-            archFile.delete();
+        Path archFile = archDir.resolve(file.getFileName().toString());
+        try {
+            Files.move(file, archFile, StandardCopyOption.REPLACE_EXISTING);
+        } catch (Exception e) {
+            throw new UnsupportedOperationException("Store does not support move");
         }
-        if (! file.renameTo(archFile)) {
-            throw new UnsupportedOperationException("Store does not support rename");
-        }
-        return archFile.length();
+        return Files.size(archFile);
     }
 
     @Override
     public String objectAttribute(String group, String id, String attrName) throws IOException {
-        File archFile = new File(storeDir + File.separator + group, id);
+        Path archFile = Paths.get(storeDir, group, id);
         if ("checksum".equals(attrName)) {
-            return com.google.common.io.Files.hash(archFile, Hashing.md5()).toString();
+            return com.google.common.io.Files.hash(archFile.toFile(), Hashing.md5()).toString();
             //return Utils.checksum(archFile, "MD5");
         } else if ("sizebytes".equals(attrName)) {
-            return String.valueOf(archFile.length());
+            return String.valueOf(Files.size(archFile));
         } else if ("modified".equals(attrName)) {
-            return String.valueOf(archFile.lastModified());
+            return String.valueOf(Files.getLastModifiedTime(archFile).toMillis());
         }
         return null;
     }
@@ -116,13 +116,12 @@ public class LocalObjectStore implements ObjectStore {
     public long moveObject(String srcGroup, String destGroup, String id) throws IOException {
         long size = 0L;
         //Find the file
-        File file = new File(storeDir + File.separator + srcGroup, id);
-        if (file.exists()) {
+        Path file = Paths.get(storeDir, srcGroup, id);
+        if (Files.exists(file)) {
             //If file is found, just transfer it to destination,
             // as transferObject() just does a file rename
             size = transferObject(destGroup, file);
         }
-        
         return size;
     }
 }

@@ -22,6 +22,7 @@ import java.security.DigestInputStream;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,6 +41,9 @@ import com.google.common.hash.HashCode;
 
 import org.dspace.content.DSpaceObject;
 import org.dspace.content.MDValue;
+import org.dspace.content.MetadataSchema;
+import org.dspace.core.Context;
+import org.dspace.pack.PackingFilter;
 
 // Warning - static import ahead!
 import static javax.xml.stream.XMLStreamConstants.*;
@@ -52,6 +56,16 @@ import static edu.mit.lib.bagit.Bag.*;
  * @author richardrodgers
  */
 public class BagUtils {
+
+    // basic bag property names - some optional
+    public static final String OBJFILE = "object.properties";
+    public static final String BAG_TYPE = "bagType";
+    public static final String OBJECT_TYPE = "objectType";
+    public static final String OBJECT_ID = "objectId";
+    public static final String OWNER_ID = "ownerId";
+    public static final String OTHER_IDS = "otherIds";
+    public static final String CREATE_TS = "created";
+    public static final String WITHDRAWN  = "withdrawn";
 
     static final String ENCODING = "UTF-8";
     static final String CS_ALGO = "MD5";
@@ -140,7 +154,9 @@ public class BagUtils {
                         case ATTRIBUTE:
                             break;
                         case CHARACTERS:
-                            value.val = reader.getText();
+                            if (value != null) {
+                                value.val = reader.getText();
+                            }
                             break;
                         case END_ELEMENT:
                             return value;
@@ -292,18 +308,28 @@ public class BagUtils {
         }
     }
 
-    public static void writeMetadata(DSpaceObject dso, OutputStream out) throws IOException {
+    public static void writeMetadata(DSpaceObject dso, PackingFilter filter, OutputStream out) throws IOException, SQLException {
         XmlWriter writer = xmlWriter(out);
         writer.startStanza("metadata");
-        Value value = new Value();
-        List<MDValue> vals = dso.getMetadata(MDValue.ANY, MDValue.ANY, MDValue.ANY, MDValue.ANY);
-        for (MDValue val : vals) {
-            value.addAttr("schema", val.getSchema());
-            value.addAttr("element", val.getElement());
-            value.addAttr("qualifier", val.getQualifier());
-            value.addAttr("language", val.getLanguage());
-            value.val = val.getValue();
-            writer.writeValue(value);
+        // are we metadata filtering via view or set? (only set supported here)
+        String view = filter.getMdViewName();
+        if (view == null) {
+            try (Context ctx = new Context()) {
+                for (MetadataSchema schema : MetadataSchema.findAll(ctx)) {
+                    if (filter.acceptMdSet(schema.getName())) {
+                        Value value = new Value();
+                        List<MDValue> vals = dso.getMetadata(schema.getName(), MDValue.ANY, MDValue.ANY, MDValue.ANY);
+                        for (MDValue val : vals) {
+                            value.addAttr("schema", val.getSchema());
+                            value.addAttr("element", val.getElement());
+                            value.addAttr("qualifier", val.getQualifier());
+                            value.addAttr("language", val.getLanguage());
+                            value.val = val.getValue();
+                            writer.writeValue(value);
+                        }
+                    }
+                }
+            }
         }
         writer.endStanza();
         writer.close();

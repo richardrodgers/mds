@@ -10,6 +10,7 @@ package org.dspace.ctask.replicate;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.sql.SQLException;
 
 import org.dspace.authorize.AuthorizeException;
@@ -19,12 +20,10 @@ import org.dspace.content.Community;
 import org.dspace.content.DSpaceObject;
 import org.dspace.content.Item;
 import org.dspace.content.Site;
-import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Context;
 import org.dspace.curate.AbstractCurationTask;
 import org.dspace.curate.Curator;
 import org.dspace.curate.Distributive;
-import org.dspace.pack.bagit.CatalogPacker;
 
 /**
  * RemoveAIP task will remove requested objects from the replica store. If the
@@ -35,15 +34,7 @@ import org.dspace.pack.bagit.CatalogPacker;
  */
 @Distributive
 public class RemoveAIP extends AbstractCurationTask {
-
-    private final String archFmt = ConfigurationManager.getProperty("replicate", "packer.archfmt");
     
-    // Group where all AIPs are stored
-    private final String storeGroupName = ConfigurationManager.getProperty("replicate", "group.aip.name");
-    
-    // Group where all AIPs are temporarily moved when deleted
-    private final String deleteGroupName = ConfigurationManager.getProperty("replicate", "group.delete.name");
-
     /**
      * Removes replicas of passed object from the replica store.
      * If a container, removes all the member replicas, in addition
@@ -71,8 +62,14 @@ public class RemoveAIP extends AbstractCurationTask {
      */
     private void remove(ReplicaManager repMan, DSpaceObject dso) throws IOException, SQLException {
         //Remove object from AIP storage
+        // NB: a bit of a cheat here, using default format, rather than dso-specific, but in practice
+        // it will always be OK
+        String archFmt = null;
+        try (Context ctx = new Context()) {
+            archFmt = repMan.getDefaultFormat(ctx);
+        }
         String objId = repMan.storageId(dso.getHandle(), archFmt);
-        repMan.removeObject(storeGroupName, objId);
+        repMan.removeObject(repMan.storeGroupName(), objId);
         report("Removing AIP for: " + objId);
         
         //If it is a Collection, also remove all Items from AIP storage
@@ -123,19 +120,20 @@ public class RemoveAIP extends AbstractCurationTask {
             return perform(dso);
         }
         // treat as a deletion GC
+        String archFmt =  repMan.getDefaultFormat(ctx);
         String objId = repMan.storageId(id, archFmt);
         int status = Curator.CURATE_FAIL;
-        File catFile = repMan.fetchObject(deleteGroupName, objId);
+        Path catFile = repMan.fetchObject(repMan.deleteGroupName(), objId);
         if (catFile != null) {
-            CatalogPacker cpack = new CatalogPacker(id);
+            BagItCatalog cpack = new BagItCatalog(id);
             cpack.unpack(catFile);
             // remove the object, then all members, last of all the deletion catalog
-            repMan.removeObject(storeGroupName, objId);
+            repMan.removeObject(repMan.storeGroupName(), objId);
             for (String mem : cpack.getMembers()) {
                 String memId = repMan.storageId(mem, archFmt);
-                repMan.removeObject(storeGroupName, memId);
+                repMan.removeObject(repMan.storeGroupName(), memId);
             }
-            repMan.removeObject(deleteGroupName, objId);
+            repMan.removeObject(repMan.deleteGroupName(), objId);
             status = Curator.CURATE_SUCCESS;
         }
         return status;

@@ -9,17 +9,20 @@ package org.dspace.ctask.replicate;
 
 import java.sql.SQLException;
 
-import org.dspace.content.DSpaceObject;
-import org.dspace.core.Constants;
-import org.dspace.core.Context;
-
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.dspace.content.DSpaceObject;
 import org.dspace.core.ConfigurationManager;
+import org.dspace.core.Constants;
+import org.dspace.core.Context;
+import org.dspace.mxres.ResourceMap;
+import org.dspace.pack.PackingSpec;
 import org.dspace.handle.HandleManager;
 
 import static org.dspace.ctask.replicate.Odometer.*;
@@ -48,12 +51,15 @@ public class ReplicaManager {
     private final String storeGroupName = ConfigurationManager.getProperty("replicate", "group.aip.name");
     // Delete store group name
     private final String deleteGroupName = ConfigurationManager.getProperty("replicate", "group.delete.name");
+    // Manifest store group name - optional
+    private final String manifestGroupName = ConfigurationManager.getProperty("replicate", "group.manifest.name");
+     // scope in which packing spec defined
+    private final String scope = ConfigurationManager.getProperty("replicate", "packingspec.scope");
     // Separating character between Type prefix and object identifier, used when packages are named with a Type prefix
     private final String typePrefixSeparator = "@";
 
 
-    private ReplicaManager() throws IOException
-    {
+    private ReplicaManager() throws IOException {
         objStore = (ObjectStore)ConfigurationManager.getInstance("replicate", "store.impl");
         if (objStore == null) {
             log.error("No ObjectStore configured in 'replicate.cfg'!");
@@ -79,16 +85,48 @@ public class ReplicaManager {
         }
         return instance;
     }
+
+    public PackingSpec packingSpec(DSpaceObject dso) throws SQLException {
+        try (Context context = new Context()) {
+            return (PackingSpec)new ResourceMap(PackingSpec.class, context).findResource(dso, scope);
+        } 
+    }
+
+    public String scope() {
+        return scope;
+    }
+
+    public String storeGroupName() {
+        return storeGroupName;
+    }
+
+    public String deleteGroupName() {
+        return deleteGroupName;
+    }
+
+    public String manifestGroupName() {
+        return manifestGroupName;
+    }
+
+    public Path stage(String id) {
+        return stage(storeGroupName, id);
+    }
     
-    public File stage(String group, String id) {
+    public Path stage(String group, String id) {
         // ensure path exists
         File stageDir = new File(repDir + File.separator + group);
         if (! stageDir.isDirectory()) {
             stageDir.mkdirs();
         }
-        return new File(stageDir, storageId(id, null)); 
+        return new File(stageDir, storageId(id, null)).toPath(); 
     }
     
+    public String getDefaultFormat(Context ctx) throws SQLException {
+        // this method presupposes that the resource rule for this (scope, spec) has a default value
+        // since it is passing in a null DSO
+        PackingSpec spec = (PackingSpec)new ResourceMap(PackingSpec.class, ctx).findResource(null, scope);
+        return (spec != null) ? spec.getFormat() : "zip";
+    }
     
     /**
      * Determine the Identifier of an object once it is placed 
@@ -182,9 +220,17 @@ public class ReplicaManager {
 
     // Replica store-backed methods
 
-    public File fetchObject(String group, String objId) throws IOException {
+    public Path fetchObject(String objId) throws IOException {
+        return fetchObject(storeGroupName, objId);
+    }
+
+    public Path fetchManifest(String objId) throws IOException {
+        return fetchObject(manifestGroupName, objId);
+    }
+
+    public Path fetchObject(String group, String objId) throws IOException {
         //String repId = safeId(id) + "." + arFmt;
-        File file = stage(group, objId);
+        Path file = stage(group, objId);
         long size = objStore.fetchObject(group, objId, file);
         if (size > 0L)
         {
@@ -195,11 +241,19 @@ public class ReplicaManager {
             }
         }
        
-        return file.exists() ? file : null;
+        return Files.exists(file) ? file : null;
+    }
+
+    public void transferObject(Path file) throws IOException {
+        transferObject(storeGroupName, file);
+    }
+
+    public void transferManifest(Path file) throws IOException {
+        transferObject(manifestGroupName, file);
     }
     
-    public void transferObject(String group, File file) throws IOException {
-        String psStr = objStore.objectAttribute(group, file.getName(), "sizebytes");
+    public void transferObject(String group, Path file) throws IOException {
+        String psStr = objStore.objectAttribute(group, file.getFileName().toString(), "sizebytes");
         long prevSize = psStr != null ? Long.valueOf(psStr) : 0L;
         long size = objStore.transferObject(group, file);
         if (size > 0L) {

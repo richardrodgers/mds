@@ -8,8 +8,9 @@
 
 package org.dspace.ctask.replicate;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.sql.SQLException;
 
 import org.dspace.content.DSpaceObject;
 import org.dspace.core.ConfigurationManager;
@@ -25,14 +26,9 @@ import org.dspace.curate.Curator;
  * @see TransmitAIP
  */
 
-public class FetchAIP extends AbstractCurationTask
-{
-    private String archFmt = ConfigurationManager.getProperty("replicate", "packer.archfmt");
+public class FetchAIP extends AbstractCurationTask {
     
     private String baseFolder = ConfigurationManager.getProperty("replicate", "base.dir");
-
-    // Group where all AIPs are stored
-    private final String storeGroupName = ConfigurationManager.getProperty("replicate", "group.aip.name");
     
     /**
      * Perform the 'Fetch AIP' task
@@ -41,24 +37,19 @@ public class FetchAIP extends AbstractCurationTask
      * @throws IOException 
      */
     @Override
-    public int perform(DSpaceObject dso) throws IOException
-    {
-        if(dso!=null)
-        {
+    public int perform(DSpaceObject dso) throws IOException, SQLException {
+        if (dso != null) {
             //NOTE: we can get away with passing in a 'null' Context because
             // the context isn't actually used to fetch the AIP
             // (see below 'perform(ctx,id)' method)
             return perform(null, dso.getHandle());
-        }
-        else
-        {
+        } else {
             String result = "DSpace Object not found!";
             report(result);
             setResult(result);
             return Curator.CURATE_FAIL;
         }
     }
-    
     
     /**
      * Perform the 'Fetch AIP' task
@@ -68,16 +59,15 @@ public class FetchAIP extends AbstractCurationTask
      * @throws IOException 
      */
     @Override
-    public int perform(Context ctx, String id) throws IOException
-    {
+    public int perform(Context ctx, String id) throws IOException, SQLException  {
         ReplicaManager repMan = ReplicaManager.instance();
-        String objId = repMan.storageId(id, archFmt);
-        File archive = repMan.fetchObject(storeGroupName, objId);
+        String objId = repMan.storageId(id, repMan.getDefaultFormat(ctx));
+        Path archive = repMan.fetchObject(objId);
         boolean found = archive != null;
         String result = "AIP for object: " + id + " located : " + found + ".";
         if(found)
             result += " AIP file downloaded to '" 
-                + baseFolder + "/" + storeGroupName + "/" + objId + "'";
+                + baseFolder + "/" + repMan.storeGroupName() + "/" + objId + "'";
         report(result);
         setResult(result);
         return found ? Curator.CURATE_SUCCESS : Curator.CURATE_FAIL;

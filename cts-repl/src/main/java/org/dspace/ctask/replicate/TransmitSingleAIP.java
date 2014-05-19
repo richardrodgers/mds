@@ -21,13 +21,11 @@ import org.dspace.curate.Distributive;
  * This task is primarily for usage via the ReplicateConsumer, as it needs to 
  * interact with a single object at a time.
  * <P>
- * The type of AIP produced is based on the 'packer.pkgtype' setting
- * in 'replicate.cfg'. See the org.dspace.pack.PackerFactory for more info.
+ * The type of AIP produced is based on the mapped resource.
  * Companion of TransmitAIP, that inhibits container iteration
  * 
  * @author richardrodgers
  * @see TransmitAIP
- * @see PackerFactory
  * @see ReplicateConsumer
  */
 @Distributive

@@ -36,12 +36,13 @@ import org.dspace.storage.rdbms.TableRowIterator;
 public class MetadataView implements ExtensibleResource {
 
     private static Logger log = LoggerFactory.getLogger(MetadataView.class);
-    private Context context;
-    private TableRow row;
 
-    MetadataView(Context context, TableRow row) {
-        this.context = context;
+    private TableRow row;
+    private List<MDFieldDisplay> fdList;
+
+    MetadataView(Context context, TableRow row) throws SQLException {
         this.row = row;
+        this.fdList = loadViewFields(context);
     }
 
     public static MetadataView find(Context context, int id) throws SQLException  {
@@ -61,7 +62,7 @@ public class MetadataView implements ExtensibleResource {
          return new MetadataView(context, row);
     }
 
-    public void delete() throws SQLException {
+    public void delete(Context context) throws SQLException {
         // remove all values first
         DatabaseManager.updateQuery(context, "DELETE FROM mddisplay WHERE mdview_id = ?",
                                     getID());
@@ -80,13 +81,17 @@ public class MetadataView implements ExtensibleResource {
         row.setColumn("description", description);
     }
 
-    public void addViewFields(List<MDFieldDisplay> fieldList) throws AuthorizeException, SQLException {
+    public List<MDFieldDisplay> getViewFields() {
+        return fdList;
+    }
+
+    public void addViewFields(Context context, List<MDFieldDisplay> fieldList) throws AuthorizeException, SQLException {
         for (MDFieldDisplay field : fieldList) {
-            addViewField(field);
+            addViewField(context, field);
         }
     }
 
-    public void addViewField(MDFieldDisplay dfield) throws AuthorizeException, SQLException {
+    public void addViewField(Context context, MDFieldDisplay dfield) throws AuthorizeException, SQLException {
         String[] parts = dfield.getFieldKey().split("\\.");
         MetadataSchema schema = MetadataSchema.find(context, parts[0]);
         String qual = null;
@@ -99,6 +104,7 @@ public class MetadataView implements ExtensibleResource {
         TableRow valRow = DatabaseManager.create(context, "mddisplay");
         valRow.setColumn("mdview_id", getID());
         valRow.setColumn("metadata_field_id", field.getFieldID());
+        valRow.setColumn("altname", dfield.getAltName());
         valRow.setColumn("label", dfield.getLabel());
         valRow.setColumn("render_type", dfield.getRenderType());
         valRow.setColumn("wrapper", dfield.getWrapper());
@@ -106,7 +112,7 @@ public class MetadataView implements ExtensibleResource {
         DatabaseManager.update(context, valRow);
     }
 
-    public List<MDFieldDisplay> getViewFields() throws SQLException {
+    private List<MDFieldDisplay> loadViewFields(Context context) throws SQLException {
         List<MDFieldDisplay> fieldList = new ArrayList<>();
         try (TableRowIterator tri = DatabaseManager.queryTable(context, "mddisplay",
                     "SELECT * FROM mddisplay WHERE mdview_id = ?", getID())) {
@@ -122,6 +128,7 @@ public class MetadataView implements ExtensibleResource {
                 }
                 //log.info("Adding field: " + sb.toString());
                 fieldList.add(new MDFieldDisplay(sb.toString(),
+                                                 resultRow.getStringColumn("altname"),
                                                  resultRow.getStringColumn("label"),
                                                  resultRow.getStringColumn("render_type"),
                                                  resultRow.getStringColumn("wrapper"),

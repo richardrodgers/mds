@@ -9,12 +9,12 @@
 package org.dspace.ctask.replicate;
 
 import java.io.IOException;
+import java.sql.SQLException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.dspace.content.DSpaceObject;
-import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Context;
 import org.dspace.curate.AbstractCurationTask;
 import org.dspace.curate.Curator;
@@ -38,12 +38,6 @@ import org.dspace.curate.Distributive;
  */
 @Distributive
 public class MoveToTrashSingleAIP extends AbstractCurationTask {
-
-    // Source and destination group where AIP will be moved to
-    private final String srcGroupName = ConfigurationManager.getProperty("replicate", "group.aip.name");
-    private final String destGroupName = ConfigurationManager.getProperty("replicate", "group.delete.name");
-    
-    private String archFmt = ConfigurationManager.getProperty("replicate", "packer.archfmt");
     
     private static Logger log = LoggerFactory.getLogger(MoveToTrashSingleAIP.class);
     
@@ -56,8 +50,8 @@ public class MoveToTrashSingleAIP extends AbstractCurationTask {
      * @throws IOException 
      */
     @Override
-    public int perform(DSpaceObject dso) throws IOException {
-        if (dso!=null) {
+    public int perform(DSpaceObject dso) throws IOException, SQLException {
+        if (dso != null) {
             //NOTE: we can get away with passing in a 'null' Context because
             // the context isn't actually used to fetch the AIP
             // (see below 'perform(ctx,id)' method)
@@ -80,15 +74,16 @@ public class MoveToTrashSingleAIP extends AbstractCurationTask {
      * @throws IOException 
      */
     @Override
-    public int perform(Context ctx, String id) throws IOException {
+    public int perform(Context ctx, String id) throws IOException, SQLException {
         ReplicaManager repMan = ReplicaManager.instance();
+        String archFmt = repMan.getDefaultFormat(ctx);
         String objId = repMan.storageId(id, archFmt);
         
-        boolean success = repMan.moveObject(srcGroupName, destGroupName, objId);
+        boolean success = repMan.moveObject(repMan.storeGroupName(), repMan.deleteGroupName(), objId);
         
-        String result = "AIP for object: " + id + " could NOT be moved from: " + srcGroupName + " to : " + destGroupName + ".";
+        String result = "AIP for object: " + id + " could NOT be moved from: " + repMan.storeGroupName() + " to : " + repMan.deleteGroupName() + ".";
         if(success)
-            result = "AIP for object: " + id + " moved from: " + srcGroupName + " to : " + destGroupName + ".";
+            result = "AIP for object: " + id + " moved from: " + repMan.storeGroupName() + " to : " + repMan.deleteGroupName() + ".";
         report(result);
         setResult(result);
         

@@ -9,12 +9,17 @@ package org.dspace.webapi.content;
 
 import java.io.InputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.core.Context;
@@ -26,11 +31,16 @@ import org.dspace.content.Collection;
 import org.dspace.content.Community;
 import org.dspace.content.Item;
 import org.dspace.content.DSpaceObject;
+import org.dspace.content.InstallItem;
 import org.dspace.content.MDValue;
 import org.dspace.content.MetadataSchema;
+import org.dspace.content.WorkspaceItem;
+import org.dspace.eperson.EPerson;
 import org.dspace.handle.HandleManager;
 import org.dspace.mxres.MetadataView;
 import org.dspace.mxres.ResourceMap;
+import org.dspace.pack.Packager;
+import org.dspace.pack.PackingSpec;
 import org.dspace.webapi.content.domain.BitstreamEntity;
 import org.dspace.webapi.content.domain.CommunityEntity;
 import org.dspace.webapi.content.domain.CollectionEntity;
@@ -50,6 +60,8 @@ import org.dspace.webapi.content.domain.Statement;
 
 public class ContentDao {
 
+    private static Logger log = LoggerFactory.getLogger(ContentDao.class);
+
     public List<EntityRef> getContentReferences(String handle, String contentType, String filter) throws SQLException {
         List<EntityRef> refList = new ArrayList<>();
         Context ctx = new Context();
@@ -62,6 +74,7 @@ public class ContentDao {
             case "filters" : getFilterRefs(refList, handle, ctx); break;
             case "mdsets" : getMetadataSetRefs(refList, handle, ctx); break;
             case "mdviews" : getMetadataViewRefs(refList, handle, ctx); break;
+            case "packages" : getPackageRefs(refList, handle, ctx); break;
             default: break;
         }
         ctx.complete();
@@ -105,6 +118,42 @@ public class ContentDao {
         return entity;
     }
 
+    public ContentEntity entityFromPackage(String prefix, String id, String name, InputStream in) throws AuthorizeException, IOException, SQLException {
+        Context ctx = new Context();
+        ctx.turnOffAuthorisationSystem();
+        // RLR fix this - Workspace Item expects a user - choose first created
+        // which will be an admin
+        EPerson submitter = EPerson.findAll(ctx, 3).get(0);
+        ctx.setCurrentUser(submitter);
+        if (in == null) {
+            throw new IOException("Input Stream null");
+        }
+        DSpaceObject dso = null;
+        if (prefix == null) {
+            // no parent - create a top-level community
+            dso = Community.create(null, ctx);
+            Packager.fromPackageStream(ctx, dso, "community-pspec-" + name, in);
+        } else {
+            DSpaceObject parent = resolveDso(ctx, prefix, id);
+            switch (parent.getType()) {
+                // NB: this API implementation only allows collection packages, not sub-community packages here
+                // although the data model allows either. TBD
+                case Constants.COMMUNITY: dso = ((Community)parent).createCollection();
+                                          Packager.fromPackageStream(ctx, dso, "collection-pspec-" + name, in);
+                                          break;
+                case Constants.COLLECTION: WorkspaceItem wi = WorkspaceItem.create(ctx, (Collection)parent, false);
+                                           Packager.fromPackageStream(ctx, wi.getItem(), "item-pspec-" + name, in);
+                                           // workflow questions TODO
+                                           dso = InstallItem.installItem(ctx, wi, null);
+                                           break;
+                default: break;
+            }
+        }
+        ContentEntity entity = resolveEntity(dso);
+        ctx.complete();
+        return entity;
+    }
+
     public void removeEntity(String prefix, String id) throws AuthorizeException, IOException, SQLException {
         Context ctx = new Context();
         DSpaceObject dso = resolveDso(ctx, prefix, id);
@@ -130,6 +179,11 @@ public class ContentDao {
     public MetadataEntity getMetadataSet(String prefix, String id, String name) throws SQLException {
         Context ctx = new Context();
         DSpaceObject dso = resolveDso(ctx, prefix, id);
+        // verify that the name is legit
+        if (MetadataSchema.findByName(ctx, name) == null) {
+            ctx.abort();
+            throw new IllegalArgumentException("no such metadata set: " + name);
+        }
         MetadataEntity entity = new MetadataEntity(dso, name);
         ctx.complete();
         return entity;
@@ -138,6 +192,11 @@ public class ContentDao {
     public ViewEntity getMetadataView(String prefix, String id, String name) throws SQLException {
         Context ctx = new Context();
         DSpaceObject dso = resolveDso(ctx, prefix, id);
+        // verify that name is known
+        if (! metadataViewNames(ctx, prefix + "/" + id).contains(name)) {
+            ctx.abort();
+            throw new IllegalArgumentException("no such metadata view: " + name);
+        }
         // now look up view for this name
         ViewEntity entity = new ViewEntity(ctx, dso, name);
         ctx.complete();
@@ -162,6 +221,33 @@ public class ContentDao {
         Context ctx = new Context();
         Bitstream bitstream = (Bitstream)resolveDso(ctx, prefix, id);
         MediaReader reader = new MediaReader(bitstream.retrieve(), bitstream.getFormat().getMIMEType(), bitstream.getSize());
+        ctx.complete();
+        return reader;
+    }
+
+    public PackageReader getPackageReader(String prefix, String id, String name) throws AuthorizeException, IOException, SQLException {
+        Context ctx = new Context();
+        DSpaceObject dso = resolveDso(ctx, prefix, id);
+        if (! packingSpecNames(ctx, prefix + "/" + id).contains(name)) {
+            ctx.abort();
+            throw new IllegalArgumentException("no such package name: " + name);
+        }
+        String scope = Constants.typeText[dso.getType()].toLowerCase() + "-pspec-" + name;
+        PackingSpec spec = (PackingSpec)new ResourceMap(PackingSpec.class, ctx).findResource(dso, scope);
+        if (spec == null) {
+            log.error("No Packing spec found in scope: " + scope);
+            return null;
+        }
+        // now produce package using spec
+        Path pkgParent = Files.createTempDirectory(name);
+        Path pkgDir = Files.createDirectory(pkgParent.resolve(prefix + "-" + id));
+        Path pkg = Packager.toPackage(dso, spec, pkgDir);
+        if (pkg == null || Files.notExists(pkg)) {
+            log.error("Packager produced no package in scope: " + scope);
+            return null;  
+        }
+        // determine what kind of object handle belongs to
+        PackageReader reader = new PackageReader(Files.newInputStream(pkg), spec.getMimeType(), Files.size(pkg));
         ctx.complete();
         return reader;
     }
@@ -201,14 +287,9 @@ public class ContentDao {
     private Bitstream findBitstream(Context ctx, DSpaceObject dso, String seq) throws SQLException {
         int seqInt = Integer.parseInt(seq);
         if (dso.getType() == Constants.ITEM) {
-            // clumsy way for now
-            Item item = (Item)dso;
-            for (Bundle bundle : item.getBundles()) {
-               for (Bitstream bs: bundle.getBitstreams()) {
-                   if (bs.getSequenceID() == seqInt) {
-                       return bs;
-                   }
-               }
+            Bitstream bs = ((Item)dso).getBitstreamBySequenceID(seqInt);
+            if (bs != null) {
+                return bs;
             }
         } else if (dso.getType() == Constants.COMMUNITY) {
             // could be a community logo
@@ -235,16 +316,15 @@ public class ContentDao {
     }
 
     private void getMetadataViewRefs(List<EntityRef> refList, String handle, Context ctx) throws SQLException {
-        ResourceMap<MetadataView> viewMap = new ResourceMap(MetadataView.class, ctx);
-        // determine what kind of object handle belongs to
-        String id = handle.substring(handle.indexOf("/") + 1);
-        int objType = (id.indexOf(".") > 0) ? Constants.BITSTREAM : HandleManager.resolveToType(ctx, handle);
-        String keyPat = Constants.typeText[objType].toLowerCase() + "-mdv-"; 
-        Iterator<String> viewIter = viewMap.ruleKeysLike(keyPat).iterator();
         // Typically, the only views offered are 'brief' and 'full', but it's user-configurable
-        while (viewIter.hasNext()) {
-            String view = viewIter.next().substring(keyPat.length());
-            refList.add(new EntityRef(view, handle + "/mdview/" + view, view));
+        for (String name : metadataViewNames(ctx, handle)) {
+            refList.add(new EntityRef(name, handle + "/mdview/" + name, name));
+        }
+    }
+
+    private void getPackageRefs(List<EntityRef> refList, String handle, Context ctx) throws SQLException {
+        for (String name : packingSpecNames(ctx, handle)) {
+            refList.add(new EntityRef(name, handle + "/package/" + name, name));
         }
     }
 
@@ -313,5 +393,34 @@ public class ContentDao {
                 refList.add(new EntityRef(bs.getName(), bsHandle, "bitstream"));
             }
         }
+    }
+
+    private List<String> metadataViewNames(Context ctx, String handle) throws SQLException {
+        ResourceMap<MetadataView> viewMap = new ResourceMap(MetadataView.class, ctx);
+        // determine what kind of object handle belongs to
+        String id = handle.substring(handle.indexOf("/") + 1);
+        int objType = (id.indexOf(".") > 0) ? Constants.BITSTREAM : HandleManager.resolveToType(ctx, handle);
+        String keyPat = Constants.typeText[objType].toLowerCase() + "-mdv-"; 
+        Iterator<String> viewIter = viewMap.ruleKeysLike(keyPat).iterator();
+        List<String> names = new ArrayList<>();
+        while (viewIter.hasNext()) {
+            names.add(viewIter.next().substring(keyPat.length()));
+        }
+        return names;
+    }
+
+    private List<String> packingSpecNames(Context ctx, String handle) throws SQLException {
+        ResourceMap<PackingSpec> specMap = new ResourceMap(PackingSpec.class, ctx);
+        // determine what kind of object handle belongs to
+        String id = handle.substring(handle.indexOf("/") + 1);
+        int objType = (id.indexOf(".") > 0) ? Constants.BITSTREAM : HandleManager.resolveToType(ctx, handle);
+        String keyPat = Constants.typeText[objType].toLowerCase() + "-pspec-"; 
+        Iterator<String> specIter = specMap.ruleKeysLike(keyPat).iterator();
+        List<String> names = new ArrayList<>();
+        // In a base installation, the only spec offered is 'aip', but it's user-configurable
+        while (specIter.hasNext()) {
+            names.add(specIter.next().substring(keyPat.length()));
+        }
+        return names;
     }
 }

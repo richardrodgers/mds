@@ -21,6 +21,9 @@ public final class MDFieldDisplay {
     /** The dotted notation for the metadata field */
     private final String fieldKey;
 
+    /** Alternative name. if <code>null</code>, use field FQN */
+    private final String altName;
+
     /** The label. if <code>null</code>, use field FQN */
     private final String label;
 
@@ -36,8 +39,9 @@ public final class MDFieldDisplay {
     /** The index of the value in multi-value fields: -1 if unknown, not relevant */
     private final int place;
 
-    public MDFieldDisplay(String fieldKey, String label, String renderType, String wrapper, String language) {
+    public MDFieldDisplay(String fieldKey, String altName, String label, String renderType, String wrapper, String language) {
         this.fieldKey = fieldKey;
+        this.altName = altName;
         this.label = label;
         this.renderType = renderType;
         this.wrapper = wrapper;
@@ -45,8 +49,9 @@ public final class MDFieldDisplay {
         this.place = -1;
     }
 
-    public MDFieldDisplay(String fieldKey, String label, String renderType, String wrapper, String language, int place) {
+    public MDFieldDisplay(String fieldKey, String altName, String label, String renderType, String wrapper, String language, int place) {
         this.fieldKey = fieldKey;
+        this.altName = altName;
         this.label = label;
         this.renderType = renderType;
         this.wrapper = wrapper;
@@ -56,6 +61,10 @@ public final class MDFieldDisplay {
 
     public String getFieldKey() {
         return fieldKey;
+    }
+
+    public String getAltName() {
+        return altName;
     }
 
     public String getLabel() {
@@ -83,6 +92,7 @@ public final class MDFieldDisplay {
         if (this.getClass() != value.getClass()) return false;
         final MDFieldDisplay mdfd = (MDFieldDisplay)value;
         return(Objects.equal(this.fieldKey, mdfd.fieldKey) &&
+               Objects.equal(this.altName, mdfd.altName) &&
                Objects.equal(this.label, mdfd.label) &&
                Objects.equal(this.renderType, mdfd.renderType) &&
                Objects.equal(this.wrapper, mdfd.wrapper) &&

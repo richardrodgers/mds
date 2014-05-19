@@ -10,6 +10,7 @@ package org.dspace.ctask.replicate;
 import java.sql.SQLException;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,8 +32,6 @@ import org.dspace.curate.queue.TaskQueueEntry;
 import org.dspace.eperson.EPerson;
 import org.dspace.event.Consumer;
 import org.dspace.event.Event;
-import org.dspace.pack.Packer;
-import org.dspace.pack.bagit.CatalogPacker;
 
 // for readability
 import static org.dspace.event.Event.*;
@@ -73,12 +72,9 @@ public class BagItReplicateConsumer implements Consumer {
     private List<String> delTasks = null;
     // create deletion catalogs?
     private boolean catalogDeletes = false;
-    // Group/catalog where all AIPs are temporarily moved when deleted
-    private final String deleteGroupName = ConfigurationManager.getProperty("replicate", "group.delete.name");
 
     @Override
-    public void initialize() throws Exception
-    {
+    public void initialize() throws Exception {
         repMan = ReplicaManager.instance();
         taskQueue = (TaskQueue)ConfigurationManager.getInstance("curate", "taskqueue.impl");
         queueName = localProperty("consumer.queue");
@@ -119,8 +115,7 @@ public class BagItReplicateConsumer implements Consumer {
      * @throws Exception
      */
     @Override
-    public void consume(Context ctx, Event event) throws Exception
-    {
+    public void consume(Context ctx, Event event) throws Exception {
         int evType = event.getEventType();
         int subjType = event.getSubjectType();
         // This is the Handle of the object on which an event occured
@@ -170,8 +165,7 @@ public class BagItReplicateConsumer implements Consumer {
     }
 
     @Override
-    public void end(Context ctx) throws Exception
-    {
+    public void end(Context ctx) throws Exception {
         // if there are any pending objectIds, pass them to the curation
         // system to queue for later processing, or perform immediately
         EPerson ep = ctx.getCurrentUser();
@@ -234,21 +228,18 @@ public class BagItReplicateConsumer implements Consumer {
      */
     private boolean acceptId(String id, Event event, Context ctx) throws SQLException {
         // always accept if not filtering
-        if (idFilter == null)
-        {
+        if (idFilter == null) {
             return true;
         }
         // filter supports only container ids - so if id is for an item,
         // find its owning collection
         String id2check = id;
-        if (event.getSubjectType() == Constants.ITEM)
-        {
+        if (event.getSubjectType() == Constants.ITEM) {
             // NB: Item should be available form context cache - should
             // not incur a performance hit here
             Item item = Item.find(ctx, event.getSubjectID());
             Collection coll = item.getOwningCollection();
-            if (coll != null)
-            {
+            if (coll != null) {
                 id2check = coll.getHandle();
             }
         }
@@ -265,38 +256,27 @@ public class BagItReplicateConsumer implements Consumer {
      * @param event event that was triggered
      * @throws Exception
      */
-    private void deleteEvent(Context ctx, String id, Event event) throws Exception
-    {
+    private void deleteEvent(Context ctx, String id, Event event) throws Exception {
         int type = event.getEventType();
-        if (DELETE == type)
-        {
+        if (DELETE == type) {
             // either marks start of new deletion or a member of enclosing one
-            if (delObjId == null)
-            {
+            if (delObjId == null) {
                 //Start of a new deletion
                 delObjId = id;
-            }
-            else
-            {
+            } else {
                 // just add to list of deleted members
                 delMemIds.add(id);
             }
-        }
-        else if (REMOVE == type)
-        {
+        } else if (REMOVE == type) {
             // either marks end of current deletion or is member of
             // enclosing one: ignore if latter
-            if (delObjId.equals(id))
-            {
+            if (delObjId.equals(id)) {
                 // determine owner and write out deletion catalog
-                if (Constants.COLLECTION == event.getSubjectType())
-                {
+                if (Constants.COLLECTION == event.getSubjectType()) {
                     // my owner is a collection
                     Collection ownColl = Collection.find(ctx, event.getSubjectID());
                     delOwnerId = ownColl.getHandle();
-                }
-                else if (Constants.COMMUNITY == event.getSubjectType())
-                {
+                } else if (Constants.COMMUNITY == event.getSubjectType()) {
                     // my owner is a community
                     Community comm = Community.find(ctx, event.getSubjectID());
                     delOwnerId = comm.getHandle();
@@ -309,27 +289,14 @@ public class BagItReplicateConsumer implements Consumer {
     /*
      * Process a deletion event by recording a deletion catalog if configured
      */
-    private void processDelete() throws IOException
-    {
+    private void processDelete() throws IOException {
         // write out deletion catalog if defined
-        if (catalogDeletes)
-        {
-            Packer packer = new CatalogPacker(delObjId, delOwnerId, delMemIds);
-            try
-            {
-                File packDir = repMan.stage(deleteGroupName, delObjId);
-                File archive = packer.pack(packDir);
-                //System.out.println("delcat about to transfer");
-                repMan.transferObject(deleteGroupName, archive);
-            }
-            catch (AuthorizeException authE)
-            {
-                throw new IOException(authE);
-            }
-            catch (SQLException sqlE)
-            {
-                throw new IOException(sqlE);
-            }
+        if (catalogDeletes) {
+            BagItCatalog catalog = new BagItCatalog(delObjId, delOwnerId, delMemIds);
+            Path packDir = repMan.stage(repMan.deleteGroupName(), delObjId);
+            Path archive = catalog.pack(packDir);
+            //System.out.println("delcat about to transfer");
+            repMan.transferObject(repMan.deleteGroupName(), archive);
         }
         // reset for next events
         delObjId = delOwnerId = null;
@@ -363,40 +330,28 @@ public class BagItReplicateConsumer implements Consumer {
      * is in the 'replicate.cfg' file.
      * @param propName property name
      */
-    private void parseTasks(String propName)
-    {
+    private void parseTasks(String propName)  {
         String taskStr = localProperty("consumer.tasks." + propName);
-        if (taskStr == null || taskStr.length() == 0)
-        {
+        if (taskStr == null || taskStr.length() == 0) {
             return;
         }
-        for (String task : taskStr.split(","))
-        {
+        for (String task : taskStr.split(",")) {
             task = task.trim();
             //If the task in question does NOT end in "+p",
             // then it should be queued for later processing
-            if (! task.endsWith("+p"))
-            {
-                if ("add".equals(propName))
-                {
-                    if (addQTasks == null)
-                    {
+            if (! task.endsWith("+p"))  {
+                if ("add".equals(propName)) {
+                    if (addQTasks == null) {
                         addQTasks = new ArrayList<String>();
                     }
                     addQTasks.add(task);
-                }
-                else if ("mod".equals(propName))
-                {
-                    if (modQTasks == null)
-                    {
+                } else if ("mod".equals(propName)) {
+                    if (modQTasks == null) {
                         modQTasks = new ArrayList<String>();
                     }
                     modQTasks.add(task);   
-                }
-                else if ("del".equals(propName))
-                {
-                    if (delTasks == null)
-                    {
+                } else if ("del".equals(propName)) {
+                    if (delTasks == null) {
                         delTasks = new ArrayList<String>();
                     }
                     delTasks.add(task);   
@@ -404,30 +359,21 @@ public class BagItReplicateConsumer implements Consumer {
             }
             //Otherwise (if the task ends in "+p"),
             //  it should be added to the list of tasks to perform immediately
-            else 
-            {
+            else {
                 String sTask = task.substring(0, task.lastIndexOf("+p"));
-                if ("add".equals(propName))
-                {
-                    if (addPTasks == null)
-                    {
+                if ("add".equals(propName)) {
+                    if (addPTasks == null) {
                         addPTasks = new ArrayList<String>();
                     }
                     addPTasks.add(sTask);
-                }
-                else if ("mod".equals(propName))
-                {
-                    if (modPTasks == null)
-                    {
+                } else if ("mod".equals(propName)) {
+                    if (modPTasks == null) {
                         modPTasks = new ArrayList<String>();
                     }
                     addPTasks.add(sTask);
-                }
-                else if ("del".equals(propName))
-                {
+                } else if ("del".equals(propName)) {
                     // just test for special case of deletion catalogs.
-                    if ("catalog".equals(sTask))
-                    {
+                    if ("catalog".equals(sTask)) {
                         catalogDeletes = true;
                     } 
                 }

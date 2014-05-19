@@ -36,7 +36,6 @@ public abstract class ContentEntity implements Injectable {
     private URI selfUri;
     protected String parentPid;
     private URI parentUri;
-    private URI mdUri;
 
     public ContentEntity() {}
 
@@ -97,14 +96,6 @@ public abstract class ContentEntity implements Injectable {
         this.parentUri = parentUri;
     }
 
-    public URI getMetadataUri() {
-        return mdUri;
-    }
-
-    public void setMetadataUri(URI mdUri) {
-        this.mdUri = mdUri;
-    }
-
     @Override
     public Map<String, String> getUriInjections() {
         Map<String, String> injectionMap = new HashMap<>();
@@ -112,7 +103,6 @@ public abstract class ContentEntity implements Injectable {
         if (parentPid != null) {
             injectionMap.put("parent", parentPid);
         }
-        injectionMap.put("mdsets", pid + ":mdsets");
         return injectionMap;
     }
 
@@ -121,7 +111,6 @@ public abstract class ContentEntity implements Injectable {
         switch (key) {
             case "self": setURI(uri); break;
             case "parent": setParentUri(uri); break;
-            case "mdsets": setMetadataUri(uri); break;
             default: break;
         }
     }

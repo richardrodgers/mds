@@ -7,8 +7,9 @@
  */
 package org.dspace.ctask.replicate;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.Properties;
 
@@ -26,7 +27,6 @@ import org.dspace.content.DSpaceObject;
 import org.dspace.content.InstallItem;
 import org.dspace.content.Item;
 import org.dspace.content.WorkspaceItem;
-import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Context;
 import org.dspace.curate.AbstractCurationTask;
 import org.dspace.curate.Curator;
@@ -34,11 +34,9 @@ import org.dspace.curate.Distributive;
 import org.dspace.curate.Mutative;
 //import org.dspace.embargo.EmbargoManager;
 import org.dspace.handle.HandleManager;
-import org.dspace.pack.Packer;
-import org.dspace.pack.PackerFactory;
-import org.dspace.pack.bagit.CatalogPacker;
+import org.dspace.pack.Packager;
 
-import static org.dspace.pack.PackerFactory.*;
+import static org.dspace.pack.bagit.BagUtils.*;
 
 /**
  * BagItRestoreFromAIP task performs essentially an 'undelete' on an object that
@@ -53,13 +51,6 @@ import static org.dspace.pack.PackerFactory.*;
 public class BagItRestoreFromAIP extends AbstractCurationTask {
 
     private static Logger log = LoggerFactory.getLogger(BagItRestoreFromAIP.class);
-    private final String archFmt = ConfigurationManager.getProperty("replicate", "packer.archfmt");
-
-    // Group where all AIPs are stored
-    private final String storeGroupName = ConfigurationManager.getProperty("replicate", "group.aip.name");
-    
-    // Group where all AIPs are temporarily moved when deleted
-    private final String deleteGroupName = ConfigurationManager.getProperty("replicate", "group.delete.name");
     
     /**
      * Perform 'Recover From AIP' task on a particular object.
@@ -87,18 +78,19 @@ public class BagItRestoreFromAIP extends AbstractCurationTask {
     public int perform(Context ctx, String id) throws AuthorizeException, IOException, SQLException {
         ReplicaManager repMan = ReplicaManager.instance();
         // first we locate the deletion catalog for this object
+        String archFmt = repMan.getDefaultFormat(ctx);
         String objId = repMan.storageId(id, archFmt);
-        File catArchive = repMan.fetchObject(deleteGroupName, objId);
+        Path catArchive = repMan.fetchObject(repMan.deleteGroupName(), objId);
         int status = Curator.CURATE_FAIL;
         if (catArchive != null) {
-            CatalogPacker cpack = new CatalogPacker(id);
+            BagItCatalog cpack = new BagItCatalog(id);
             cpack.unpack(catArchive);
             // RLR TODO - remove filename collision next delete requires
-            catArchive.delete();
+            Files.delete(catArchive);
             // recover root object itself, then any members
-            recover(ctx, repMan, id);
+            recover(ctx, repMan, id, archFmt);
             for (String mem : cpack.getMembers()) {
-                recover(ctx, repMan, mem);
+                recover(ctx, repMan, mem, archFmt);
             }
             status = Curator.CURATE_SUCCESS;
         }
@@ -112,21 +104,22 @@ public class BagItRestoreFromAIP extends AbstractCurationTask {
      * @param id Identifier of object in ObjectStore
      * @throws IOException 
      */
-    private void recover(Context ctx, ReplicaManager repMan, String id) throws AuthorizeException, IOException, SQLException {
+    private void recover(Context ctx, ReplicaManager repMan, String id, String archFmt) throws AuthorizeException, IOException, SQLException {
         String objId = repMan.storageId(id, archFmt);
-        File archive = repMan.fetchObject(storeGroupName, objId);
+        Path archive = repMan.fetchObject(repMan.storeGroupName(), objId);
+        String scope = repMan.scope();
         if (archive != null) {
-            Bag bag = new Loader(archive.toPath()).load();
+            Bag bag = new Loader(archive).load();
             Properties props = new Properties();
             props.load(bag.payloadStream(OBJFILE));
             String type = props.getProperty(OBJECT_TYPE);
             String ownerId = props.getProperty(OWNER_ID);
             if ("item".equals(type)) {
-                recoverItem(ctx, archive, id, props);
+                recoverItem(ctx, scope, archive, id, props);
             } else if ("collection".equals(type)) {
-                recoverCollection(ctx, archive, id, ownerId);
+                recoverCollection(ctx, scope, archive, id, ownerId);
             } else if ("community".equals(type)) {
-                recoverCommunity(ctx, archive, id, ownerId);
+                recoverCommunity(ctx, scope, archive, id, ownerId);
             }
             // discard bag when done
             //bag.empty();
@@ -141,13 +134,12 @@ public class BagItRestoreFromAIP extends AbstractCurationTask {
      * @param props properties which control how item is restored
      * @throws IOException 
      */
-    private void recoverItem(Context ctx, File archive, String objId, Properties props) throws AuthorizeException, IOException, SQLException {
+    private void recoverItem(Context ctx, String scope, Path archive, String objId, Properties props) throws AuthorizeException, IOException, SQLException {
         String collId = props.getProperty(OWNER_ID);
         Collection coll = (Collection)HandleManager.resolveToObject(ctx, collId);
         WorkspaceItem wi = WorkspaceItem.create(ctx, coll, false);
-        Packer packer = PackerFactory.instance(wi.getItem());
         // stuff bag contents into item
-        packer.unpack(archive);
+        Packager.fromPackage(ctx, wi.getItem(), scope, archive);
         // Install item
         Item item = InstallItem.restoreItem(ctx, wi, objId);
         String colls = props.getProperty(OTHER_IDS);
@@ -173,7 +165,7 @@ public class BagItRestoreFromAIP extends AbstractCurationTask {
      * @param commId identifier of parent community for this collection
      * @throws IOException 
      */
-    private void recoverCollection(Context ctx, File archive, String collId, String commId) throws AuthorizeException, IOException, SQLException { 
+    private void recoverCollection(Context ctx, String scope, Path archive, String collId, String commId) throws AuthorizeException, IOException, SQLException { 
         Collection coll = null;
         if (commId != null) {
             Community pcomm = (Community)HandleManager.resolveToObject(ctx, commId);
@@ -182,8 +174,7 @@ public class BagItRestoreFromAIP extends AbstractCurationTask {
             log.error("Collection '" + collId + "' lacks parent community");
         }
         // update with AIP data
-        Packer packer = PackerFactory.instance(coll);
-        packer.unpack(archive);
+        Packager.fromPackage(ctx, coll, scope, archive);
     }
 
     /**
@@ -194,7 +185,7 @@ public class BagItRestoreFromAIP extends AbstractCurationTask {
      * @param parentId identifier of parent community (if any) for community
      * @throws IOException 
      */
-    private void recoverCommunity(Context ctx, File archive, String commId, String parentId) throws AuthorizeException, IOException, SQLException { 
+    private void recoverCommunity(Context ctx, String scope, Path archive, String commId, String parentId) throws AuthorizeException, IOException, SQLException { 
         // if not top-level, have parent create it
         Community comm = null;
         if (parentId != null) {
@@ -204,8 +195,6 @@ public class BagItRestoreFromAIP extends AbstractCurationTask {
             comm = Community.create(null, ctx, commId);
         }
         // update with AIP data
-        Packer packer = PackerFactory.instance(comm);
-        packer.unpack(archive);
+        Packager.fromPackage(ctx, comm, scope, archive);
     }
-
 }

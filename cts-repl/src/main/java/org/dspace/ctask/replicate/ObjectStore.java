@@ -7,7 +7,7 @@
  */
 package org.dspace.ctask.replicate;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.io.IOException;
 
 /**
@@ -52,8 +52,7 @@ public interface ObjectStore {
      * @return number of bytes the replica used
      * @throws IOException
      */
-    long fetchObject(String group, String id, File file) throws IOException;
-    
+    long fetchObject(String group, String id, Path file) throws IOException;
 
     /**
      * Transfers a copy of this file to the object store
@@ -63,7 +62,7 @@ public interface ObjectStore {
      * @return number of bytes transferred to store or 0 if transfer failed.
      * @throws IOException
      */
-    long transferObject(String group, File file) throws IOException;
+    long transferObject(String group, Path file) throws IOException;
 
     /**
      * Removes the passed object from the store.

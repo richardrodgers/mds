@@ -892,48 +892,48 @@ public class ContentImport {
     private void loadMetadata(Context c, DSpaceObject dso, File workingDir)
             throws SQLException, IOException, ParserConfigurationException,
             SAXException, TransformerException, AuthorizeException {
-    	File mdFile = new File(workingDir, METADATAFILE);
+        File mdFile = new File(workingDir, METADATAFILE);
         if (mdFile.exists()) {
-        	if (verbose) {
-        		System.out.println("\tLoading community metadata from " + mdFile.getName());
-        	}
-        	Document document = RegistryLoader.loadXML(mdFile.getPath());
-        	
+            if (verbose) {
+                System.out.println("\tLoading community metadata from " + mdFile.getName());
+            }
+            Document document = RegistryLoader.loadXML(mdFile.getPath());
+        
             NodeList mdSets = xPathFind(document, "/metadata/mdvalues");
             for (int i = 0; i < mdSets.getLength(); i++) {
-            	Node mdSet = mdSets.item(i);
-            	String schema = null;
-            	Node schemaAttr = mdSet.getAttributes().getNamedItem("schema");
-            	if (schemaAttr != null) {
-            		schema = schemaAttr.getNodeValue();
-            	} 
+                Node mdSet = mdSets.item(i);
+                String schema = null;
+                Node schemaAttr = mdSet.getAttributes().getNamedItem("schema");
+                if (schemaAttr != null) {
+                    schema = schemaAttr.getNodeValue();
+                } 
              
-            	// Get the nodes corresponding to metadata values
-            	NodeList mvNodes = xPathFind(mdSet, "mdvalue");
+                // Get the nodes corresponding to metadata values
+                NodeList mvNodes = xPathFind(mdSet, "mdvalue");
 
-            	for (int j = 0; j < mvNodes.getLength(); j++) {
-            		Node n = mvNodes.item(j);
-            		if (schema != null) {
-            			addMDValue(c, dso, schema, n);
-            		} else {
-            			// argh
-            			switch (dso.getType()) {
-            			   case Constants.COMMUNITY: ((Community)dso).setName(getStringValue(n)); break;
-            			   case Constants.COLLECTION: ((Collection)dso).setName(getStringValue(n)); break;
-            			   case Constants.BUNDLE: ((Bundle)dso).setName(getStringValue(n)); break;
-            			   case Constants.BITSTREAM: ((Bitstream)dso).setName(getStringValue(n)); break;
-            			   default: break;
-            			}
-            			//dso.setMetadataValue(getAttributeValue(n, "element"), getStringValue(n));
-            		}
-            	}
+                for (int j = 0; j < mvNodes.getLength(); j++) {
+                    Node n = mvNodes.item(j);
+                    if (schema != null) {
+                        addMDValue(c, dso, schema, n);
+                    } else {
+                        // argh
+                        switch (dso.getType()) {
+                            case Constants.COMMUNITY: ((Community)dso).setName(getStringValue(n)); break;
+                            case Constants.COLLECTION: ((Collection)dso).setName(getStringValue(n)); break;
+                            case Constants.BUNDLE: ((Bundle)dso).setName(getStringValue(n)); break;
+                            case Constants.BITSTREAM: ((Bitstream)dso).setName(getStringValue(n)); break;
+                            default: break;
+                        }
+                        //dso.setMetadataValue(getAttributeValue(n, "element"), getStringValue(n));
+                    }
+                }
             }
         }
     }
 
     private void addMDValue(Context c, DSpaceObject dso, String schema, Node n)
-    		throws TransformerException, SQLException, AuthorizeException {
-    	
+            throws TransformerException, SQLException, AuthorizeException {
+    
         // compensate for empty value getting read as "null", which won't display
         String value = Strings.nullToEmpty(getStringValue(n)); //n.getNodeValue();
        
@@ -946,7 +946,7 @@ public class ContentImport {
         int place = -1;
         String placeStr = getAttributeValue(n, "place");
         if (! Strings.isNullOrEmpty(placeStr)) {
-        	place = Integer.parseInt(placeStr);
+            place = Integer.parseInt(placeStr);
         } 
 
         if (verbose) {
@@ -969,27 +969,22 @@ public class ContentImport {
         }
 
         if (!isTest) {
-        	if (dso.getType() == Constants.ITEM) {
-        		((Item)dso).addMetadata(schema, element, qualifier, language, value);
-        	} else if (dso.getType() == Constants.BITSTREAM) {
-        		((Bitstream)dso).addMetadata(schema, element, qualifier, language, place, value);
-        	}
+            dso.addMetadata(schema, element, qualifier, language, place, value);
         } else {
             // If we're just test the import, let's check that the actual metadata field exists.
-        	MetadataSchema foundSchema = MetadataSchema.find(c,schema);
-        	
-        	if (foundSchema == null) {
-        		System.out.println("ERROR: schema '"+schema+"' was not found in the registry.");
-        		return;
-        	}
-        	
-        	int schemaID = foundSchema.getSchemaID();
-        	MetadataField foundField = MetadataField.findByElement(c, schemaID, element, qualifier);
-        	
-        	if (foundField == null) {
-        		System.out.println("ERROR: Metadata field: '"+schema+"."+element+"."+qualifier+"' was not found in the registry.");
-        		return;
-            }		
+            MetadataSchema foundSchema = MetadataSchema.find(c,schema);
+        
+            if (foundSchema == null) {
+                System.out.println("ERROR: schema '"+schema+"' was not found in the registry.");
+                return;
+            }
+        
+            int schemaID = foundSchema.getSchemaID();
+            MetadataField foundField = MetadataField.findByElement(c, schemaID, element, qualifier);
+        
+            if (foundField == null) {
+                System.out.println("ERROR: Metadata field: '"+schema+"."+element+"."+qualifier+"' was not found in the registry.");
+            }
         }
     }
 

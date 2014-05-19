@@ -9,9 +9,9 @@
 package org.dspace.ctask.replicate;
 
 import java.io.IOException;
+import java.sql.SQLException;
 
 import org.dspace.content.DSpaceObject;
-import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Context;
 import org.dspace.curate.AbstractCurationTask;
 import org.dspace.curate.Curator;
@@ -31,13 +31,7 @@ import org.dspace.curate.Suspendable;
  * @see TransmitAIP
  */
 @Suspendable(invoked=Curator.Invoked.INTERACTIVE)
-public class VerifyAIP extends AbstractCurationTask
-{
-    private String archFmt = ConfigurationManager.getProperty("replicate", "packer.archfmt");
-    
-    // Group where all AIPs are stored
-    private final String storeGroupName = ConfigurationManager.getProperty("replicate", "group.aip.name");
-
+public class VerifyAIP extends AbstractCurationTask {
     
     /**
      * Performs the "Verify AIP" task.
@@ -48,17 +42,13 @@ public class VerifyAIP extends AbstractCurationTask
      * @throws IOException 
      */
     @Override
-    public int perform(DSpaceObject dso) throws IOException
-    {
-        if(dso!=null)
-        {
+    public int perform(DSpaceObject dso) throws IOException, SQLException {
+        if (dso != null) {
             //NOTE: we can get away with passing in a 'null' Context because
             // the context isn't actually used to verify whether an AIP exists
             // (see below 'perform(ctx,id)' method)
             return perform(null, dso.getHandle());
-        }
-        else
-        {
+        } else {
             String result = "DSpace Object not found!";
             report(result);
             setResult(result);
@@ -76,12 +66,11 @@ public class VerifyAIP extends AbstractCurationTask
      * @throws IOException 
      */
     @Override
-    public int perform(Context ctx, String id) throws IOException
-    {
+    public int perform(Context ctx, String id) throws IOException, SQLException {
         ReplicaManager repMan = ReplicaManager.instance();
-        
+        String archFmt = repMan.getDefaultFormat(ctx);
         String objId = repMan.storageId(id, archFmt);
-        boolean found = repMan.objectExists(storeGroupName, objId);
+        boolean found = repMan.objectExists(repMan.storeGroupName(), objId);
         String result = "AIP for object: " + id + " found: " + found;
         report(result);
         setResult(result);

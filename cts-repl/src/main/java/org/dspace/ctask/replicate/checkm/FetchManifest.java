@@ -8,11 +8,10 @@
 
 package org.dspace.ctask.replicate.checkm;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
 import org.dspace.content.DSpaceObject;
-import org.dspace.core.ConfigurationManager;
 import org.dspace.ctask.replicate.ReplicaManager;
 import org.dspace.curate.AbstractCurationTask;
 import org.dspace.curate.Curator;
@@ -29,11 +28,6 @@ import org.dspace.curate.Curator;
  */
 
 public class FetchManifest extends AbstractCurationTask {
-
-    private final String archFmt = ConfigurationManager.getProperty("replicate", "packer.archfmt");
-
-    // Group where all Manifests are stored
-    private final String manifestGroupName = ConfigurationManager.getProperty("replicate", "group.manifest.name");
     
     /**
      * Perform 'Fetch Manifest' task
@@ -45,7 +39,7 @@ public class FetchManifest extends AbstractCurationTask {
     public int perform(DSpaceObject dso) throws IOException {
         ReplicaManager repMan = ReplicaManager.instance();
         String objId = repMan.storageId(dso.getHandle(), TransmitManifest.MANIFEST_EXTENSION);
-        File archive = repMan.fetchObject(manifestGroupName, objId);
+        Path archive = repMan.fetchManifest(objId);
         boolean found = archive != null;
         setResult("Manifest for object: " + dso.getHandle() + " found: " + found);
         return found ? Curator.CURATE_SUCCESS : Curator.CURATE_FAIL;

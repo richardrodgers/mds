@@ -20,6 +20,9 @@ import org.dspace.content.Item;
 public class ItemEntity extends ContentEntity {
 
     private URI filterUri;
+    private URI mdUri;
+    private URI mdviewUri;
+    private URI packageUri;
 
     public ItemEntity() {}
 
@@ -39,10 +42,37 @@ public class ItemEntity extends ContentEntity {
         filterUri = uri;
     }
 
+    public URI getMetadataUri() {
+        return mdUri;
+    }
+
+    public void setMetadataUri(URI mdUri) {
+        this.mdUri = mdUri;
+    }
+
+    public URI getMetadataViewUri() {
+        return mdviewUri;
+    }
+
+    public void setMetadataViewUri(URI mdviewUri) {
+        this.mdviewUri = mdviewUri;
+    }
+
+    public URI getPackageUri() {
+        return packageUri;
+    }
+
+    public void setPackageUri(URI packageUri) {
+        this.packageUri = packageUri;
+    }
+
     @Override
     public Map<String, String> getUriInjections() {
         Map<String, String> injectionMap = super.getUriInjections();
         injectionMap.put("filters", pid + ":filters");
+        injectionMap.put("mdsets", pid + ":mdsets");
+        injectionMap.put("mdviews", pid + ":mdviews");
+        injectionMap.put("packages", pid + ":packages");
         return injectionMap;
     }
 
@@ -50,6 +80,9 @@ public class ItemEntity extends ContentEntity {
     public void injectUri(String key, URI uri) {
         switch (key) {
             case "filters": setFilters(uri); break;
+            case "mdsets": setMetadataUri(uri); break;
+            case "mdviews": setMetadataViewUri(uri); break;
+            case "packages": setPackageUri(uri); break;
             default: super.injectUri(key, uri); break;
         }
     }

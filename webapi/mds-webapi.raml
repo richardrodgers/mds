@@ -1,6 +1,7 @@
 #%RAML 0.8
 title: MDS web API
-baseUri: http://mds.mit.edu/webapi
+baseUri: http://mds-demo.modrepo.org:8080/webapi
+mediaType: application/json
 version: v0.1
 /content:
   displayName: DSpace content objects
@@ -82,6 +83,13 @@ version: v0.1
         responses:
           200:
             description: The metadata view entity list
+    /packages:
+      description: A content object's packaged archives
+      get:
+        description: Returns an entity list of a content object's defined package types
+        responses:
+          200:
+            description: The package type entity list
     /filter/{name}:
       description: An item's filter (bundle)
       get:
@@ -108,6 +116,18 @@ version: v0.1
         responses:
           200:
             description: the metadata view
+    /package/{name}:
+      description: A content object package
+      get:
+        description: Returns content in a package
+        responses:
+          200:
+            description: the content object package
+      post:
+        description: create a new content object under the content object
+        responses:
+          201:
+            description: content has been created
     /media/{name}:
       description: A bitstream media object
       get:

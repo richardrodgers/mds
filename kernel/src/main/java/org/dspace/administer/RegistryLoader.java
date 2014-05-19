@@ -39,6 +39,8 @@ import org.dspace.mxres.MetadataView;
 import org.dspace.mxres.MetadataViewBuilder;
 import org.dspace.mxres.MDFieldDisplay;
 import org.dspace.mxres.ResourceMap;
+import org.dspace.pack.PackingSpec;
+import org.dspace.pack.PackingSpecBuilder;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
@@ -67,6 +69,7 @@ public class RegistryLoader {
         CURATION_TASKS("dspace-curation-tasks"),
         COMMANDS("dspace-commands"),
         METADATA_VIEWS("dspace-metadata-views"),
+        PACKING_SPECS("dspace-packing-specs"),
         REGISTRY_REFS("dspace-registry-refs");
 
         private final String element;
@@ -167,6 +170,8 @@ public class RegistryLoader {
                     loadCommands(context, document);
                 }  else if (type.equals(LoaderType.METADATA_VIEWS)) {
                     loadMetadataViews(context, document);
+                }  else if (type.equals(LoaderType.PACKING_SPECS)) {
+                    loadPackingSpecs(context, document);
                 }
             }
         }
@@ -494,6 +499,7 @@ public class RegistryLoader {
         String schema = getElementData(node, "schema");
         String element = getElementData(node, "element");
         String qualifier = getElementData(node, "qualifier");
+        String altname = getElementData(node, "altname");
         String label = getElementData(node, "label");
         String render = getElementData(node, "render");
         String wrapper = getElementData(node, "wrapper");
@@ -507,12 +513,74 @@ public class RegistryLoader {
             if (qualifier != null && qualifier.length() > 0) {
                 key += "." + qualifier;
             }
-            MDFieldDisplay mdfd = new MDFieldDisplay(key, label, render, wrapper, language);
-            viewObj.addViewField(mdfd);
+            MDFieldDisplay mdfd = new MDFieldDisplay(key, altname, label, render, wrapper, language);
+            viewObj.addViewField(context, mdfd);
         } else {
             log.info(LogManager.getHeader(context, "load_depiction",
                 "unmatched_view=" + viewName));
         }
+    }
+
+    /**
+     * Load Packing Specs
+     * 
+     * @param context
+     *            DSpace context object
+     * @param filename
+     *            the filename of the XML file to load
+     * @throws NonUniqueMetadataException
+     */
+    public static void loadPackingSpecs(Context context, String filename)
+            throws SQLException, IOException, ParserConfigurationException,
+            SAXException, TransformerException, AuthorizeException,
+            NonUniqueMetadataException {
+        loadPackingSpecs(context, loadXML(filename));
+    }
+
+    /**
+     * Load Packing Specs
+     * 
+     * @param context
+     *            DSpace context object
+     * @param document
+     *            the XML document to load
+     * @throws NonUniqueMetadataException
+     */
+    public static void loadPackingSpecs(Context context, Document document)
+            throws SQLException, IOException, SAXException,
+            TransformerException, AuthorizeException,
+            NonUniqueMetadataException {
+
+        // Get the nodes corresponding to packing specs
+        String path = LoaderType.PACKING_SPECS.getElement() + "/packing-spec";
+        NodeList specNodes = xPathFind(document, path);
+
+        // Add each packing spec and wire up as 
+        ResourceMap<PackingSpec> resMap = new ResourceMap(PackingSpec.class, context);
+        for (int i = 0; i < specNodes.getLength(); i++)  {
+            Node n = specNodes.item(i);
+            PackingSpec spec = PackingSpec.create(context);
+            spec.setName(getElementData(n, "name"));
+            spec.setDescription(getElementData(n, "description"));
+            spec.setPacker(getElementData(n, "packer"));
+            spec.setFormat(getElementData(n, "format"));
+            spec.setContentFilter(getElementData(n, "content-filter"));
+            spec.setMetadataFilter(getElementData(n, "metadata-filter"));
+            spec.setReferenceFilter(getElementData(n, "reference-filter"));
+            spec.setMimeType(getElementData(n, "mimetype"));
+            spec.setPackageId(getElementData(n, "package-id"));
+            spec.update();
+             // map the resource
+            resMap.addResource(spec.getName(), String.valueOf(spec.getID()));
+            // add the rule
+            resMap.addRule(getElementData(n, "scope"), getElementData(n, "rule"));
+        }
+        
+        // also install a builder for this resource type
+        resMap.setBuilder(PackingSpecBuilder.class.getName());
+
+        log.info(LogManager.getHeader(context, "load_packing_specs",
+                "number_specs_loaded=" + specNodes.getLength()));
     }
 
     /**

@@ -115,6 +115,7 @@ CREATE SEQUENCE mdtemplate_seq;
 CREATE SEQUENCE mdtemplatevalue_seq;
 CREATE SEQUENCE mdview_seq;
 CREATE SEQUENCE mddisplay_seq;
+CREATE SEQUENCE packingspec_seq;
 CREATE SEQUENCE command_seq;
 CREATE SEQUENCE cjournal_seq;
 CREATE SEQUENCE ctask_seq;
@@ -813,10 +814,29 @@ CREATE TABLE mddisplay
   mddisplay_id         INTEGER PRIMARY KEY DEFAULT NEXTVAL('mddisplay_seq'),
   mdview_id            INTEGER REFERENCES mdview(mdview_id),
   metadata_field_id    INTEGER REFERENCES MetadataFieldRegistry(metadata_field_id),
+  altname              TEXT,
   label                TEXT,
   render_type          TEXT,
   wrapper              TEXT,
-  disp_lang            VARCHAR(24)
+  disp_lang            VARCHAR(24),
+  place                INTEGER
+);
+
+-------------------------------------------------------
+-- packingspec table
+-------------------------------------------------------
+CREATE TABLE packingspec
+(
+  packingspec_id      INTEGER PRIMARY KEY DEFAULT NEXTVAL('packingspec_seq'),
+  name                TEXT,
+  description         TEXT,
+  packer              TEXT,
+  format              TEXT,
+  content_filter      TEXT,
+  metadata_filter     TEXT,
+  reference_filter    TEXT,
+  mimetype            TEXT,
+  package_id          TEXT
 );
 
 -------------------------------------------------------
@@ -829,7 +849,7 @@ CREATE TABLE command
   description          VARCHAR,
   class_name           VARCHAR,
   arguments            VARCHAR,
-  launchable	         BOOL,
+  launchable           BOOL,
   fwd_user_args        BOOL,
   successor            INTEGER 
 );
