@@ -89,8 +89,7 @@ public class Bitstream extends DSpaceObject
      * @return the bitstream, or null if the ID is invalid.
      * @throws SQLException
      */
-    public static Bitstream find(Context context, int id) throws SQLException
-    {
+    public static Bitstream find(Context context, int id) throws SQLException {
         // First check the cache
         Bitstream fromCache = (Bitstream) context.fromCache(Bitstream.class, id);
 
@@ -145,6 +144,21 @@ public class Bitstream extends DSpaceObject
             }
         }
         return bitstreams;
+    }
+
+    /**
+     * Returns the total number of bytes of all bitstreams. No attempt to
+     * filter based on withdrawn status or certain bundles etc, but should equal
+     * the asset storage used in all allocated asset stores, less any pending
+     * cleanup bitstreams.
+     *
+     * @param context the DSpace context
+     * @return the byte sum of all bitstreams
+     * @throws SQLException
+     */
+    public static long getExtent(Context context) throws SQLException {
+        return DatabaseManager.querySingle(context,
+               "SELECT SUM(size_bytes) AS bytesum FROM bitstream").getLongColumn("bytesum");
     }
 
     /**

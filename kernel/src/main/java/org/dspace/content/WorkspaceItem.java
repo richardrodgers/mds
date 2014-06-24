@@ -455,6 +455,17 @@ public class WorkspaceItem implements InProgressSubmission
         
         return wsItems.toArray(new WorkspaceItem[wsItems.size()]);
     }
+
+    /**
+     * Returns total number of workspace items
+     *
+     * @param context the DSpace context
+     * @return count the number of workspace items
+     */
+    public static long count(Context context) throws SQLException {
+        return DatabaseManager.querySingle(context,
+         "SELECT count(*) as wsct FROM workspaceitem").getLongColumn("wsct");
+    }
     
     /**
      * Get the internal ID of this workspace item

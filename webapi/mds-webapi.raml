@@ -179,6 +179,53 @@ version: v0.1
       responses:
         200:
           description: Curation task performed
+/info:
+  displayName: System Information
+  /server:
+    get:
+      responses:
+        200:
+          description: Information about server environment - OS, Java, Servlet Container
+  /system:
+    get:
+      responses:
+        200:
+          description: List of installed mds modules with versions, install dates
+  /assets:
+    get:
+      responses:
+        200:
+          description: Counts of communities, collections, items, bitstreams and total storage used
+  /formats:
+    get:
+      responses:
+        200:
+          description: Bitstream format distribution (counts by format type)
+  /users:
+    get:
+      responses:
+        200:
+          description: Counts of users and groups
+  /workflow:
+    get:
+      responses:
+        200:
+          description: Counts of workspace and workflow items
+  /metadata:
+    get:
+      responses:
+        200:
+          description: Entity list of installed metadata schema
+  /metadata/{key}:
+    uriParameters:
+      key:
+        type: string
+    get:
+      responses:
+        200:
+          description: Metadata value distribution in schema (counts per metadata field)
+        404:
+          description: No such schema name or id
 /authz:
   displayName: Authorization
   /epeople:
@@ -360,6 +407,15 @@ version: v0.1
       responses:
         201:
           description: Metadata schema created
+  /schemas/{query}:
+    displayName: Metadata Schemas from q query
+    uriParameters:
+      query:
+        type: string
+    get:
+      responses:
+        200:
+          description: List of all metadata schemas matching query
   /schema/{id}:
     displayName: A Metadata Schema
     uriParameters:
@@ -382,6 +438,17 @@ version: v0.1
           description: Schema removed
         401:
           description: Deletion not authorized
+  /schema/{id}/fields:
+    displayName: List of fields in given schema
+    uriParameters:
+      id:
+        type: number
+    get:
+      responses:
+        200:
+          description: Entity list of fields belonging to schema
+        404:
+          description: No such schema
   /fields:
     displayName: Metadata Fields
     get:

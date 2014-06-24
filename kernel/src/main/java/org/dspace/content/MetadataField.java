@@ -293,6 +293,18 @@ public class MetadataField {
     }
 
     /**
+     * Returns a count of metadata values in this field
+     *
+     * @param context dspace context
+     * @return count of metadata values in field
+     * @throws SQLException
+     */
+    public long count(Context context) throws SQLException {
+        return DatabaseManager.querySingle(context,
+        "SELECT count(*) as vct from metadatavalue WHERE metadata_field_id = ?", getFieldID()).getLongColumn("vct");
+    }
+
+    /**
      * Update the metadata field in the database.
      *
      * @param context dspace context

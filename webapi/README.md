@@ -2,7 +2,8 @@
 
 ## API usage ##
 
-The current REST API offers a service for CRUD operations on content objects, an authorization service, and a curation service to invoke tasks on objects.
+The current REST API offers a service for CRUD operations on content objects, an authorization service, a curation service to invoke tasks on objects,
+a service to manage registry contents, and a read-only service for respository characterization.
 Services accept and return either XML or JSON. API URLs appear under the context 'webapi'. 
 Thus a URL to retrieve a bitstream might appear as:
 
@@ -204,8 +205,19 @@ Metadata fields each belong to a schema, so you can obtain an entity reference l
 
 Metadata schemas in mds can be marked as _sealed_, meaning that one should not add or remove fields belonging to the schema. This is useful for non-extensible schema such as dcterms. The API will enforce this policy, and returns a 403 Forbidden in response to attempts to create or delete fields in sealed schemas. Moreover, the sealed attribute in the schema may not be changed via the API.
 
+### Info API ###
 
+The info API can be used to characterize an mds instance. It is a read-only API (http GET), and provides summary information. Endpoints (all under 'info') with
+the information returned:
 
+    info/server - OS, Java, and Servlet container info
+    info/system - all installed mds modules with date of install
+    info/assets - counts of communities, collections, items, and bitstreams. Total storage used.
+    info/metadata/schemaid - distribution of metdata values in schema (counts per field)
+    info/formats - distribution of bitstreams in formats (counts per format)
+    info/users - counts of users and groups
+    info/workflow - counts of workspace and workflow items
 
+Other information parameters are TDB
 
 

@@ -293,6 +293,17 @@ public class WorkflowItem implements InProgressSubmission
     }
 
     /**
+     * Returns total number of workflow items
+     *
+     * @param context the DSpace context
+     * @return count the number of items in workflow
+     */
+    public static long count(Context context) throws SQLException {
+        return DatabaseManager.querySingle(context,
+         "SELECT count(*) as wfct FROM workflowitem").getLongColumn("wfct");
+    }
+
+    /**
      * Get the internal ID of this workflow item
      * 
      * @return the internal identifier
