@@ -11,7 +11,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  * ServerEntity contains basic information about
- * the application runtime environment (OS, Java, etc)
+ * the application runtime environment (OS, DB, Java, etc)
  *
  * @author richardrodgers
  */
@@ -22,6 +22,8 @@ public class ServerEntity {
     private String osName;
     private String osArch;
     private String osVersion;
+    private String dbName;
+    private String dbVersion;
     private String javaVendor;
     private String javaVersion;
     private String containerName;
@@ -29,7 +31,11 @@ public class ServerEntity {
 
     public ServerEntity() {}
 
-    public ServerEntity(String containerInfo) {
+    public ServerEntity(String dbInfo, String containerInfo) {
+        // database
+        String[] dbParts = dbInfo.split(" ");
+        dbName = dbParts[0];
+        dbVersion = dbParts[1];
         String[] container = containerInfo.split("/");
         // Servlet container
         containerName = container[0];
@@ -65,6 +71,22 @@ public class ServerEntity {
 
     public void setOsVersion(String osVersion) {
          this.osVersion = osVersion;
+    }
+
+    public String getDbName() {
+        return dbName;
+    }
+
+    public void setDbName(String dbName) {
+         this.dbName = dbName;
+    }
+
+    public String getDbVersion() {
+        return dbVersion;
+    }
+
+    public void setDbVersion(String dbVersion) {
+         this.dbVersion = dbVersion;
     }
 
     public String getJavaVendor() {

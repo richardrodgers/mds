@@ -83,7 +83,14 @@ public class InfoResource {
 
     @GET @Path("server")
     public ServerEntity serverInfo() {
-       return new ServerEntity(srvCtx.getServerInfo());
+        try (org.dspace.core.Context context = new org.dspace.core.Context()) {
+            ServerEntity ent = infoDao.getServer(context, srvCtx.getServerInfo());
+            context.complete();
+            return ent;
+        } catch (SQLException sqlE) {
+            throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
+        }
+       //return new ServerEntity(srvCtx.getServerInfo());
     }
 
     @GET @Path("system")

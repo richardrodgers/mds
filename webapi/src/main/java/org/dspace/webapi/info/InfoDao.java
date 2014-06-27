@@ -28,6 +28,7 @@ import org.dspace.content.DSpaceObject;
 import org.dspace.content.MetadataField;
 import org.dspace.content.MetadataSchema;
 import org.dspace.content.WorkspaceItem;
+import org.dspace.storage.rdbms.DatabaseManager;
 import org.dspace.workflow.WorkflowItem;
 
 import org.dspace.webapi.info.domain.AssetsEntity;
@@ -37,6 +38,7 @@ import org.dspace.webapi.info.domain.EntityRef;
 import org.dspace.webapi.info.domain.Format;
 import org.dspace.webapi.info.domain.FormatsEntity;
 import org.dspace.webapi.info.domain.Module;
+import org.dspace.webapi.info.domain.ServerEntity;
 import org.dspace.webapi.info.domain.SystemEntity;
 import org.dspace.webapi.info.domain.UsersEntity;
 import org.dspace.webapi.info.domain.WorkflowEntity;
@@ -51,6 +53,12 @@ import org.dspace.webapi.info.domain.WorkflowEntity;
 public class InfoDao {
 
     private static Logger log = LoggerFactory.getLogger(InfoDao.class);
+
+    public ServerEntity getServer(Context context, String containerInfo) throws SQLException {
+        // PostgreSQL specific
+        String dbInfo = DatabaseManager.querySingle(context, "SELECT version() as dbinf").getStringColumn("dbinf");
+        return new ServerEntity(dbInfo, containerInfo);
+    }
 
     public SystemEntity getSystem(Context context) throws SQLException {
         // fetch module components and convert to modules
