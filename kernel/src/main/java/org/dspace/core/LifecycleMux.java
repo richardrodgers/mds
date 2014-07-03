@@ -39,7 +39,14 @@ public class LifecycleMux {
         if (! initialized) {
             // read configuration data to find handlers - stub implementation here
             try {
-            	for (String hcName : ConfigManager.getConfig("kernel").getStringList("lifecycle-handlers")) {
+                // Removed until COnfigManager supported
+                /*
+                for (String hcName : ConfigManager.getConfig("kernel").getStringList("lifecycle-handlers")) {
+                    mux.register(Class.forName(hcName).newInstance());
+                }
+                */
+                String[] handlers = ConfigurationManager.getProperty("lifecycle-handlers").split(",");
+                for (String hcName : handlers) {
                     mux.register(Class.forName(hcName).newInstance());
                 }
                 // register a drain handler for DeadEvents

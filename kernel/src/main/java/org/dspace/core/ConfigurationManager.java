@@ -1246,21 +1246,19 @@ public class ConfigurationManager
                 {
                     result.append(value.substring(from, start));
                 }
-                if (properties.containsKey(var))
-                {
+                // Environmental variable if defined overrides default interpolated value
+                String envValue = System.getenv(var);
+                if (envValue != null) {
+                    result.append(envValue);
+                } else if (properties.containsKey(var)) {
                     String ivalue = interpolate(var, properties.getProperty(var), level+1);
-                    if (ivalue != null)
-                    {
+                    if (ivalue != null) {
                         result.append(ivalue);
                         properties.setProperty(var, ivalue);
-                    }
-                    else
-                    {
+                    } else {
                         result.append(((String)properties.getProperty(var)).trim());
                     }
-                }
-                else
-                {
+                } else {
                     //log.warn("Interpolation failed in value of property \""+key+
                     //         "\", there is no property named \""+var+"\"");
                 }
