@@ -76,7 +76,7 @@ public class HandleManager
             return null;
         }
 
-        String url = ConfigurationManager.getProperty("dspace.url")
+        String url = ConfigurationManager.getProperty("site.url")
                 + "/handle/" + handle;
 
         if (log.isDebugEnabled())

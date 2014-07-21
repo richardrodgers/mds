@@ -90,7 +90,7 @@ public class FeedContentDisseminator extends AbstractSimpleDC implements SwordCo
         // ensure that the feed has one author or more
         if (feed.getAuthors().size() == 0)
         {
-            feed.addAuthor(ConfigurationManager.getProperty("dspace.name"));
+            feed.addAuthor(ConfigurationManager.getProperty("site.name"));
         }
     }
 

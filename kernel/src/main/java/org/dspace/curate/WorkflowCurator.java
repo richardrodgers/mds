@@ -48,7 +48,7 @@ public class WorkflowCurator {
       /** log4j logger */
     private static Logger log = LoggerFactory.getLogger(WorkflowCurator.class);
     
-    private static File cfgFile = new File(ConfigurationManager.getProperty("dspace.dir") +
+    private static File cfgFile = new File(ConfigurationManager.getProperty("site.home") +
                                     File.separator + "config" + File.separator +
                                     "workflow-curation.xml");
     

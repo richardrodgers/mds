@@ -244,7 +244,8 @@ public class IndexDenIndex implements IndexService {
             if (! index.exists()) {
                 // RLR TEST only - should likely be false in production
                 boolean apiPublic = true;
-                index = client.createIndex("index1", new IndexTankClient.IndexConfiguration().enablePublicSearch(apiPublic));
+                //index = client.createIndex("index1", new IndexTankClient.IndexConfiguration().enablePublicSearch(apiPublic));
+                index = client.createIndex("index1");
             }
         } catch (IndexAlreadyExistsException e) {
             // just checked - should not see this

@@ -525,7 +525,7 @@ public class Email
         String to = ConfigurationManager.getProperty("mail.admin");
         String subject = "DSpace test email";
         String server = ConfigurationManager.getProperty("mail.server");
-        String url = ConfigurationManager.getProperty("dspace.url");
+        String url = ConfigurationManager.getProperty("site.url");
         Email e = new Email();
         e.setSubject(subject);
         e.addRecipient(to);

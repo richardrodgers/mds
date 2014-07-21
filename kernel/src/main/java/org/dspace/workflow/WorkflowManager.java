@@ -993,7 +993,7 @@ public class WorkflowManager
 
     private static String getMyDSpaceLink()
     {
-        return ConfigurationManager.getProperty("dspace.url") + "/mydspace";
+        return ConfigurationManager.getProperty("site.url") + "/mydspace";
     }
 
     private static void notifyOfReject(Context c, WorkflowItem wi, EPerson e,

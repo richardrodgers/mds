@@ -331,7 +331,7 @@ public final class Installer {
             }
         }
         System.out.println("Finished dependency check");
-        String destPath = ConfigurationManager.getProperty("dspace.dir");
+        String destPath = ConfigurationManager.getProperty("site.home");
         File destFile = new File(destPath);
         if ("kernel".equals(module)) {
             // create destination directory if it doesn't exist
@@ -488,7 +488,7 @@ public final class Installer {
         checkState(curComp != null, "Module: '" + artifactId + "' is not installed - cannot update");
     
         boolean updateWars = false;
-        String destPath = ConfigurationManager.getProperty("dspace.dir");
+        String destPath = ConfigurationManager.getProperty("site.home");
         File destFile = new File(destPath);
         File libDestDir = new File(destFile, LIB_DIR);
       

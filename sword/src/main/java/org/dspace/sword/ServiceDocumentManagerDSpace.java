@@ -108,7 +108,7 @@ public class ServiceDocumentManagerDSpace implements ServiceDocumentManager
 			// we are dealing with the default service document
 
 			// set the title of the workspace as per the name of the DSpace installation
-			String ws = ConfigurationManager.getProperty("dspace.name");
+			String ws = ConfigurationManager.getProperty("site.name");
 			SwordWorkspace workspace = new SwordWorkspace();
 			workspace.setTitle(ws);
 

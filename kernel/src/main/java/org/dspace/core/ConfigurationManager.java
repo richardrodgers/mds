@@ -746,7 +746,7 @@ public class ConfigurationManager
      */
     public static String getNewsFilePath()
     {
-        String filePath = ConfigurationManager.getProperty("dspace.dir")
+        String filePath = ConfigurationManager.getProperty("site.home")
                 + File.separator + "config" + File.separator;
 
         return filePath;
@@ -873,7 +873,7 @@ public class ConfigurationManager
         File modFile = null;
         try
         {
-            modFile = new File(getProperty("dspace.dir") +
+            modFile = new File(getProperty("site.home") +
                                 File.separator + "conf" +
                                 File.separator + "modules" +
                                 File.separator + module + ".cfg");
@@ -886,6 +886,7 @@ public class ConfigurationManager
                 {
                     modIS = new FileInputStream(modFile);
                     modProps.load(modIS);
+                    envOverride(modProps, module);
                 }
                 finally
                 {
@@ -1000,6 +1001,7 @@ public class ConfigurationManager
                 moduleProps = new HashMap<String, Properties>();
                 is = url.openStream();
                 properties.load(is);
+                envOverride(properties, null);
                 interpolateProps(properties, 1);
             }
 
@@ -1169,11 +1171,11 @@ public class ConfigurationManager
     // initialize the logging system
     
     private static void lazyInfo(String message) {
-    	if (log == null) {
-    		log = LoggerFactory.getLogger(ConfigurationManager.class);
+        if (log == null) {
+            log = LoggerFactory.getLogger(ConfigurationManager.class);
             postLogInit();
-    	}
-    	log.info(message);
+        }
+        log.info(message);
     }
     
     private static void lazyWarn(String message) {
@@ -1194,6 +1196,25 @@ public class ConfigurationManager
 
     private static void postLogInit() {
         reporter = JmxReporter.forRegistry(metrics).build();
+    }
+
+    // look for environment variable property overrides and replace values if found 
+    private static void envOverride(Properties props, String module) {
+        for (String name : props.stringPropertyNames()) {
+            // for a property named 'foo.bar' the environment variable 
+            // used to override must be named 'MDS_FOO_BAR'
+            // for a module property in module 'baz', the variable will be named
+            // MDS_MOD_BAZ_FOO_BAR
+            StringBuilder envSB = new StringBuilder("MDS_");
+            if (module != null) {
+                envSB.append("MOD_").append(module.toUpperCase()).append("_");
+            }
+            envSB.append(name.replace('.', '_').toUpperCase());
+            String envValue = System.getenv(envSB.toString());
+            if (envValue != null) {
+                props.setProperty(name, envValue);
+            }
+        }
     }
 
     /**
