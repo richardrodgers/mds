@@ -179,15 +179,34 @@ public class ResourceMap<T extends ExtensibleResource> {
     }
 
     /**
-     * Obtains set of all keys with passed pattern
+     * Obtains set of all keys with passed pattern. The pattern will
+     * match the front of the key.
      * 
-     * @param rule - the RCL expression string
+     * @param keyPat - the leading portion of the resource key
      */
     public Set<String> ruleKeysLike(String keyPat) throws SQLException {
         Set<String> keySet = new HashSet<>();
         try (TableRowIterator tri = DatabaseManager.queryTable(context, "xresmap",
                 "SELECT * FROM xresmap WHERE res_class = ? AND mapping = 'rule' AND res_key LIKE ?",
                 clazz.getName(), keyPat + "%")) {
+            while (tri.hasNext()) {
+                keySet.add(tri.next().getStringColumn("res_key"));
+            }
+        }
+        return keySet;
+    }
+
+    /**
+     * Obtains set of all keys with passed pattern. The pattern will
+     * match anywhere in the key, and will be case-insensitive.
+     * 
+     * @param keyPat - the patten to match in the resouce key
+     */
+    public Set<String> ruleKeysWith(String keyPat) throws SQLException {
+        Set<String> keySet = new HashSet<>();
+        try (TableRowIterator tri = DatabaseManager.queryTable(context, "xresmap",
+                "SELECT * FROM xresmap WHERE res_class = ? AND mapping = 'rule' AND lower(res_key) LIKE ?",
+                clazz.getName(), "%" + keyPat.toLowerCase() + "%")) {
             while (tri.hasNext()) {
                 keySet.add(tri.next().getStringColumn("res_key"));
             }

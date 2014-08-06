@@ -15,6 +15,22 @@ version: v0.1
     responses:
       201:
         description: New top-level community created
+  /packages:
+    displayName: Supported package formats for top-level communities
+    description: Get a list of supported package formats for top-level communities
+    get:
+      description: Returns an entity list of supported package resources
+      responses:
+        200:
+          description: the entity list of package resources
+  /package/{name}:
+    displayName: a package resource
+    description: resource for depositing new top-level community packages in specified format
+    post:
+      description: Creates a new top-level community from entity
+      responses:
+        201:
+          description: Top-level community created
   /{prefix}/{id}:
     displayName: A DSpace content object - Community, Collection, Item, or Bitstream
     get:

@@ -5,6 +5,7 @@
  *
  * http://www.dspace.org/license/
  */
+
 package org.dspace.webapi.content;
 
 import java.io.InputStream;
@@ -129,17 +130,22 @@ public class ContentDao {
             throw new IOException("Input Stream null");
         }
         DSpaceObject dso = null;
+        // normalize the package spec name
+        int split = name.indexOf("-");
+        String specName = new StringBuilder(name.substring(0, split)).append("-pspec").append(name.substring(split)).toString();
         if (prefix == null) {
             // no parent - create a top-level community
             dso = Community.create(null, ctx);
-            Packager.fromPackageStream(ctx, dso, "community-pspec-" + name, in);
+            Packager.fromPackageStream(ctx, dso, specName, in);
         } else {
             DSpaceObject parent = resolveDso(ctx, prefix, id);
             switch (parent.getType()) {
-                // NB: this API implementation only allows collection packages, not sub-community packages here
-                // although the data model allows either. TBD
-                case Constants.COMMUNITY: dso = ((Community)parent).createCollection();
-                                          Packager.fromPackageStream(ctx, dso, "collection-pspec-" + name, in);
+                case Constants.COMMUNITY: if (name.startsWith("collection")) {
+                                              dso = ((Community)parent).createCollection();
+                                          } else {
+                                              dso = ((Community)parent).createSubcommunity();
+                                          }
+                                          Packager.fromPackageStream(ctx, dso, specName, in);
                                           break;
                 case Constants.COLLECTION: WorkspaceItem wi = WorkspaceItem.create(ctx, (Collection)parent, false);
                                            Packager.fromPackageStream(ctx, wi.getItem(), "item-pspec-" + name, in);
@@ -324,7 +330,11 @@ public class ContentDao {
 
     private void getPackageRefs(List<EntityRef> refList, String handle, Context ctx) throws SQLException {
         for (String name : packingSpecNames(ctx, handle)) {
-            refList.add(new EntityRef(name, handle + "/package/" + name, name));
+            if (handle != null) {
+                refList.add(new EntityRef(name, handle + "/package/" + name, name));
+            } else {
+               refList.add(new EntityRef(name, "package/" + name, name)); 
+            }
         }
     }
 
@@ -411,16 +421,54 @@ public class ContentDao {
 
     private List<String> packingSpecNames(Context ctx, String handle) throws SQLException {
         ResourceMap<PackingSpec> specMap = new ResourceMap(PackingSpec.class, ctx);
-        // determine what kind of object handle belongs to
-        String id = handle.substring(handle.indexOf("/") + 1);
-        int objType = (id.indexOf(".") > 0) ? Constants.BITSTREAM : HandleManager.resolveToType(ctx, handle);
-        String keyPat = Constants.typeText[objType].toLowerCase() + "-pspec-"; 
-        Iterator<String> specIter = specMap.ruleKeysLike(keyPat).iterator();
         List<String> names = new ArrayList<>();
-        // In a base installation, the only spec offered is 'aip', but it's user-configurable
-        while (specIter.hasNext()) {
-            names.add(specIter.next().substring(keyPat.length()));
+        // the logic here is specifically tailored for a particular taxonomy of packaging spec types
+        // presumed to be used in the webapi: SIP, AIP, and DIP packages. If other types are needed,
+        // they will have to be inserted in program logic below. A fair amount of hardcoded logic about
+        // spec names is embedded here - therefore fragile
+
+        // determine what kind of object handle belongs to
+        // first: special case of null handle - this is used only when creating top-level communities
+        // i.e. there is no parent community. Here the only packaging specs that make sense are community SIPs and AIPs
+        if (handle == null) {
+            addSpecNames(specMap, "sip", "community", names);
+            addSpecNames(specMap, "aip", "community", names);
+        } else {
+            // OK see what kind of a handle it is. Note special case of 'bitstream' handle (i.e. with a .seqId)
+            String id = handle.substring(handle.indexOf("/") + 1);
+            int objType = (id.indexOf(".") > 0) ? Constants.BITSTREAM : HandleManager.resolveToType(ctx, handle);
+            if (objType == Constants.COMMUNITY) {
+                // Communities can have DIPs, and community or collection SIPs and AIPs
+                addSpecNames(specMap, "sip", "community", names);
+                addSpecNames(specMap, "aip", "community", names);
+                addSpecNames(specMap, "dip", "community", names);
+                addSpecNames(specMap, "sip", "collection", names);
+                addSpecNames(specMap, "aip", "collection", names);
+            } else if (objType == Constants.COLLECTION) {
+                // Collections can have AIPs, DIPs, and item SIPs and AIPs
+                addSpecNames(specMap, "aip", "collection", names);
+                addSpecNames(specMap, "dip", "collection", names);
+                addSpecNames(specMap, "sip", "item", names);
+                addSpecNames(specMap, "aip", "item", names);
+            } else if (objType == Constants.ITEM) {
+                // Items can have AIPs and DIPs
+                addSpecNames(specMap, "aip", "item", names);
+                addSpecNames(specMap, "dip", "item", names);
+            } else if (objType == Constants.BITSTREAM) {
+                // bitstream packages are TBD
+            }
         }
         return names;
+    }
+
+    private void addSpecNames(ResourceMap<PackingSpec> specMap, String key, String objType, List<String> names) throws SQLException {
+        Iterator<String> specIter = specMap.ruleKeysWith(key).iterator();
+        while (specIter.hasNext()) {
+            String spec = specIter.next();
+            if (spec.startsWith(objType)) {
+                String prefix = objType + "-pspec-";
+                names.add(objType + "-" + spec.substring(prefix.length()));
+            }
+        }
     }
 }

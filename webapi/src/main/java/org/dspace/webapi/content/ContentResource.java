@@ -64,6 +64,12 @@ public class ContentResource {
         return getRefList(null, "community", null);
     }
 
+    // get list of supported package types for roots - i.e. top-level communities
+    @GET @Path("packages")
+    public List<EntityRef> getRootPackageSpecs() {
+        return getRefList(null, "packages", null);
+    }
+
     // create a new root in the content hierarchy - i.e a top-level community
     @POST @Path("/")
     @Consumes({APPLICATION_XML, APPLICATION_JSON})
@@ -77,6 +83,24 @@ public class ContentResource {
             throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
         }
         // Inject URIs into this entity
+        inject(entity);
+        return Response.created(entity.getURI()).build();
+    }
+
+    // create a new root in the content hierarchy - i.e a top-level community from a package
+    @POST @Path("package/{name}")
+    @Consumes("application/zip")
+    public Response rootfromPackage(@PathParam("name") String name, InputStream in) {
+        ContentEntity entity = null;
+        try {
+            entity = contentDao.entityFromPackage(null, null, name, in);
+        } catch (AuthorizeException authE) {
+            throw new WebApplicationException(Response.Status.UNAUTHORIZED);
+        } catch (IllegalArgumentException iaE) {
+            throw new WebApplicationException(Response.Status.NOT_FOUND);
+        } catch (IOException | SQLException sqlE) {
+            throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
+        }
         inject(entity);
         return Response.created(entity.getURI()).build();
     }

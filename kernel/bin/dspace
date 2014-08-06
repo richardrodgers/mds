@@ -61,6 +61,9 @@ else
 fi
 
 # Pick up any environment variables
+if [ -r "$BINDIR/setenv.sh" ]; then
+    . "$BINDIR/setenv.sh"
+fi
 if [ -r "$BINDIR/site.env" ]; then
     while read line; do
         # if not a comment or empty line, process
