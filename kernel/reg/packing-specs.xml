@@ -9,6 +9,20 @@
 <dspace-packing-specs>
 
   <packing-spec>
+    <name>pkgspec:site-bagit-aip</name>
+    <scope>site-pspec-aip</scope>
+    <rule>pkgspec:site-bagit-aip</rule>
+    <description>Bagit AIP of Site</description>
+    <packer>org.dspace.pack.bagit.DSpaceObjectPacker</packer>
+    <format>zip</format>
+    <content-filter></content-filter>
+    <metadata-filter></metadata-filter>
+    <reference-filter></reference-filter>
+    <mimetype>application/zip</mimetype>
+    <package-id>X-Packaging-BagitAIP</package-id>
+  </packing-spec>
+
+  <packing-spec>
     <name>pkgspec:community-bagit-aip</name>
     <scope>community-pspec-aip</scope>
     <rule>pkgspec:?,pkgspec:community-bagit-aip</rule>
@@ -50,6 +64,20 @@
     <reference-filter></reference-filter>
     <mimetype>application/zip</mimetype>
     <package-id>X-Packaging-BagitAIP</package-id>
+  </packing-spec>
+
+  <packing-spec>
+    <name>pkgspec:site-bagit-dip</name>
+    <scope>site-pspec-dip</scope>
+    <rule>pkgspec:site-bagit-dip</rule>
+    <description>Bagit DIP of Site</description>
+    <packer>org.dspace.pack.bagit.DSpaceObjectPacker</packer>
+    <format>zip</format>
+    <content-filter></content-filter>
+    <metadata-filter></metadata-filter>
+    <reference-filter></reference-filter>
+    <mimetype>application/zip</mimetype>
+    <package-id>X-Packaging-BagitDIP</package-id>
   </packing-spec>
 
   <packing-spec>

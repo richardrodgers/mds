@@ -31,10 +31,10 @@ import org.dspace.content.WorkspaceItem;
 import org.dspace.storage.rdbms.DatabaseManager;
 import org.dspace.workflow.WorkflowItem;
 
+import org.dspace.webapi.EntityRef;
 import org.dspace.webapi.info.domain.AssetsEntity;
 import org.dspace.webapi.info.domain.Field;
 import org.dspace.webapi.info.domain.FieldsEntity;
-import org.dspace.webapi.info.domain.EntityRef;
 import org.dspace.webapi.info.domain.Format;
 import org.dspace.webapi.info.domain.FormatsEntity;
 import org.dspace.webapi.info.domain.Module;
@@ -81,7 +81,7 @@ public class InfoDao {
         List<MetadataSchema> schemas = MetadataSchema.findAll(context);
         List<EntityRef> refs = new ArrayList<>();
         for (MetadataSchema schema : schemas) {
-            refs.add(new EntityRef(schema.getName(), schema.getName(), "metadata"));
+            refs.add(new EntityRef(schema.getName(), "metadata/" + schema.getName(), "metadata"));
         }
         return refs;
     }

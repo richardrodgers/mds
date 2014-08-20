@@ -4,35 +4,118 @@ baseUri: http://mds-demo.modrepo.org:8080/webapi
 mediaType: application/json
 version: v0.1
 /content:
-  displayName: DSpace content objects
-  get:
-    description: Retrieve content roots, i.e. top-level communities
-    responses:
-      200:
-        description: Returns entity list of top-level communities
+  displayName: Repository content
   post:
-    description: Create a new content root - top-level community
+    description: Create a new repository site
     responses:
       201:
-        description: New top-level community created
-  /packages:
-    displayName: Supported package formats for top-level communities
-    description: Get a list of supported package formats for top-level communities
+        description: New site created
+  /site:
+    displayName: The repository site
     get:
-      description: Returns an entity list of supported package resources
+      description: Obtains the site entity
       responses:
         200:
-          description: the entity list of package resources
-  /package/{name}:
-    displayName: a package resource
-    description: resource for depositing new top-level community packages in specified format
-    post:
-      description: Creates a new top-level community from entity
+          description: the repository site entity
+    delete:
+      description: Removes the site entity
       responses:
-        201:
-          description: Top-level community created
+        204:
+          description: the site has been removed
+    /communities:
+      displayName: Site root (top-level) communities
+      get:
+        description: Obtains an entity list of top-level communities
+        responses:
+          200:
+            description: the top-level community entity list
+      post:
+        description: Creates a new top-level community
+        responses:
+          201:
+            description: New top-level community created
+    /packages:
+      displayName: Supported package formats for site and top-level communities
+      description: Get a list of supported package formats for site and top-level communities
+      get:
+        description: Returns an entity list of supported package resources
+        responses:
+          200:
+            description: the entity list of package resources
+    /package/{name}:
+      displayName: a package resource
+      uriParameters:
+        name:
+          description: the name of the package type
+          type: string
+      description: resource for depositing new site or top-level community packages in specified format
+      post:
+        description: Creates a new top-level community from entity
+        responses:
+          201:
+            description: Top-level community created
+    /logo:
+      displayName: the Site logo
+      get:
+        description: Obtains the site logo
+        responses:
+          200:
+            description: the Site logo media file
+      put:
+        description: Updates the site logo
+        responses:
+          200:
+            description: the site logo updated
+    /mdsets:
+      displayName: the Site metadata sets
+      get:
+        description: Obtains the list of site metadata sets
+        responses:
+          200:
+            description: the entity list of site metadata sets
+    /mdset/{name}:
+      displayName: a Site metadata set
+      uriParameters:
+        name:
+          description: the metadata set name
+          type: string
+      get:
+        description: Obtains a site metadata set
+        responses:
+          200:
+            description: a site metadata set
+      put:
+        description: Upadates site metadata
+        responses:
+          200:
+            description: site metadata updated
+    /mdviews:
+      displayName: a Site metadata view set
+      get:
+        description: Obtains a list of site views
+        responses:
+          200:
+            description: A site metadata view entity list
+    /mdview/{name}:
+      displayName: a Site metadata view
+      uriParameters:
+        name:
+          description: the metdata view name
+          type: string
+      get:
+        description: Obtains a metadata view for site
+        responses:
+          200:
+            description: a site metdata view
   /{prefix}/{id}:
     displayName: A DSpace content object - Community, Collection, Item, or Bitstream
+    uriParameters:
+      prefix:
+        description: the content handle prefix
+        type: string
+      id:
+        description: the content handle id
+        type: string
     get:
       description: Obtain a content object representation
       responses:
@@ -108,6 +191,10 @@ version: v0.1
             description: The package type entity list
     /filter/{name}:
       description: An item's filter (bundle)
+      uriParameters:
+        name:
+          description: the filter namme (Bundle name)
+          type: string
       get:
         description: Returns an item filter (bundle)
         responses:
@@ -115,6 +202,10 @@ version: v0.1
             description: the item filter (bundle)
     /mdset/{name}:
       description: A content object's metdata set
+      uriParameters:
+        name:
+          description: the metadata set name
+          type: string
       get:
         description: Returns a content object's metadata set
         responses:
@@ -127,6 +218,10 @@ version: v0.1
             description: Metadata set updated
     /mdview/{name}:
       description: A content object's metadata view
+      uriParameters:
+        name:
+          description: the metadata view name
+          type: string
       get:
         description: Returns a metadata view
         responses:
@@ -134,6 +229,10 @@ version: v0.1
             description: the metadata view
     /package/{name}:
       description: A content object package
+      uriParameters:
+        name:
+          description: the package type name
+          type: string
       get:
         description: Returns content in a package
         responses:
@@ -146,6 +245,10 @@ version: v0.1
             description: content has been created
     /media/{name}:
       description: A bitstream media object
+      uriParameters:
+        name:
+          description: the media object file name
+          type: string
       get:
         description: Returns a media object
         responses:
@@ -162,6 +265,10 @@ version: v0.1
           description: a list of curation task groups
   /taskgroup/{groupId}:
     description: Returns a task group
+    uriParameters:
+      groupId:
+        description: the task group ID
+        type: string
     get:
       description: Returns a task group
       responses:
@@ -176,6 +283,10 @@ version: v0.1
           description: a list of content selector groups
   /selectorgroup/{groupId}:
     description:  A content selection group
+    uriParameters:
+      groupId:
+        description: the selector group ID
+        type: string
     get:
       description: Returns a content selector group
       responses:
@@ -183,6 +294,13 @@ version: v0.1
           description: Curation selector group
   /content/{prefix}/{id}:
     description: Perform a curation task on a content object
+    uriParameters:
+      prefix:
+        description: the content object handle prefix
+        type: string
+      id:
+        description: the content object handle ID
+        type: string
     post:
       description: Performs a task described in the entity
       responses:
@@ -190,6 +308,10 @@ version: v0.1
           description: Curation task performed
   /set/{selector}:
     description: Perform a curation task on a content selector
+    uriParameters:
+      selector:
+        description: the selector name
+        type: string
     post:
       description: Performs a curation task on content selector
       responses:
@@ -197,6 +319,11 @@ version: v0.1
           description: Curation task performed
 /info:
   displayName: System Information
+  get:
+    description: Obtains a list of information resources
+    responses:
+      200:
+        description: an entity list of information resources
   /server:
     get:
       responses:
@@ -253,6 +380,10 @@ version: v0.1
           description: EPerson creation not authorized
     /{query}:
       description: Finds EPeople matching query
+      uriParameters:
+        query:
+          description: the query string
+          type: string
       get:
         responses:
           200:
@@ -533,3 +664,122 @@ version: v0.1
           description: Bitstream format removed
         401:
           description: Format deletion not authorized
+/submit:
+  /{prefix}/{id}/submissions:
+    displayName: A collection's open submissions
+    uriParameters:
+      prefix:
+        description: the Collection handle prefix
+        type: string
+      id:
+        description: the Collection handle ID
+        type: string
+    get:
+      description: Obtains an entity list of open submissions to this collection
+      responses:
+        200:
+          description: The submission entity list
+    post:
+      description: Creates a new submission to this collection
+      responses:
+        201:
+          description: A new submission has been created
+  /{id}:
+    displayName: An Item Submission
+    uriParameters:
+      id:
+        description: the submission ID
+        type: number
+    get:
+      description: Obtains an item submission
+      responses:
+        200:
+          description: An entity describing the submission
+        404:
+          description: No submission with requested id
+    delete:
+      description: Removes an item submission
+      queryParameters:
+        discard:
+          displayName: Discard
+          description: submission disposition, if "true" submission not installed
+          type:  string
+          required: false
+      responses:
+        204:
+          description: Submission removed
+    /bitstreams:
+      displayName: The submission bitstreams
+      get:
+        description: Obtains the entiity list of bitstreams in submission
+        responses:
+          200:
+            description: An entity list of submission bitstreams
+      post:
+        description: Adds a new bitstream to the submission
+        responses:
+          201:
+            description: A new bitstream was added to the submission
+    /mdspecs:
+      displayName: The submission input metadata specifications
+      get:
+        description: An entity list of input specifications for the submission
+        responses:
+          200:
+            description: the input metdata spec entity list
+    /bitstream/{seqNo}:
+      displayName: A submission bitstream entity 
+      uriParameters:
+        seqNo:
+          description: the bitstream item sequence number
+          type: number
+      get:
+        description: a submission metadata specification entity
+        responses:
+          200:
+            description: a metdata input specification
+      delete:
+        description: removes a submission bitstream
+        responses:
+          204:
+            description: submission bitstream removed
+      /mdspecs:
+        displayName: The submission bitstreams's input metadata specifications
+        get:
+          description: Obtains the entity list of metadata input specifications for the bitstream
+          responses:
+            200:
+              description: Bitstream metadata specification entity list
+      /mdspec/{name}:
+        displayName: A submission bitstreams input metadata specification
+        uriParameters:
+          name:
+            description: the metdata input specification name
+            type: string
+        get:
+          description: Obtains the named specification
+          responses:
+            200:
+              description:  An input metadata specification
+        put:
+          description: Updates the submission bitstream metadata
+          responses:
+            200:
+              description: The updated submission bitstream metadata
+    /mdspec/{name}:
+      displayName: A submission metdata input specification
+      uriParameters:
+        name:
+          description: the specification name
+          type: string
+      get:
+        description: Obtains a metadata specification with existing values
+        responses:
+          200:
+            description: Metadata specification
+      put:
+        description: Updates submission metadata
+        responses:
+          200:
+            description: the updated metadata
+      

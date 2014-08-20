@@ -35,7 +35,7 @@ import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.NonUniqueMetadataException;
 
 import org.dspace.webapi.Injectable;
-import org.dspace.webapi.info.domain.EntityRef;
+import org.dspace.webapi.EntityRef;
 import org.dspace.webapi.info.domain.FieldsEntity;
 import org.dspace.webapi.info.domain.FormatsEntity;
 import org.dspace.webapi.info.domain.InfoEntity;

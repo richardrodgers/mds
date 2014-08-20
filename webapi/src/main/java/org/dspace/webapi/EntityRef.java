@@ -5,15 +5,13 @@
  *
  * http://www.dspace.org/license/
  */
-package org.dspace.webapi.content.domain;
+package org.dspace.webapi;
 
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
 import javax.xml.bind.annotation.XmlRootElement;
-
-import org.dspace.webapi.Injectable;
 
 /**
  * A reference to a resource entity

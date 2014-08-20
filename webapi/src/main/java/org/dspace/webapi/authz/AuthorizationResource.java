@@ -37,10 +37,11 @@ import org.slf4j.LoggerFactory;
 import com.google.common.primitives.Ints;
 
 import org.dspace.authorize.AuthorizeException;
+
+import org.dspace.webapi.EntityRef;
 import org.dspace.webapi.Injectable;
 
 import org.dspace.webapi.authz.domain.EPersonEntity;
-import org.dspace.webapi.authz.domain.EntityRef;
 import org.dspace.webapi.authz.domain.GroupEntity;
 import org.dspace.webapi.authz.domain.LinkEntity;
 import org.dspace.webapi.authz.domain.PolicyEntity;

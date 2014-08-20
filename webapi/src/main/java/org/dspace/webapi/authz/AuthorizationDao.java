@@ -34,7 +34,7 @@ import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Context;
 import org.dspace.handle.HandleManager;
 
-import org.dspace.webapi.authz.domain.EntityRef;
+import org.dspace.webapi.EntityRef;
 import org.dspace.webapi.authz.domain.EPersonEntity;
 import org.dspace.webapi.authz.domain.GroupEntity;
 import org.dspace.webapi.authz.domain.LinkEntity;
@@ -68,7 +68,7 @@ public class AuthorizationDao {
         List<EPerson> people = EPerson.findAll(context, 3);
         List<EntityRef> refs = new ArrayList<>();
         for (EPerson person: people) {
-            refs.add(new EntityRef(person.getEmail(), person.getID(), "eperson"));
+            refs.add(new EntityRef(person.getEmail(), String.valueOf(person.getID()), "eperson"));
         }
         return refs;
     }
@@ -77,7 +77,7 @@ public class AuthorizationDao {
         List<EPerson> people = EPerson.findAll(context, 3);
         List<EntityRef> refs = new ArrayList<>();
         for (EPerson person: people) {
-            refs.add(new EntityRef(person.getEmail(), person.getID(), "eperson"));
+            refs.add(new EntityRef(person.getEmail(), String.valueOf(person.getID()), "eperson"));
         }
         return refs;
     }
@@ -123,7 +123,7 @@ public class AuthorizationDao {
         List<Group> groups = Group.findAll(context, 3);
         List<EntityRef> refs = new ArrayList<>();
         for (Group group: groups) {
-            refs.add(new EntityRef(group.getName(), group.getID(), "group"));
+            refs.add(new EntityRef(group.getName(), String.valueOf(group.getID()), "group"));
         }
         return refs;
     }
@@ -287,7 +287,7 @@ public class AuthorizationDao {
             }          
         }
         for (ResourcePolicy rp : AuthorizeManager.getPolicies(ctx, dso)) {
-            refList.add(new EntityRef(rp.getActionText(), rp.getID(), "policy"));
+            refList.add(new EntityRef(rp.getActionText(), String.valueOf(rp.getID()), "policy"));
         }
         ctx.complete();
         return refList;

@@ -35,6 +35,7 @@ import org.dspace.content.DSpaceObject;
 import org.dspace.content.InstallItem;
 import org.dspace.content.MDValue;
 import org.dspace.content.MetadataSchema;
+import org.dspace.content.Site;
 import org.dspace.content.WorkspaceItem;
 import org.dspace.eperson.EPerson;
 import org.dspace.handle.HandleManager;
@@ -42,14 +43,15 @@ import org.dspace.mxres.MetadataView;
 import org.dspace.mxres.ResourceMap;
 import org.dspace.pack.Packager;
 import org.dspace.pack.PackingSpec;
+import org.dspace.webapi.EntityRef;
 import org.dspace.webapi.content.domain.BitstreamEntity;
 import org.dspace.webapi.content.domain.CommunityEntity;
 import org.dspace.webapi.content.domain.CollectionEntity;
 import org.dspace.webapi.content.domain.ContentEntity;
 import org.dspace.webapi.content.domain.ItemEntity;
 import org.dspace.webapi.content.domain.MetadataEntity;
+import org.dspace.webapi.content.domain.SiteEntity;
 import org.dspace.webapi.content.domain.ViewEntity;
-import org.dspace.webapi.content.domain.EntityRef;
 import org.dspace.webapi.content.domain.Statement;
 
 /**
@@ -67,7 +69,6 @@ public class ContentDao {
         List<EntityRef> refList = new ArrayList<>();
         Context ctx = new Context();
         switch (contentType) {
-            case "community" : getCommunityRefs(refList, ctx); break;
             case "collections" : getCollectionRefs(refList, handle, ctx); break;
             case "subcommunities" : getSubcommunityRefs(refList, handle, ctx); break;
             case "items" : getItemRefs(refList, handle, ctx); break;
@@ -82,10 +83,32 @@ public class ContentDao {
         return refList;
     }
 
+    public List<EntityRef> getSiteReferences(String contentType, String filter) throws SQLException {
+        List<EntityRef> refList = new ArrayList<>();
+        Context ctx = new Context();
+        switch (contentType) {
+            case "communities" : getCommunityRefs(refList, ctx); break;
+            case "mdsets" : getMetadataSetRefs(refList, null, ctx); break;
+            case "mdviews" : getMetadataViewRefs(refList, null, ctx); break;
+            case "packages" : getPackageRefs(refList, null, ctx); break;
+            default: break;
+        }
+        ctx.complete();
+        return refList;
+    }
+
     public ContentEntity getEntity(String prefix, String id) throws SQLException {
         Context ctx = new Context();
         DSpaceObject dso = resolveDso(ctx, prefix, id);
         ContentEntity entity = resolveEntity(dso);
+        ctx.complete();
+        return entity;
+    }
+
+    public SiteEntity getSiteEntity() throws SQLException {
+        Context ctx = new Context();
+        Site site = Site.find(ctx, 1);
+        SiteEntity entity = new SiteEntity(site);
         ctx.complete();
         return entity;
     }
@@ -115,6 +138,17 @@ public class ContentDao {
             }
         }
         ContentEntity entity = resolveEntity(dso);
+        ctx.complete();
+        return entity;
+    }
+
+    public SiteEntity createSiteEntity(EntityRef entityRef) throws AuthorizeException, IOException, SQLException {
+        Context ctx = new Context();
+        ctx.turnOffAuthorisationSystem();
+        Site site = Site.create(ctx);
+        site.setName(entityRef.getName());
+        site.update();
+        SiteEntity entity = new SiteEntity(site);
         ctx.complete();
         return entity;
     }
@@ -182,9 +216,25 @@ public class ContentDao {
         ctx.complete();
     }
 
+    public void removeSite() throws AuthorizeException, IOException, SQLException {
+        Context ctx = new Context();
+        Site site = Site.find(ctx, 1);
+        if (site == null) {
+            ctx.abort();
+            throw new IllegalArgumentException("no extant site");
+        }
+        site.delete();
+        ctx.complete();
+    }
+
     public MetadataEntity getMetadataSet(String prefix, String id, String name) throws SQLException {
         Context ctx = new Context();
-        DSpaceObject dso = resolveDso(ctx, prefix, id);
+        DSpaceObject dso;
+        if (prefix != null) {
+            dso = resolveDso(ctx, prefix, id);
+        } else {
+            dso = Site.find(ctx, 1);
+        }
         // verify that the name is legit
         if (MetadataSchema.findByName(ctx, name) == null) {
             ctx.abort();
@@ -197,7 +247,12 @@ public class ContentDao {
 
     public ViewEntity getMetadataView(String prefix, String id, String name) throws SQLException {
         Context ctx = new Context();
-        DSpaceObject dso = resolveDso(ctx, prefix, id);
+        DSpaceObject dso;
+        if (prefix != null) {
+            dso = resolveDso(ctx, prefix, id);
+        } else {
+            dso = Site.find(ctx, 1);
+        }
         // verify that name is known
         if (! metadataViewNames(ctx, prefix + "/" + id).contains(name)) {
             ctx.abort();
@@ -211,7 +266,12 @@ public class ContentDao {
 
      public MetadataEntity updateMetadata(String prefix, String id, String name, MetadataEntity updEntity) throws AuthorizeException, SQLException {
         Context ctx = new Context();
-        DSpaceObject dso = resolveDso(ctx, prefix, id);
+        DSpaceObject dso;
+        if (prefix != null) {
+            dso = resolveDso(ctx, prefix, id);
+        } else {
+            dso = Site.find(ctx, 1);
+        }
         // clear all metadata in the set, then add back entity content
         dso.clearMetadata(name, MDValue.ANY, MDValue.ANY, MDValue.ANY);
         for (Statement stmt : updEntity.getStatements()) {
@@ -223,9 +283,34 @@ public class ContentDao {
         return entity;
     }
 
+    public void updateLogo(String prefix, String id, InputStream in)  throws AuthorizeException, IOException, SQLException {
+        Context ctx = new Context();
+        if (prefix != null) {
+            DSpaceObject dso = resolveDso(ctx, prefix, id);
+            switch (dso.getType()) {
+                case Constants.COMMUNITY: ((Community)dso).setLogo(in); break;
+                case Constants.COLLECTION: ((Collection)dso).setLogo(in); break;
+                default: break;
+            }
+        } else {
+            // it's the site logo
+            Site site = Site.find(ctx, 1);
+            site.setLogo(in);
+        }
+        in.close();
+        ctx.complete();
+    }
+
     public MediaReader getMediaReader(String prefix, String id) throws AuthorizeException, IOException, SQLException {
         Context ctx = new Context();
-        Bitstream bitstream = (Bitstream)resolveDso(ctx, prefix, id);
+        Bitstream bitstream = null;
+        if (prefix != null) {
+            bitstream = (Bitstream)resolveDso(ctx, prefix, id);
+        } else {
+            // Site logo
+            Site site = Site.find(ctx, 1);
+            bitstream = site.getLogo();
+        }
         MediaReader reader = new MediaReader(bitstream.retrieve(), bitstream.getFormat().getMIMEType(), bitstream.getSize());
         ctx.complete();
         return reader;
@@ -317,24 +402,23 @@ public class ContentDao {
     private void getMetadataSetRefs(List<EntityRef> refList, String handle, Context ctx) throws SQLException {
         // Currently, the only sets offered are schema partitions of the metadata - others would require new content API support
         for (MetadataSchema schema: MetadataSchema.findAll(ctx)) {
-            refList.add(new EntityRef(schema.getName(), handle + "/mdset/" + schema.getName(), schema.getNamespace()));
+            String path = (handle != null) ? handle + "/mdset/" : "site/mdset/";
+            refList.add(new EntityRef(schema.getName(), path + schema.getName(), schema.getNamespace()));
         }
     }
 
     private void getMetadataViewRefs(List<EntityRef> refList, String handle, Context ctx) throws SQLException {
         // Typically, the only views offered are 'brief' and 'full', but it's user-configurable
         for (String name : metadataViewNames(ctx, handle)) {
-            refList.add(new EntityRef(name, handle + "/mdview/" + name, name));
+            String path = (handle != null) ? handle + "/mdview/" : "site/mdview/";
+            refList.add(new EntityRef(name, path + name, name));
         }
     }
 
     private void getPackageRefs(List<EntityRef> refList, String handle, Context ctx) throws SQLException {
         for (String name : packingSpecNames(ctx, handle)) {
-            if (handle != null) {
-                refList.add(new EntityRef(name, handle + "/package/" + name, name));
-            } else {
-               refList.add(new EntityRef(name, "package/" + name, name)); 
-            }
+            String path = (handle != null) ? handle + "/package/" : "site/package/";
+            refList.add(new EntityRef(name, path + name, name));
         }
     }
 
@@ -407,9 +491,12 @@ public class ContentDao {
 
     private List<String> metadataViewNames(Context ctx, String handle) throws SQLException {
         ResourceMap<MetadataView> viewMap = new ResourceMap(MetadataView.class, ctx);
+        int objType = Constants.SITE;
         // determine what kind of object handle belongs to
-        String id = handle.substring(handle.indexOf("/") + 1);
-        int objType = (id.indexOf(".") > 0) ? Constants.BITSTREAM : HandleManager.resolveToType(ctx, handle);
+        if (handle != null) {
+            String id = handle.substring(handle.indexOf("/") + 1);
+            objType = (id.indexOf(".") > 0) ? Constants.BITSTREAM : HandleManager.resolveToType(ctx, handle);
+        }
         String keyPat = Constants.typeText[objType].toLowerCase() + "-mdv-"; 
         Iterator<String> viewIter = viewMap.ruleKeysLike(keyPat).iterator();
         List<String> names = new ArrayList<>();
@@ -428,11 +515,14 @@ public class ContentDao {
         // spec names is embedded here - therefore fragile
 
         // determine what kind of object handle belongs to
-        // first: special case of null handle - this is used only when creating top-level communities
+        // first: special case of null handle - this is used for site packages, only when creating top-level communities
         // i.e. there is no parent community. Here the only packaging specs that make sense are community SIPs and AIPs
+        // and AIPs, and DIPs for the site itslef
         if (handle == null) {
             addSpecNames(specMap, "sip", "community", names);
             addSpecNames(specMap, "aip", "community", names);
+            addSpecNames(specMap, "dip", "site", names);
+            addSpecNames(specMap, "aip", "site", names);
         } else {
             // OK see what kind of a handle it is. Note special case of 'bitstream' handle (i.e. with a .seqId)
             String id = handle.substring(handle.indexOf("/") + 1);

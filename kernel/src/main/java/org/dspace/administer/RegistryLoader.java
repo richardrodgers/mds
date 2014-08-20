@@ -35,6 +35,9 @@ import org.dspace.content.NonUniqueMetadataException;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
 import org.dspace.curate.TaskResolver;
+import org.dspace.mxres.MetadataSpec;
+import org.dspace.mxres.MetadataSpecBuilder;
+import org.dspace.mxres.MDFieldSpec;
 import org.dspace.mxres.MetadataView;
 import org.dspace.mxres.MetadataViewBuilder;
 import org.dspace.mxres.MDFieldDisplay;
@@ -49,7 +52,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 /**
- * Loads various mds registries from XML files nto the database.
+ * Loads various mds registries from XML files into the database.
  * Current registries include those for: bitstream formats, metdata types,
  * curation tasks, and system commands.
  * Intended for use as a command-line tool, or programmically from static methods.
@@ -68,6 +71,7 @@ public class RegistryLoader {
         METADATA_TYPES("dspace-dc-types"),
         CURATION_TASKS("dspace-curation-tasks"),
         COMMANDS("dspace-commands"),
+        METADATA_SPECS("dspace-metadata-specs"),
         METADATA_VIEWS("dspace-metadata-views"),
         PACKING_SPECS("dspace-packing-specs"),
         REGISTRY_REFS("dspace-registry-refs");
@@ -168,6 +172,8 @@ public class RegistryLoader {
                     loadCurationTasks(context, document);
                 }  else if (type.equals(LoaderType.COMMANDS)) {
                     loadCommands(context, document);
+                }  else if (type.equals(LoaderType.METADATA_SPECS)) {
+                    loadMetadataSpecs(context, document);
                 }  else if (type.equals(LoaderType.METADATA_VIEWS)) {
                     loadMetadataViews(context, document);
                 }  else if (type.equals(LoaderType.PACKING_SPECS)) {
@@ -371,6 +377,155 @@ public class RegistryLoader {
         field.setQualifier(qualifier);
         field.setScopeNote(scopeNote);
         field.create(context);
+    }
+
+    /**
+     * Load Metadata Specs
+     * 
+     * @param context
+     *            DSpace context object
+     * @param filename
+     *            the filename of the XML file to load
+     * @throws NonUniqueMetadataException
+     */
+    public static void loadMetadataSpecs(Context context, String filename)
+            throws SQLException, IOException, ParserConfigurationException,
+            SAXException, TransformerException, AuthorizeException,
+            NonUniqueMetadataException {
+        loadMetadataSpecs(context, loadXML(filename));
+    }
+
+    /**
+     * Load Metadata Specs
+     * 
+     * @param context
+     *            DSpace context object
+     * @param document
+     *            the XML document to load
+     * @throws NonUniqueMetadataException
+     */
+    public static void loadMetadataSpecs(Context context, Document document)
+            throws SQLException, IOException, SAXException,
+            TransformerException, AuthorizeException,
+            NonUniqueMetadataException {
+
+        // Get the nodes corresponding to views
+        String path = LoaderType.METADATA_SPECS.getElement() + "/metadata-spec";
+        NodeList specNodes = xPathFind(document, path);
+        Map<String, SpecLoader> specMap = new HashMap<>();
+
+        // Add each spec
+        for (int i = 0; i < specNodes.getLength(); i++)  {
+            Node n = specNodes.item(i);
+            SpecLoader sld = loadMDSpec(context, n);
+            specMap.put(sld.spec.getDescription(), sld);
+        }
+
+        log.info(LogManager.getHeader(context, "load_metadata_specs",
+                "number_specs_loaded=" + specNodes.getLength()));
+        
+        // Get the nodes corresponding to specifications
+        String spath = LoaderType.METADATA_SPECS.getElement() + "/specification";
+        NodeList spNodes = xPathFind(document, spath);
+
+        // Add each one to indicated spec
+        for (int i = 0; i < spNodes.getLength(); i++) {
+            Node n = spNodes.item(i);
+            loadSpecification(context, n, specMap);
+        }
+
+        ResourceMap<MetadataSpec> resMap = new ResourceMap(MetadataSpec.class, context);
+        for (String key : specMap.keySet()) {
+            SpecLoader sl = specMap.get(key);
+            MetadataSpec spec = sl.spec;
+            // map the resource
+            resMap.addResource(spec.getDescription(), String.valueOf(spec.getID()));
+            // add the rule
+            resMap.addRule(sl.scope, sl.rule);
+            //spec.update();
+        }
+        // also install a builder for this resource type
+        resMap.setBuilder(MetadataSpecBuilder.class.getName());
+
+        log.info(LogManager.getHeader(context, "load_metadata_specs",
+                "number_specifications_loaded=" + spNodes.getLength()));
+    }
+
+    /**
+     * Load Metadata Specs
+     * 
+     * @param context
+     * @param node
+     */
+    private static SpecLoader loadMDSpec(Context context, Node node) 
+            throws TransformerException, SQLException, AuthorizeException, 
+            NonUniqueMetadataException {
+        // Get the values
+        String name = getElementData(node, "name");
+        String scope = getElementData(node, "scope");
+        String rule = getElementData(node, "rule");
+
+        // Check if the schema exists already
+        MetadataSpec mdspec = null; //MetadataSchema.find(context, shortname);
+        SpecLoader loader = null;
+        if (mdspec == null) {
+            // If not create it.
+            mdspec = MetadataSpec.create(context);
+            mdspec.setDescription(name);
+            loader = new SpecLoader();
+            loader.spec = mdspec;
+            loader.scope = scope;
+            loader.rule = rule;
+        }
+
+        return loader;
+    }
+
+    private static class SpecLoader {
+        public MetadataSpec spec;
+        public String scope;
+        public String rule;
+    }
+
+    /**
+     * Process a node in the bitstream format registry XML file. The node must
+     * be a "bitstream-type" node
+     * 
+     * @param context
+     *            DSpace context object
+     * @param node
+     *            the node in the DOM tree
+     * @throws NonUniqueMetadataException
+     */
+    private static void loadSpecification(Context context, Node node, Map<String, SpecLoader> specMap)
+            throws SQLException, IOException, TransformerException,
+            AuthorizeException, NonUniqueMetadataException {
+        // Get the values
+        String specName = getElementData(node, "spec");
+        String schema = getElementData(node, "schema");
+        String element = getElementData(node, "element");
+        String qualifier = getElementData(node, "qualifier");
+        String altname = getElementData(node, "altname");
+        String label = getElementData(node, "label");
+        String description = getElementData(node, "description");
+        String cardinality = getElementData(node, "cardinality");
+        String input = getElementData(node, "input");
+        String language = getElementData(node, "language");
+
+        // Find the matching view
+        SpecLoader sl = specMap.get(specName);
+        if (sl != null) {
+            MetadataSpec specObj = sl.spec;
+            String key = schema + "." + element;
+            if (qualifier != null && qualifier.length() > 0) {
+                key += "." + qualifier;
+            }
+            MDFieldSpec mdfs = new MDFieldSpec(key, altname, label, description, cardinality, input, false, language);
+            specObj.addFieldSpec(context, mdfs);
+        } else {
+            log.info(LogManager.getHeader(context, "load_specification",
+                "unmatched_spec=" + specName));
+        }
     }
 
     /**

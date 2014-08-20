@@ -37,7 +37,7 @@ public class CollectionEntity extends ContentEntity {
         }
         Bitstream logoBS = coll.getLogo();
         if (logoBS != null) {
-            logoPath = logoBS.getParentObject().getHandle() + "." + logoBS.getSequenceID() + "/media/" + logoBS.getName();
+            logoPath = logoBS.getParentObject().getHandle() + "." + logoBS.getSequenceID() + "/logo";
         }
     }
 

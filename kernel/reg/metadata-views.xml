@@ -9,6 +9,14 @@
 
 <dspace-metadata-views>
 
+  <!-- site views -->
+
+  <metadata-view>
+    <name>mdview:site-dsl-full</name>
+    <scope>site-mdv-full</scope>
+    <rule>mdview:site-dsl-full</rule>
+  </metadata-view>
+
   <!-- community views  -->
 
   <metadata-view>
@@ -85,6 +93,19 @@
   </metadata-view>
 
   <!-- depictions are the field-specific parts of views -->
+
+  <depiction>
+    <view>mdview:site-dsl-full</view>
+    <schema>dsl</schema>
+    <element>short_description</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>Description</label>
+    <render></render>
+    <wrapper></wrapper>
+    <language></language>
+    <place></place>
+  </depiction>
 
   <depiction>
     <view>mdview:community-dsl-full</view>

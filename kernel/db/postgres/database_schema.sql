@@ -80,6 +80,7 @@ CREATE SEQUENCE attribute_seq;
 CREATE SEQUENCE bitstreamformatregistry_seq;
 CREATE SEQUENCE fileextension_seq;
 CREATE SEQUENCE bitstream_seq;
+CREATE SEQUENCE site_seq;
 CREATE SEQUENCE eperson_seq;
 CREATE SEQUENCE epersongroup_seq MINVALUE 0;
 CREATE SEQUENCE item_seq;
@@ -115,6 +116,8 @@ CREATE SEQUENCE mdtemplate_seq;
 CREATE SEQUENCE mdtemplatevalue_seq;
 CREATE SEQUENCE mdview_seq;
 CREATE SEQUENCE mddisplay_seq;
+CREATE SEQUENCE mdspec_seq;
+CREATE SEQUENCE mdfldspec_seq;
 CREATE SEQUENCE packingspec_seq;
 CREATE SEQUENCE command_seq;
 CREATE SEQUENCE cjournal_seq;
@@ -122,7 +125,6 @@ CREATE SEQUENCE ctask_seq;
 CREATE SEQUENCE ctask_group_seq;
 CREATE SEQUENCE group2ctask_seq;
 CREATE SEQUENCE ctask_queue_seq;
-
 
 -------------------------------------------------------
 -- DSpaceObject table
@@ -198,6 +200,17 @@ CREATE TABLE Bitstream
 
 CREATE INDEX bitstream_dso_fk_idx ON Bitstream(dso_id);
 CREATE INDEX bit_bitstream_fk_idx ON Bitstream(bitstream_format_id);
+
+---------------------------------
+-- Site table (singleton)        
+---------------------------------
+CREATE TABLE Site
+(
+  site_id            INTEGER PRIMARY KEY,
+  dso_id             INTEGER REFERENCES DSpaceObject(dso_id),
+  name               VARCHAR(128),
+  logo_bitstream_id  INTEGER REFERENCES Bitstream(bitstream_id)
+);   
 
 -------------------------------------------------------
 -- EPerson table
@@ -821,6 +834,34 @@ CREATE TABLE mddisplay
   disp_lang            VARCHAR(24),
   place                INTEGER
 );
+
+------------------------------------------------------
+-- mdspec table
+------------------------------------------------------
+CREATE TABLE mdspec
+(
+  mdspec_id          INTEGER PRIMARY KEY DEFAULT NEXTVAL('mdspec_seq'),
+  description        TEXT
+);
+
+------------------------------------------------------
+-- mdfldspec table
+------------------------------------------------------
+CREATE TABLE mdfldspec
+(
+  mdfldspec_id         INTEGER PRIMARY KEY DEFAULT NEXTVAL('mdfldspec_seq'),
+  mdspec_id            INTEGER REFERENCES mdspec(mdspec_id),
+  metadata_field_id    INTEGER REFERENCES MetadataFieldRegistry(metadata_field_id),
+  altname              TEXT,
+  label                TEXT,
+  description          TEXT,
+  cardinality          TEXT,
+  input_type           TEXT,
+  locked               BOOL,
+  disp_lang            VARCHAR(24),
+  place                INTEGER
+);
+
 
 -------------------------------------------------------
 -- packingspec table

@@ -38,7 +38,7 @@ public class CommunityEntity extends ContentEntity {
 
         Bitstream logoBS = comm.getLogo();
         if (logoBS != null) {
-            logoPath = logoBS.getParentObject().getHandle() + "." + logoBS.getSequenceID() + "/media/" + logoBS.getName();
+            logoPath = logoBS.getParentObject().getHandle() + "." + logoBS.getSequenceID() + "/logo";
         }
     }
 

@@ -38,9 +38,9 @@ import com.google.common.primitives.Ints;
 
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.NonUniqueMetadataException;
-import org.dspace.webapi.Injectable;
 
-import org.dspace.webapi.registry.domain.EntityRef;
+import org.dspace.webapi.Injectable;
+import org.dspace.webapi.EntityRef;
 import org.dspace.webapi.registry.domain.SchemaEntity;
 import org.dspace.webapi.registry.domain.FieldEntity;
 import org.dspace.webapi.registry.domain.FormatEntity;

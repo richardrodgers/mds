@@ -32,7 +32,7 @@ import org.dspace.content.NonUniqueMetadataException;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Context;
 
-import org.dspace.webapi.registry.domain.EntityRef;
+import org.dspace.webapi.EntityRef;
 import org.dspace.webapi.registry.domain.SchemaEntity;
 import org.dspace.webapi.registry.domain.FieldEntity;
 import org.dspace.webapi.registry.domain.FormatEntity;
@@ -65,7 +65,7 @@ public class RegistryDao {
         List<MetadataSchema> schemas = MetadataSchema.findAll(context);
         List<EntityRef> refs = new ArrayList<>();
         for (MetadataSchema schema : schemas) {
-            refs.add(new EntityRef(schema.getName(), schema.getSchemaID(), "schema"));
+            refs.add(new EntityRef(schema.getName(), String.valueOf(schema.getSchemaID()), "schema"));
         }
         return refs;
     }
@@ -74,7 +74,7 @@ public class RegistryDao {
         List<MetadataSchema> schemas = MetadataSchema.findAll(context);
         List<EntityRef> refs = new ArrayList<>();
         for (MetadataSchema schema : schemas) {
-            refs.add(new EntityRef(schema.getName(), schema.getSchemaID(), "schema"));
+            refs.add(new EntityRef(schema.getName(), String.valueOf(schema.getSchemaID()), "schema"));
         }
         return refs;
     }
@@ -120,7 +120,7 @@ public class RegistryDao {
         List<MetadataField> fields = MetadataField.findAll(context);
         List<EntityRef> refs = new ArrayList<>();
         for (MetadataField field : fields) {
-            refs.add(new EntityRef(field.getElement(), field.getFieldID(), "field"));
+            refs.add(new EntityRef(field.getElement(), String.valueOf(field.getFieldID()), "field"));
         }
         return refs;
     }
@@ -204,7 +204,7 @@ public class RegistryDao {
     private void getFields(List<EntityRef> refList, int id, Context ctx) throws SQLException {
         List<MetadataField> fields = MetadataField.findAllInSchema(ctx, id);
         for (MetadataField field : fields) {
-            refList.add(new EntityRef(field.getElement(), field.getFieldID(), "field"));
+            refList.add(new EntityRef(field.getElement(), String.valueOf(field.getFieldID()), "field"));
         }
     }
 }

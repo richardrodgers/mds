@@ -1,0 +1,237 @@
+<?xml version="1.0"?>
+
+<!--
+  - metadata-specs.xml
+  -
+  - Named metadata input specifications for item submission
+  - or other ingest operations. Current specs simply
+  - functionally duplicate the 'traditional' input_form,
+  - and have minimal bitstream metadata.
+  -->
+
+<dspace-metadata-specs>
+
+  <!-- item specs  -->
+
+  <!-- traditional spec is based on DSpace default 'input_form'  -->
+
+  <metadata-spec>
+    <name>mdspec:item-dc-traditional</name>
+    <scope>item-mds-traditional</scope>
+    <!-- rule means that if the owning collection defines an item spec, that supercedes this -->
+    <rule>^mdspec:?,mdspec:item-dc-traditional</rule>
+  </metadata-spec>
+
+  <!-- bitstream specs  -->
+
+  <!-- bitstream basic spec duplicates DSpace minimal bitstream metadata -->
+
+  <metadata-spec>
+    <name>mdspec:bitstream-dsl-basic</name>
+    <scope>bitstream-mds-basic</scope>
+    <rule>mdspec:bitstream-dsl-basic</rule>
+  </metadata-spec>
+
+  <!-- specifications are the field-specific parts of specs -->
+
+  <!-- item-dc-traditional specs -->
+
+  <specification>
+    <spec>mdspec:item-dc-traditional</spec>
+    <schema>dc</schema>
+    <element>contributor</element>
+    <qualifier>author</qualifier>
+    <altname></altname>
+    <label>Author</label>
+    <description>Enter the names of the authors of this item below</description>
+    <cardinality>0-n</cardinality>
+    <input>name</input>
+    <language></language>
+  </specification>
+
+   <specification>
+    <spec>mdspec:item-dc-traditional</spec>
+    <schema>dc</schema>
+    <element>title</element>
+    <altname></altname>
+    <label>Title</label>
+    <description>Enter the main title of the item</description>
+    <cardinality>1-1</cardinality>
+    <input>onebox</input>
+    <language></language>
+  </specification>
+
+  <specification>
+    <spec>mdspec:item-dc-traditional</spec>
+    <schema>dc</schema>
+    <element>title</element>
+    <qualifier>alternative</qualifier>
+    <altname></altname>
+    <label>Other Titles</label>
+    <description>If the item has any alternative titles, please enter them below</description>
+    <cardinality>0-n</cardinality>
+    <input>onebox</input>
+    <language></language>
+  </specification>
+
+  <specification>
+    <spec>mdspec:item-dc-traditional</spec>
+    <schema>dc</schema>
+    <element>date</element>
+    <qualifier>issued</qualifier>
+    <altname></altname>
+    <label>Date of Issue</label>
+    <description>lease give the date of previous publication or public distribution
+                        below.  You can leave out the day and/or month if they aren't
+                        applicable</description>
+    <cardinality>1-1</cardinality>
+    <input>date</input>
+    <language></language>
+  </specification>
+
+  <specification>
+    <spec>mdspec:item-dc-traditional</spec>
+    <schema>dc</schema>
+    <element>publisher</element>
+    <altname></altname>
+    <label>Publisher</label>
+    <description>Enter the name of the publisher of the previously issued instance of this item</description>
+    <cardinality>0-1</cardinality>
+    <input>onebox</input>
+    <language></language>
+  </specification>
+
+  <specification>
+    <spec>mdspec:item-dc-traditional</spec>
+    <schema>dc</schema>
+    <element>identifier</element>
+    <qualifier>citation</qualifier>
+    <altname></altname>
+    <label>Citation</label>
+    <description>Enter the standard citation for the previously issued instance of this item</description>
+    <cardinality>0-1</cardinality>
+    <input>onebox</input>
+    <language></language>
+  </specification>
+
+  <specification>
+    <spec>mdspec:item-dc-traditional</spec>
+    <schema>dc</schema>
+    <element>relation</element>
+    <qualifier>ispartofseries</qualifier>
+    <altname></altname>
+    <label>Series/Report No.</label>
+    <description>Enter the series and number assigned to this item by your community</description>
+    <cardinality>0-n</cardinality>
+    <input>series</input>
+    <language></language>
+  </specification>
+
+  <specification>
+    <spec>mdspec:item-dc-traditional</spec>
+    <schema>dc</schema>
+    <element>identifier</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>Identifiers</label>
+    <description>If the item has any identification numbers or codes associated with it, please enter the types and the actual numbers or codes below</description>
+    <cardinality>0-n</cardinality>
+    <input>qualifier=[ISSN:issn,Other:other,ISMN:ismn,Gov't Doc #:govdoc,URI:uri,ISBN:isbn]::onebox</input>
+    <language></language>
+  </specification>
+
+  <specification>
+    <spec>mdspec:item-dc-traditional</spec>
+    <schema>dc</schema>
+    <element>type</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>Type</label>
+    <description>Select the type(s) of content of the item</description>
+    <cardinality>0-n</cardinality>
+    <input>["Animation","Article","Book","Book chapter","Dataset","Learning Object","Image","Image 3-D","Map","Musical Score","Plan or blueprint","Preprint","Presentation","Recording, acoustical","Recording, musical","Recording, oral","Software","Technical Report","Thesis","Video","Working Paper","Other"]</input>
+    <language></language>
+  </specification>
+
+  <specification>
+    <spec>mdspec:item-dc-traditional</spec>
+    <schema>dc</schema>
+    <element>language</element>
+    <qualifier>iso</qualifier>
+    <altname></altname>
+    <label>Language</label>
+    <description>Select the language of the main content of the item, or 'Other' if not on list</description>
+    <cardinality>0-n</cardinality>
+    <input>["N/A:","English (United States): en_US","English: en","Spanish: es","German: de","French: fr","Italian: it","Japanese: ja","Chinese: zh","Turkish: tr","(Other): other"]</input>
+    <language></language>
+  </specification>
+
+ <specification>
+    <spec>mdspec:item-dc-traditional</spec>
+    <schema>dc</schema>
+    <element>subject</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>Subject Keywords</label>
+    <description>Enter appropriate subject keywords or phrases below</description>
+    <cardinality>0-n</cardinality>
+    <input>twobox</input>
+    <language></language>
+  </specification>
+
+ <specification>
+    <spec>mdspec:item-dc-traditional</spec>
+    <schema>dc</schema>
+    <element>description</element>
+    <qualifier>abstract</qualifier>
+    <altname></altname>
+    <label>Abstract</label>
+    <description>Enter the abstract of the item below</description>
+    <cardinality>0-1</cardinality>
+    <input>textarea</input>
+    <language></language>
+  </specification>
+
+  <specification>
+    <spec>mdspec:item-dc-traditional</spec>
+    <schema>dc</schema>
+    <element>description</element>
+    <qualifier>sponsorship</qualifier>
+    <altname></altname>
+    <label>Sponsors</label>
+    <description>Enter the names of any sponsors and/or funding codes in the box below</description>
+    <cardinality>0-1</cardinality>
+    <input>textarea</input>
+    <language></language>
+  </specification>
+
+  <specification>
+    <spec>mdspec:item-dc-traditional</spec>
+    <schema>dc</schema>
+    <element>description</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>Description</label>
+    <description>Enter any other description or comments in this box</description>
+    <cardinality>0-1</cardinality>
+    <input>textarea</input>
+    <language></language>
+  </specification>
+
+  <!-- bitstream specifications  -->
+
+  <specification>
+    <spec>mdspec:bitstream-dsl-basic</spec>
+    <schema>dsl</schema>
+    <element>description</element>
+    <qualifier></qualifier>
+    <altname></altname>
+    <label>Description</label>
+    <description>Enter any other description or comments in this box</description>
+    <cardinality>0-1</cardinality>
+    <input>onebox</input>
+    <language></language>
+  </specification>
+
+
+</dspace-metadata-specs>
