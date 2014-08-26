@@ -19,7 +19,7 @@
     <name>mdspec:item-dc-traditional</name>
     <scope>item-mds-traditional</scope>
     <!-- rule means that if the owning collection defines an item spec, that supercedes this -->
-    <rule>^mdspec:?,mdspec:item-dc-traditional</rule>
+    <rule>mdspec:item-dc-traditional</rule>
   </metadata-spec>
 
   <!-- bitstream specs  -->
