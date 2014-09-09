@@ -10,8 +10,7 @@ package org.dspace.app.oaipmh;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.io.File;
-import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 
@@ -37,16 +36,10 @@ import org.dspace.search.HarvestedItemInfo;
  */
 public class OAIDCCrosswalk extends Crosswalk
 {
-	// Pattern containing all the characters we want to filter out / replace
+    // Pattern containing all the characters we want to filter out / replace
     // converting a String to xml
     private static final Pattern invalidXmlPattern = Pattern
            .compile("([^\\t\\n\\r\\u0020-\\ud7ff\\ue000-\\ufffd\\u10000-\\u10ffff]+|[&<>])");
-
-    /** Location of config file */
-    private static final String configFilePath = ConfigurationManager
-            .getProperty("dspace.dir")
-            + File.separator + "conf" + File.separator + "crosswalks"
-            + File.separator + "oaidc.properties";
 
     /** logger */
     private static Logger log = LoggerFactory.getLogger(OAIDCCrosswalk.class);
@@ -54,29 +47,19 @@ public class OAIDCCrosswalk extends Crosswalk
     // crosswalk
     private static final Properties xwalk = new Properties();
 
-    static {
-        // Read in configuration
-        FileInputStream fis = null;
-        try {
-            fis = new FileInputStream(configFilePath);
-            xwalk.load(fis);
-        } catch (IOException e) {
-            throw new IllegalArgumentException(
-                    "Wrong configuration for OAI_DC", e);
-        } finally {
-            if (fis != null) {
-                try {
-                    fis.close();
-                } catch (IOException ioe) {
-                    log.error("Error closing config file", ioe);
-                }
-            }
-        }
-    }
-
     public OAIDCCrosswalk(Properties properties)  {
         super("http://www.openarchives.org/OAI/2.0/oai_dc/ "
                 + "http://www.openarchives.org/OAI/2.0/oai_dc.xsd");
+        // load crosswalk
+        try(InputStream is = OAIDCCrosswalk.class.getResourceAsStream("/crosswalks/oaidc.properties")) {
+            if (is != null) {
+                xwalk.load(is);
+            } else {
+                throw new IllegalArgumentException("Missing configuration for OAI_DC");
+            }
+        } catch (IOException ioE) {
+             throw new IllegalArgumentException("Configuration loading error for OAI_DC", ioE);
+        }
     }
 
     public boolean isAvailableFor(Object nativeItem) {
@@ -99,7 +82,7 @@ public class OAIDCCrosswalk extends Crosswalk
         // this loop to make only 1 call to item.getMetadata(*,*,*), and then pattern matching the
         // xwalk property keys. TODO
         for (String mdString : xwalk.stringPropertyNames()) {
-        	String element = xwalk.getProperty(mdString);
+            String element = xwalk.getProperty(mdString);
             for (MDValue mdValue : item.getMetadata(mdString)) {
                 String value = mdValue.getValue();                  
                 // Also replace all invalid characters with ' '
