@@ -23,8 +23,6 @@ import org.dspace.authorize.AuthorizeConfiguration;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.authorize.ResourcePolicy;
-import org.dspace.browse.ItemCounter;
-import org.dspace.browse.ItemCountException;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.I18nUtil;
@@ -904,16 +902,6 @@ public class Community extends DSpaceObject
 
         // Remove all authorization policies
         AuthorizeManager.removeAllPolicies(context, this);
-
-        // get rid of the content count cache if it exists
-        try {
-            ItemCounter ic = new ItemCounter(context);
-            ic.remove(this);
-        } catch (ItemCountException e) {
-            // FIXME: upside down exception handling due to lack of good
-            // exception framework
-            throw new IllegalStateException(e.getMessage(),e);
-        }
 
         // Remove any Handle
         HandleManager.unbindHandle(context, this);

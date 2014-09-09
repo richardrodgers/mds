@@ -54,6 +54,7 @@ public class DSpaceContextListener implements ServletContextListener
          * Locate the dspace config
          */
         // first check the local per webapp parameter, then check the global parameter.
+        /*
         String dspaceHome = event.getServletContext().getInitParameter(DSPACE_HOME_PARAMETER);
                
         // Finally, if no config parameter found throw an error
@@ -64,6 +65,7 @@ public class DSpaceContextListener implements ServletContextListener
                     "in a context variable, '"+DSPACE_HOME_PARAMETER+"', in the global context. \n" +
                     "No context variable was found in either location.\n\n");
         }
+        */
             
         /**
          * Stage 2
@@ -73,15 +75,15 @@ public class DSpaceContextListener implements ServletContextListener
          * 
          */
         // Paths to the various config files
-        String dspaceConfig = dspaceHome + File.separator + "conf" + File.separator + "kernel.cfg";   
+        //String dspaceConfig = dspaceHome + File.separator + "conf" + File.separator + "kernel.cfg";   
         try  {
-            ConfigurationManager.loadConfig(dspaceConfig);
+            ConfigurationManager.loadConfig();
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new IllegalStateException(
                     "\n\nDSpace has failed to initialize, during stage 2. Error while attempting to read the \n" +
-                    "DSpace configuration file (Path: '"+dspaceConfig+"'). \n" +
+                    "DSpace configuration file (Path: 'dspaceConfig'). \n" +
                     "This has likely occurred because either the file does not exist, or it's permissions \n" +
                     "are set incorrectly, or the path to the configuration file is incorrect. The path to \n" +
                     "the DSpace configuration file is stored in a context variable, 'dspace-config', in \n" +

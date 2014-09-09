@@ -15,6 +15,7 @@ import org.apache.log4j.Logger;
 import org.dspace.core.Context;
 import org.swordapp.server.SwordCollection;
 
+import java.sql.SQLException;
 import java.util.Map;
 import java.util.List;
 
@@ -56,7 +57,13 @@ public class CollectionCollectionGenerator implements AtomCollectionGenerator
 		String title = col.getName();
 
 		// the collection policy is the licence to which the collection adheres
-		String collectionPolicy = col.getLicense();
+		String collectionPolicy;
+		try {
+            collectionPolicy = col.getLicense();
+        } catch (SQLException sqlE) {
+            log.error("buildCollection got SQLException obtaining license");
+			throw new DSpaceSwordException("Unable to obtain deposit license");        	
+        }
 
 		// FIXME: what is the treatment?  Doesn't seem appropriate for DSpace
 		// String treatment = " ";

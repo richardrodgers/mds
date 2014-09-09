@@ -666,12 +666,15 @@ public class CollectionTest extends AbstractDSpaceObjectTest
     /**
      * Test of getLicense method, of class Collection.
      */
+    /*
+     * revisit - License now site/collection metadata
     @Test
     public void testGetLicense() 
     {
         assertThat("testGetLicense 0", c.getLicense(), notNullValue());
         assertThat("testGetLicense 1", c.getLicense(), equalTo(ConfigurationManager.getDefaultSubmissionLicense()));
     }
+    */
 
     /**
      * Test of getLicenseCollection method, of class Collection.

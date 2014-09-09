@@ -41,7 +41,7 @@ public class InitializeDatabase
             System.exit(1);
         }
 
-        ConfigurationManager.loadConfig(null);
+        ConfigurationManager.loadConfig();
         log.info("Initializing Database");
 
         try

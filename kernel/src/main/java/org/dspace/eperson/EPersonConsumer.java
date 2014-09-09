@@ -73,7 +73,7 @@ public class EPersonConsumer implements Consumer
                         try
                         {
                             EPerson eperson = EPerson.find(context, id);
-                            Email adminEmail = ConfigurationManager.getEmail(I18nUtil.getEmailFilename(context.getCurrentLocale(), "registration_notify"));
+                            Email adminEmail = Email.fromTemplate(context, I18nUtil.getEmailFilename(context.getCurrentLocale(), "registration_notify"));
                             adminEmail.addRecipient(notifyRecipient);
 
                             adminEmail.addArgument(ConfigurationManager.getProperty("site.name"));

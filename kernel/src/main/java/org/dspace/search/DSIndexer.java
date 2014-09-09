@@ -200,7 +200,7 @@ public class DSIndexer {
         	unIndexContent(context, dso.getHandle());
         } catch(Exception exception) {
             log.error("Error Unindexing", exception.getMessage(),exception);
-            emailException(exception);
+            emailException(context, exception);
         }
     }
 
@@ -237,7 +237,7 @@ public class DSIndexer {
         	indexContent(context, dso, false);
         } catch(Exception exception) {
             log.error(exception.getMessage(), exception);
-            emailException(exception);
+            emailException(context, exception);
         }
     }
     
@@ -364,14 +364,14 @@ public class DSIndexer {
     	}
     }
 
-    private static void emailException(Exception exception) {
+    private static void emailException(Context context, Exception exception) {
 		// Also email an alert, system admin may need to check for stale lock
 		try {
 			String recipient = ConfigurationManager
 					.getProperty("alert.recipient");
 
 			if (recipient != null) {
-				Email email = ConfigurationManager.getEmail(I18nUtil.getEmailFilename(Locale.getDefault(), "internal_error"));
+				Email email = Email.fromTemplate(context, I18nUtil.getEmailFilename(Locale.getDefault(), "internal_error"));
 				email.addRecipient(recipient);
 				email.addArgument(ConfigurationManager
 						.getProperty("dspace.url"));

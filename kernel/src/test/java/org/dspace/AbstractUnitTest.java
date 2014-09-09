@@ -126,7 +126,8 @@ public class AbstractUnitTest
 
             //load the test configuration file
             URL configFile = AbstractUnitTest.class.getClassLoader().getResource(testProps.getProperty("test.config.file"));
-            ConfigurationManager.loadConfig(configFile.getPath());
+            System.setProperty("dspace.configuration", testProps.getProperty("test.config.file"));
+            ConfigurationManager.loadConfig();
 
 //            // Initialise the service manager kernel
             /*

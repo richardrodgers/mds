@@ -729,7 +729,7 @@ public class WorkflowManager
             //EPerson ep = i.getSubmitter();
             // Get the Locale
             Locale supportedLocale = I18nUtil.getEPersonLocale(ep);
-            Email email = ConfigurationManager.getEmail(I18nUtil.getEmailFilename(supportedLocale, "submit_archive"));
+            Email email = Email.fromTemplate(c, I18nUtil.getEmailFilename(supportedLocale, "submit_archive"));
             
             // Get the item handle to email to user
             String handle = HandleManager.findHandle(c, i);
@@ -902,8 +902,7 @@ public class WorkflowManager
             for (int i = 0; i < epa.length; i++)
             {
                 Locale supportedLocale = I18nUtil.getEPersonLocale(epa[i]);
-                Email email = ConfigurationManager.getEmail(I18nUtil.getEmailFilename(supportedLocale,
-                                                                                  "flowtask_notify"));
+                Email email = Email.fromTemplate(c, I18nUtil.getEmailFilename(supportedLocale, "flowtask_notify"));
                 email.addArgument(title);
                 email.addArgument(coll.getMetadata("name"));
                 email.addArgument(submitter);
@@ -951,7 +950,7 @@ public class WorkflowManager
 
                 for (EPerson ep : epa) {
                     Locale supportedLocale = I18nUtil.getEPersonLocale(ep);
-                    Email email = ConfigurationManager.getEmail(I18nUtil.getEmailFilename(supportedLocale, "submit_task"));
+                    Email email = Email.fromTemplate(c, I18nUtil.getEmailFilename(supportedLocale, "submit_task"));
                     email.addArgument(title);
                     email.addArgument(coll.getMetadata("name"));
                     email.addArgument(submitter);
@@ -1010,7 +1009,7 @@ public class WorkflowManager
             // Get rejector's name
             String rejector = getEPersonName(e);
             Locale supportedLocale = I18nUtil.getEPersonLocale(e);
-            Email email = ConfigurationManager.getEmail(I18nUtil.getEmailFilename(supportedLocale,"submit_reject"));
+            Email email = Email.fromTemplate(c, I18nUtil.getEmailFilename(supportedLocale,"submit_reject"));
 
             email.addRecipient(getSubmitterEPerson(wi).getEmail());
             email.addArgument(title);

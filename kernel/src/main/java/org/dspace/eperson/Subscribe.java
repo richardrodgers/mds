@@ -458,7 +458,7 @@ public class Subscribe
 
             } else {
                 
-                Email email = ConfigurationManager.getEmail(I18nUtil.getEmailFilename(supportedLocale, "subscription"));
+                Email email = Email.fromTemplate(context, I18nUtil.getEmailFilename(supportedLocale, "subscription"));
                 email.addRecipient(eperson.getEmail());
                 email.addArgument(emailText.toString());
                 email.send();

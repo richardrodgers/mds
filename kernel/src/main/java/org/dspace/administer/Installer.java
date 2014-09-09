@@ -17,9 +17,12 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Paths;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
@@ -60,8 +63,6 @@ import org.kohsuke.args4j.Argument;
 import static com.google.common.base.Preconditions.*;
 import com.google.common.base.Strings;
 
-import org.dspace.browse.BrowseException;
-import org.dspace.browse.IndexBrowse;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Context;
 import org.dspace.core.Email;
@@ -127,7 +128,7 @@ public final class Installer {
     // expected directory for registry files
     private static final String REG_DIR = "reg";
     // expected directory for email template files
-    private static final String EMAIL_DIR = CONF_DIR + File.separator + "emails";
+    private static final String EMAIL_DIR = REG_DIR + File.separator + "emails";
     // expected name of module dependents list
     private static final String DEPS_FILE = "deps.txt";
     // maven pom file
@@ -135,7 +136,7 @@ public final class Installer {
     // maven build dir
     private static final String BUILD_DIR = "target";
     // list of content locations to exclude from installation
-    private static final String[] exclusions = { DEPS_FILE, POM_FILE, DDL_DIR, SRC_DIR, BUILD_DIR, LIB_DIR, REG_DIR, EMAIL_DIR, MODULES_DIR, WEBAPPS_DIR, JARS_DIR }; 
+    private static final String[] exclusions = { DEPS_FILE, POM_FILE, DDL_DIR, SRC_DIR, BUILD_DIR, LIB_DIR, REG_DIR, MODULES_DIR, WEBAPPS_DIR, JARS_DIR }; 
 
     private DSIndexer indexer = null;
 
@@ -265,7 +266,7 @@ public final class Installer {
                   "Module must possess a maven pom file");
     }
     
-    public void process() throws BrowseException, IOException, SQLException, Exception {
+    public void process() throws IOException, SQLException, Exception {
     
         try (Handle h = DatabaseManager.getHandle()) {
             if (action.equals(Action.install)) {
@@ -301,7 +302,7 @@ public final class Installer {
         readPOM();
     }
     
-    public void install(Handle h) throws BrowseException, IOException, SQLException, Exception {
+    public void install(Handle h) throws IOException, SQLException, Exception {
         // make sure module obeys the naming convention
         init();
         checkState(artifactId.startsWith("dsm"),
@@ -399,7 +400,10 @@ public final class Installer {
         List<String> excludes = asList(exclusions);
         for (File file : baseDir.listFiles()) {
             if (! excludes.contains(file.getName()) && file.isDirectory()) {
-                safeCopy(file, destFile, false);
+                // also exclude war config info - will remain in war classpath
+                if (! (file.getName().equals(CONF_DIR) && "war".equals(packaging))) {
+                    safeCopy(file, destFile, false);
+                }
             }
         }
     
@@ -467,7 +471,6 @@ public final class Installer {
                 System.out.println("Exception: " + e.getMessage());
             }
         }
-        //initBrowse();
         // now load registry data, emails, etc into DB
         loadRegistries();
         loadEmailTemplates();
@@ -476,7 +479,7 @@ public final class Installer {
         }
     }
     
-    public void update(Handle h) throws BrowseException, IOException, SQLException, Exception {
+    public void update(Handle h) throws IOException, SQLException, Exception {
         // make sure module obeys the naming convention
         init();
         checkState(artifactId.startsWith("dsm"),
@@ -612,6 +615,7 @@ public final class Installer {
 
     private void rebuildWar(String warName) throws IOException {
         // copy war to webapps deploy directory, then supplement it with core jars
+        // and the contents of the conf directories of both the kernel and the module itself
         File srcDir = new File(kernelDir, WARS_DIR);
         File deployDir = new File(kernelDir, DEPLOY_DIR);
         // extract 'deployAs' name
@@ -620,12 +624,50 @@ public final class Installer {
         Files.copy(new File(srcDir, warName).toPath(), deployFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         URI jarUri = URI.create("jar:file:" + deployFile.getAbsolutePath());
         try (FileSystem jarfs = FileSystems.newFileSystem(jarUri, new HashMap())) {
+            // the core jars
             for (File jarFile : new File(kernelDir, JARS_DIR).listFiles()) {
                 Path jarTarget = jarfs.getPath("/WEB-INF/lib/" + jarFile.getName());
                 Files.copy(jarFile.toPath(), jarTarget);
             }
+            // the kernel conf files - put in 'classes' since Tomcat's classpath is spartan
+            Path kernelConf = new File(kernelDir, CONF_DIR).toPath();
+            Path jarPath = jarfs.getPath("/WEB-INF/classes/");
+            Files.walkFileTree(kernelConf, new CopyVisitor(kernelConf, jarPath));
+            // the module conf files - same deal
+            Path moduleConf = new File(baseDir, CONF_DIR).toPath();
+            Files.walkFileTree(moduleConf, new CopyVisitor(moduleConf, jarPath));
         }
         System.out.println("rebuilt WAR: " + warName);
+    }
+
+    static class CopyVisitor extends SimpleFileVisitor<Path> {
+        private Path srcPath;
+        private Path targPath;
+        private StandardCopyOption copyOption = StandardCopyOption.REPLACE_EXISTING;
+
+        public CopyVisitor(Path srcPath, Path targPath) {
+            this.srcPath = srcPath;
+            this.targPath = targPath;
+        }
+
+        @Override
+        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+            String relPath = srcPath.relativize(dir).toString();
+            if (relPath.length() > 0) {
+                Path targetPath = targPath.resolve(relPath);
+                if (! Files.exists(targetPath)) {
+                    Files.createDirectory(targetPath);
+                }
+            }
+            return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+            String relPath = srcPath.relativize(file).toString();
+            Files.copy(file, targPath.resolve(relPath), copyOption);
+            return FileVisitResult.CONTINUE;
+        }
     }
 
     private List<List<String>> getDependencyActions(Handle h) throws IOException {
@@ -783,8 +825,7 @@ public final class Installer {
         return compList;
     }
     
-    private void cleanDB(Handle h) throws BrowseException, IOException, SQLException {
-        clearBrowse();
+    private void cleanDB(Handle h) throws IOException, SQLException {
         unloadDDL();
     }
     
@@ -831,27 +872,15 @@ public final class Installer {
         }
     }
     
-    private void initBrowse() throws BrowseException, SQLException {
-         IndexBrowse browse = new IndexBrowse();
-         browse.setRebuild(true);
-         browse.setExecute(true);
-         browse.initBrowse();
-    }
-    
-    private void clearBrowse() throws BrowseException, SQLException {
-        IndexBrowse browse = new IndexBrowse();
-        browse.setDelete(true);
-        browse.setExecute(true);
-        browse.clearDatabase();
-    }
-    
     private void loadRegistries() throws Exception {
         File regDir = new File(baseDir, REG_DIR);
         if (regDir.isDirectory()) {
             try (Context context = new Context()) {
                 context.turnOffAuthorisationSystem();
                 for (File regFile : regDir.listFiles()) {
-                    RegistryLoader.loadRegistryFile(context, regFile.getAbsolutePath());
+                    if (! Files.isDirectory(regFile.toPath())) {
+                        RegistryLoader.loadRegistryFile(context, regFile.getAbsolutePath());
+                    }
                 }
                 context.complete();
             }

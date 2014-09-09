@@ -22,10 +22,6 @@ import org.dspace.authorize.AuthorizeConfiguration;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.authorize.ResourcePolicy;
-import org.dspace.browse.BrowseException;
-import org.dspace.browse.IndexBrowse;
-import org.dspace.browse.ItemCounter;
-import org.dspace.browse.ItemCountException;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
@@ -612,14 +608,14 @@ public class Collection extends DSpaceObject
      * 
      * @return the license for this collection
      */
-    public String getLicense() {
+    public String getLicense() throws SQLException {
         String license = getMetadataValue("dsl.license");
 
         if (license == null || license.trim().equals("")) {
             // Fallback to site-wide default
-            license = ConfigurationManager.getDefaultSubmissionLicense();
+            Site site = Site.find(context, 1);
+            license = site.getMetadataValue("dsl.license");
         }
-
         return license;
     }
 
@@ -795,32 +791,19 @@ public class Collection extends DSpaceObject
         BoundedIterator<Item> items = getAllItems();
 
         try {
-        	while (items.hasNext()) {
-        		Item item = items.next();
-        		IndexBrowse ib = new IndexBrowse(context);
-        		
-        		if (item.isOwningCollection(this))	{
-        			// the collection to be deletd is the owning collection, thus remove
-        			// the item from all collections it belongs to
-        			for (Collection collection : item.getCollections()) {
-        				//notify Browse of removing item.
-        				ib.itemRemoved(item);
-        				// Browse.itemRemoved(context, itemId);
-        				collection.removeItem(item);
-        			}
-        			
-        		} 
-        		// the item was only mapped to this collection, so just remove it
-        		else {
-        			//notify Browse of removing item mapping. 
-        			ib.indexItem(item);
-        			// Browse.itemChanged(context, item);
-        			removeItem(item);
-        		}
-        	}
-        } catch (BrowseException e) {
-        	log.error("caught exception: ", e);
-        	throw new IOException(e.getMessage(), e);
+            while (items.hasNext()) {
+                Item item = items.next();
+                if (item.isOwningCollection(this)) {
+                    // the collection to be deleted is the owning collection, thus remove
+                    // the item from all collections it belongs to
+                    for (Collection collection : item.getCollections()) {
+                        collection.removeItem(item);
+                    }
+                } else {
+                    // the item was only mapped to this collection, so just remove it
+                    removeItem(item);
+                }
+            }
         } finally {
             if (items != null) {
                 items.close();
@@ -868,16 +851,6 @@ public class Collection extends DSpaceObject
 
         for (WorkspaceItem aWsarray : wsarray) {
             aWsarray.deleteAll();
-        }
-
-        //  get rid of the content count cache if it exists
-        try {
-        	ItemCounter ic = new ItemCounter(context);
-        	ic.remove(this);
-        } catch (ItemCountException e) {
-        	// FIXME: upside down exception handling due to lack of good
-        	// exception framework
-        	throw new IllegalStateException(e.getMessage(), e);
         }
 
         // Remove any Handle

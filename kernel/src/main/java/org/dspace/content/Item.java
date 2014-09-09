@@ -28,8 +28,6 @@ import org.dspace.authorize.AuthorizeConfiguration;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.authorize.ResourcePolicy;
-import org.dspace.browse.BrowseException;
-import org.dspace.browse.IndexBrowse;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
@@ -942,29 +940,6 @@ public class Item extends DSpaceObject
 
         // Remove from cache
         context.removeCached(this, getID());
-
-        // Remove from browse indices, if appropriate
-        /** XXX FIXME
-         ** Although all other Browse index updates are managed through
-         ** Event consumers, removing an Item *must* be done *here* (inline)
-         ** because otherwise, tables are left in an inconsistent state
-         ** and the DB transaction will fail.
-         ** Any fix would involve too much work on Browse code that
-         ** is likely to be replaced soon anyway.   --lcs, Aug 2006
-         **
-         ** NB Do not check to see if the item is archived - withdrawn /
-         ** non-archived items may still be tracked in some browse tables
-         ** for administrative purposes, and these need to be removed.
-         **/
-//               FIXME: there is an exception handling problem here
-        try  {
-//               Remove from indices
-            IndexBrowse ib = new IndexBrowse(context);
-            ib.itemRemoved(this);
-        } catch (BrowseException e) {
-            log.error("caught exception: ", e);
-            throw new SQLException(e.getMessage(), e);
-        }
 
         // Delete the metadata
         deleteMetadata();

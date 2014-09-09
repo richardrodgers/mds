@@ -245,8 +245,7 @@ public class AccountManager
      *                If an error occurs while reading the email template.
      */
     private static void sendEmail(Context context, String email, boolean isRegister, TableRow rd)
-            throws MessagingException, IOException, SQLException
-    {
+            throws MessagingException, IOException, SQLException {
         String base = ConfigurationManager.getProperty("site.url");
 
         //  Note change from "key=" to "token="
@@ -256,15 +255,14 @@ public class AccountManager
                 .append("token=").append(rd.getStringColumn("token"))
                 .toString();
         Locale locale = context.getCurrentLocale();
-        Email bean = ConfigurationManager.getEmail(I18nUtil.getEmailFilename(locale, isRegister ? "register"
+        Email bean = Email.fromTemplate(context, I18nUtil.getEmailFilename(locale, isRegister ? "register"
                 : "change_password"));
         bean.addRecipient(email);
         bean.addArgument(specialLink);
         bean.send();
 
         // Breadcrumbs
-        if (log.isInfoEnabled())
-        {
+        if (log.isInfoEnabled()) {
             log.info("Sent " + (isRegister ? "registration" : "account")
                     + " information to " + email);
         }
