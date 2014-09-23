@@ -12,6 +12,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Properties;
 import java.util.Map;
 
 import org.apache.commons.pool.KeyedObjectPool;
@@ -52,6 +54,8 @@ public class EventManager
 
     private static final String CONSUMER_PFX = "event.consumer.";
 
+    private static MulticastDispatcher dispatcher;
+
     public EventManager()
     {
         initPool();
@@ -89,7 +93,12 @@ public class EventManager
             {
                 e.printStackTrace();
             }
-
+            // OK now setup the new consumers
+            dispatcher = new MulticastDispatcher("mcast");
+            Properties props = ConfigurationManager.getMatchedProperties("event.subscriber");
+            for (String name : props.stringPropertyNames()) {
+                dispatcher.addSubscriber(name, ConfigurationManager.getInstance(null, props.getProperty(name)));
+            }
         }
     }
 
@@ -118,6 +127,10 @@ public class EventManager
             throw new IllegalStateException("Unable to aquire dispatcher named " + name, e);
         }
 
+    }
+
+    public static void dispatchEvents(Context context) {
+        dispatcher.dispatch(context.getContentEvents());
     }
 
     public static void returnDispatcher(String key, Dispatcher disp)

@@ -28,6 +28,7 @@ import org.dspace.core.Context;
 import org.dspace.core.I18nUtil;
 import org.dspace.core.LogManager;
 import org.dspace.eperson.Group;
+import org.dspace.event.ContentEvent.EventType;
 import org.dspace.event.Event;
 import org.dspace.handle.HandleManager;
 import org.dspace.storage.rdbms.DatabaseManager;
@@ -220,6 +221,7 @@ public class Collection extends DSpaceObject
         myPolicy.update();
 
         context.addEvent(new Event(Event.CREATE, Constants.COLLECTION, c.getID(), c.handle));
+        context.addContentEvent(c, EventType.CREATE);
 
         log.info(LogManager.getHeader(context, "create_collection",
                 "collection_id=" + row.getIntColumn("collection_id"))
@@ -677,6 +679,7 @@ public class Collection extends DSpaceObject
         DatabaseManager.insert(context, row);
 
         context.addEvent(new Event(Event.ADD, Constants.COLLECTION, getID(), Constants.ITEM, item.getID(), item.getHandle()));
+        context.addContainerEvent(this, EventType.ADD, item);
     }
 
     /**
@@ -713,6 +716,7 @@ public class Collection extends DSpaceObject
         DatabaseManager.setConstraintImmediate(context, "coll2item_item_fk");
         
         context.addEvent(new Event(Event.REMOVE, Constants.COLLECTION, getID(), Constants.ITEM, item.getID(), item.getHandle()));
+        context.addContainerEvent(this, EventType.REMOVE, item);
     }
 
     /**
@@ -778,6 +782,7 @@ public class Collection extends DSpaceObject
                 "collection_id=" + getID()));
 
         context.addEvent(new Event(Event.DELETE, Constants.COLLECTION, getID(), getHandle()));
+        context.addContentEvent(this, EventType.DELETE);
 
         // Remove from cache
         context.removeCached(this, getID());

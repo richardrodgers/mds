@@ -28,6 +28,7 @@ import org.dspace.core.Context;
 import org.dspace.core.I18nUtil;
 import org.dspace.core.LogManager;
 import org.dspace.eperson.Group;
+import org.dspace.event.ContentEvent.EventType;
 import org.dspace.event.Event;
 import org.dspace.handle.HandleManager;
 import org.dspace.storage.rdbms.DatabaseManager;
@@ -182,10 +183,12 @@ public class Community extends DSpaceObject
         myPolicy.update();
 
         context.addEvent(new Event(Event.CREATE, Constants.COMMUNITY, c.getID(), c.handle));
+        context.addContentEvent(c, EventType.CREATE);
 
         // if creating a top-level Community, simulate an ADD event at the Site.
         if (parent == null) {
             context.addEvent(new Event(Event.ADD, Constants.SITE, Site.SITE_ID, Constants.COMMUNITY, c.getID(), c.handle));
+            context.addContainerEvent(null, EventType.ADD, c);
         }
 
         log.info(LogManager.getHeader(context, "create_community",
@@ -682,6 +685,7 @@ public class Community extends DSpaceObject
                 mappingRow.setColumn("collection_id", c.getID());
 
                 context.addEvent(new Event(Event.ADD, Constants.COMMUNITY, getID(), Constants.COLLECTION, c.getID(), c.getHandle()));
+                context.addContainerEvent(this, EventType.ADD, c);
 
                 DatabaseManager.insert(context, mappingRow);
             }
@@ -749,6 +753,7 @@ public class Community extends DSpaceObject
                 mappingRow.setColumn("child_comm_id", c.getID());
 
                 context.addEvent(new Event(Event.ADD, Constants.COMMUNITY, getID(), Constants.COMMUNITY, c.getID(), c.getHandle()));
+                context.addContainerEvent(this, EventType.ADD, c);
 
                 DatabaseManager.insert(context, mappingRow);
             }
@@ -793,6 +798,7 @@ public class Community extends DSpaceObject
         DatabaseManager.setConstraintImmediate(context, "comm2coll_collection_fk");
         
         context.addEvent(new Event(Event.REMOVE, Constants.COMMUNITY, getID(), Constants.COLLECTION, c.getID(), c.getHandle()));
+        context.addContainerEvent(this, EventType.REMOVE, c);
     }
 
     /**
@@ -826,6 +832,7 @@ public class Community extends DSpaceObject
                 " AND child_comm_id= ? ", getID(),c.getID());
 
         context.addEvent(new Event(Event.REMOVE, Constants.COMMUNITY, getID(), Constants.COMMUNITY, c.getID(), c.getHandle()));
+        context.addContainerEvent(this, EventType.REMOVE, c);
         
         DatabaseManager.setConstraintImmediate(context, "com2com_child_fk");
     }
@@ -876,6 +883,7 @@ public class Community extends DSpaceObject
                 "community_id=" + getID()));
 
         context.addEvent(new Event(Event.DELETE, Constants.COMMUNITY, getID(), getHandle()));
+        context.addContentEvent(this, EventType.DELETE);
 
         // Remove from cache
         context.removeCached(this, getID());

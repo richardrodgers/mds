@@ -32,6 +32,7 @@ import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
 import org.dspace.event.Event;
+import org.dspace.event.ContentEvent.EventType;
 import org.dspace.eperson.EPerson;
 import org.dspace.eperson.Group;
 import org.dspace.handle.HandleManager;
@@ -140,6 +141,7 @@ public class Item extends DSpaceObject
         context.restoreAuthSystemState();
 
         context.addEvent(new Event(Event.CREATE, Constants.ITEM, i.getID(), null));
+        context.addContentEvent(i, EventType.CREATE);
 
         log.info(LogManager.getHeader(context, "create_item", "item_id="
                 + row.getIntColumn("item_id")));
@@ -499,6 +501,7 @@ public class Item extends DSpaceObject
         DatabaseManager.insert(context, mappingRow);
 
         context.addEvent(new Event(Event.ADD, Constants.ITEM, getID(), Constants.BUNDLE, b.getID(), b.getName()));
+        context.addContainerEvent(this, EventType.ADD, b);
     }
 
     /**
@@ -535,6 +538,7 @@ public class Item extends DSpaceObject
                 getID(), b.getID());
 
         context.addEvent(new Event(Event.REMOVE, Constants.ITEM, getID(), Constants.BUNDLE, b.getID(), b.getName()));
+        context.addContainerEvent(this, EventType.REMOVE, b);
 
         // If the bundle is orphaned, it's removed
         TableRowIterator tri = DatabaseManager.query(context,
@@ -847,6 +851,7 @@ public class Item extends DSpaceObject
         update();
 
         context.addEvent(new Event(Event.MODIFY, Constants.ITEM, getID(), "WITHDRAW"));
+        context.addContentEvent(this, EventType.WITHDRAW);
 
         // and all of our authorization policies
         // FIXME: not very "multiple-inclusion" friendly
@@ -903,6 +908,7 @@ public class Item extends DSpaceObject
         update();
 
         context.addEvent(new Event(Event.MODIFY, Constants.ITEM, getID(), "REINSTATE"));
+        context.addContentEvent(this, EventType.REINSTATE);
 
         // authorization policies
         if (colls.size() > 0)  {
@@ -934,6 +940,7 @@ public class Item extends DSpaceObject
         AuthorizeManager.authorizeAction(context, this, Constants.REMOVE);
 
         context.addEvent(new Event(Event.DELETE, Constants.ITEM, getID(), getHandle()));
+        context.addContentEvent(this, EventType.DELETE);
 
         log.info(LogManager.getHeader(context, "delete_item", "item_id="
                 + getID()));
@@ -1228,6 +1235,7 @@ public class Item extends DSpaceObject
             // so we only do this here if the owning collection hasn't changed.
             
             context.addEvent(new Event(Event.MODIFY, Constants.ITEM, getID(), null));
+            context.addContentEvent(this, EventType.MODIFY);
         }
     }
     

@@ -22,6 +22,7 @@ import org.dspace.authorize.AuthorizeException;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.event.Event;
+import org.dspace.event.ContentEvent.EventType;
 import org.dspace.storage.bitstore.BitstreamStorageManager;
 import org.dspace.storage.rdbms.DatabaseManager;
 import org.dspace.storage.rdbms.TableRow;
@@ -121,6 +122,7 @@ public abstract class DSpaceObject
         DatabaseManager.update(context, tableRow);
         if (modified) {
             context.addEvent(new Event(Event.MODIFY, getType(), getID(), null));
+            context.addContentEvent(this, EventType.MODIFY);
             modified = false;
         }
         updateMetadata();

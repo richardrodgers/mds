@@ -36,8 +36,6 @@
 -- DAMAGE.
 --
 --
---
---
 --   DSpace SQL schema
 --
 --   Authors:   Peter Breton, Robert Tansley, David Stuve, Daniel Chudnov,
@@ -599,7 +597,6 @@ CREATE TABLE RegistrationData
   expires               TIMESTAMP
 );
 
-
 -------------------------------------------------------
 --  Subscription table
 -------------------------------------------------------
@@ -612,7 +609,6 @@ CREATE TABLE Subscription
 
 CREATE INDEX subs_eperson_fk_idx ON Subscription(eperson_id);
 CREATE INDEX subs_collection_fk_idx ON Subscription(collection_id);
-
 
 -------------------------------------------------------------------------------
 -- EPersonGroup2WorkspaceItem table
@@ -652,20 +648,6 @@ SELECT Community2Collection.community_id, Collection2Item.item_id
 FROM Community2Collection, Collection2Item
 WHERE Collection2Item.collection_id   = Community2Collection.collection_id
 ;
-
--------------------------------------------------------------------------
--- Tables to manage cache of item counts for communities and collections
--------------------------------------------------------------------------
-
-CREATE TABLE collection_item_count (
-        collection_id INTEGER PRIMARY KEY REFERENCES collection(collection_id),
-        count INTEGER
-);
-
-CREATE TABLE community_item_count (
-        community_id INTEGER PRIMARY KEY REFERENCES community(community_id),
-        count INTEGER
-);
 
 -------------------------------------------------------
 --  Create 'special' groups, for anonymous access

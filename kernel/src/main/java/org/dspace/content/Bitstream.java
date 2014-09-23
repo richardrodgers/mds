@@ -22,6 +22,7 @@ import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
 import org.dspace.event.Event;
+import org.dspace.event.ContentEvent.EventType;
 import org.dspace.storage.bitstore.BitstreamStorageManager;
 import org.dspace.storage.rdbms.DatabaseManager;
 import org.dspace.storage.rdbms.TableRow;
@@ -190,6 +191,7 @@ public class Bitstream extends DSpaceObject
         bitstream.createDSO();
 
         context.addEvent(new Event(Event.CREATE, Constants.BITSTREAM, bitstreamID, null));
+        context.addContentEvent(bitstream, EventType.CREATE);
 
         return bitstream;
     }
@@ -459,6 +461,7 @@ public class Bitstream extends DSpaceObject
         log.info(LogManager.getHeader(context, "delete_bitstream", "bitstream_id=" + getID()));
 
         context.addEvent(new Event(Event.DELETE, Constants.BITSTREAM, getID(), String.valueOf(getSequenceID())));
+        context.addContentEvent(this, EventType.DELETE);
 
         // Remove from cache
         context.removeCached(this, getID());

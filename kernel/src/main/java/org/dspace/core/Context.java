@@ -22,12 +22,16 @@ import org.skife.jdbi.v2.Handle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.dspace.content.DSpaceObject;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.eperson.EPerson;
 import org.dspace.eperson.Group;
 import org.dspace.event.Dispatcher;
 import org.dspace.event.Event;
 import org.dspace.event.EventManager;
+import org.dspace.event.ContainerEvent;
+import org.dspace.event.ContentEvent;
+import org.dspace.event.ContentEvent.EventType;
 import org.dspace.storage.rdbms.DatabaseManager;
 
 /**
@@ -51,6 +55,8 @@ public class Context implements AutoCloseable {
     public static final short READ_ONLY = 0x01;
 
     private static final Logger log = LoggerFactory.getLogger(Context.class);
+
+    private static boolean flip = false;
 
     /** Database handle */
     private Handle handle;
@@ -84,6 +90,7 @@ public class Context implements AutoCloseable {
 
     /** Content events */
     private List<Event> events = null;
+    private List<ContentEvent> cevents = null;
 
     /** Event dispatcher name */
     private String dispName = null;
@@ -383,8 +390,16 @@ public class Context implements AutoCloseable {
                 }
 
                 dispatcher = EventManager.getDispatcher(dispName);
+                EventManager.dispatchEvents(this);
                 handle.commit();
-                dispatcher.dispatch(this);
+                if (flip) {
+                    dispatcher.dispatch(this);
+                    EventManager.dispatchEvents(this);
+                } else {
+                   EventManager.dispatchEvents(this);
+                   dispatcher.dispatch(this); 
+                }
+                flip = ! flip;
             } else {
                 handle.commit();
             }
@@ -426,6 +441,46 @@ public class Context implements AutoCloseable {
     }
 
     /**
+     * Add a content event to be dispatched when this context is committed.
+     * 
+     * @param event
+     */
+    public void addContentEvent(DSpaceObject dso, EventType eventType) {
+        /* 
+         * invalid condition if in read-only mode: events - which
+         * indicate mutation - are firing: no recourse but to bail
+         */
+        if (isReadOnly()) {
+            throw new IllegalStateException("Attempt to mutate object in read-only context");
+        }
+        if (cevents == null) {
+            cevents = new ArrayList<ContentEvent>();
+        }
+
+        cevents.add(new ContentEvent(this, dso, eventType));
+    }
+
+    /**
+     * Add a container event to be dispatched when this context is committed.
+     * 
+     * @param event
+     */
+    public void addContainerEvent(DSpaceObject dso, EventType eventType, DSpaceObject member) {
+        /* 
+         * invalid condition if in read-only mode: events - which
+         * indicate mutation - are firing: no recourse but to bail
+         */
+        if (isReadOnly()) {
+            throw new IllegalStateException("Attempt to mutate object in read-only context");
+        }
+        if (cevents == null) {
+            cevents = new ArrayList<ContentEvent>();
+        }
+
+        cevents.add(new ContainerEvent(this, dso, eventType, member));
+    }
+
+    /**
      * Get the current event list. If there is a separate list of events from
      * already-committed operations combine that with current list.
      * 
@@ -437,6 +492,10 @@ public class Context implements AutoCloseable {
      */
     public List<Event> getEvents() {
         return events;
+    }
+
+    public List<ContentEvent> getContentEvents() {
+        return cevents;
     }
 
     /**
@@ -465,6 +524,7 @@ public class Context implements AutoCloseable {
             }
             handle = null;
             events = null;
+            cevents = null;
             clearCache();
         }
     }

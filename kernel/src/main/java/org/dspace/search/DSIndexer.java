@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Strings;
+import com.google.common.eventbus.Subscribe;
 
 import org.dspace.content.Bitstream;
 import org.dspace.content.BoundedIterator;
@@ -51,6 +52,10 @@ import org.dspace.core.Context;
 import org.dspace.core.Email;
 import org.dspace.core.I18nUtil;
 import org.dspace.core.LogManager;
+import org.dspace.event.Consumes;
+import org.dspace.event.ContainerEvent;
+import org.dspace.event.ContentEvent;
+import org.dspace.event.ContentEvent.EventType;
 import org.dspace.handle.HandleManager;
 import org.dspace.sort.SortOption;
 import org.dspace.sort.OrderFormat;
@@ -67,8 +72,9 @@ import org.dspace.sort.OrderFormat;
  *
  * @author richardrodgers
  */
+@Consumes("content")
 public class DSIndexer {
-	
+
     private static final Logger log = LoggerFactory.getLogger(DSIndexer.class);
 
     public static final String LAST_INDEXED_FIELD = "DSIndexer.lastIndexed";
@@ -127,6 +133,41 @@ public class DSIndexer {
     		distributeTask(new IndexingTask(enable ?
     				                        IndexingTask.Action.TX_BEGIN :
     		                                IndexingTask.Action.TX_END));
+    }
+
+    /**
+     * Event Listeners for Indexing
+     *
+     */
+    @Subscribe
+    public void indexContentEvent(ContentEvent event) throws IOException, SQLException {
+        String handle = event.getObject().getHandle();
+        switch(event.getEventType()) {
+            case CREATE:
+            case MODIFY:
+                if (handle != null) {
+                    indexContent(event.getContext(), event.getObject(), true);
+                }
+                break;
+            case DELETE: 
+                if (handle != null) {
+                    // RLR NOte - context not used!
+                    unIndexContent(event.getContext(), handle);
+                }
+                break;
+            default: break;
+        }
+    }
+
+    @Subscribe
+    public void indexContainerEvent(ContainerEvent event) throws IOException, SQLException {
+        switch(event.getEventType()) {
+            case ADD:
+            case REMOVE:
+                indexContent(event.getContext(), event.getMember(), true);
+                break;
+            default: break;
+        }
     }
 
     /**

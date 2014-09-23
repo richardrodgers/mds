@@ -20,6 +20,7 @@ import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.LifecycleMux;
 import org.dspace.event.Event;
+import org.dspace.event.ContentEvent.EventType;
 import org.dspace.handle.HandleManager;
 
 /**
@@ -206,6 +207,7 @@ public class InstallItem {
         // Notify interested parties of newly archived Item
         c.addEvent(new Event(Event.INSTALL, Constants.ITEM, item.getID(),
                 item.getHandle()));
+        c.addContentEvent(item, EventType.INSTALL);
 
         // remove in-progress submission
         is.deleteWrapper();
