@@ -182,12 +182,12 @@
             <artifactId>mail</artifactId>
             <version>1.4.7</version>
         </dependency>
-        <!-- test  -->
+        <!-- test  
         <dependency>
             <groupId>javafx</groupId>
             <artifactId>javafx</artifactId>
             <version>2.2</version>
-        </dependency>
+        </dependency> -->
         <!--  search QueryArgs dependency - remove
               a lot of authentication stuff too... sigh  -->
         <dependency>
