@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<dspace-curation-tasks>
+    <group>
+        <type>task</type>
+        <name>general</name>
+        <description>General Curation Tasks</description>
+        <ui-access>true</ui-access>
+        <api-access>true</api-access>
+    </group>
+    <group>
+        <type>selector</type>
+        <name>general</name>
+        <description>General Curation Selectors</description>
+        <ui-access>true</ui-access>
+        <api-access>true</api-access>
+    </group>
+    <task>
+        <name>profile_formats</name>
+        <description>Profile Bitstreams Formats</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.general.ProfileFormats</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>general</group>
+    </task>
+    <task>
+        <name>withdraw_item</name>
+        <description>Withdraw Item</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.general.Withdraw</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>general</group>
+    </task>
+    <task>
+        <name>reinstate_item</name>
+        <description>Reinstate withdrawn Item</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.general.Reinstate</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>general</group>
+    </task>
+    <task>
+        <name>anon_read_remove</name>
+        <description>Remove Anonymous read permission on Item bitstreams in ORIGINAL bundle</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.general.ManagePolicies</load-addr>
+        <script></script>
+        <config>
+            group=Anonymous
+            action=read
+            path=item/ORIGINAL/*
+        </config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>general</group>
+    </task>
+    <task>
+        <name>check_checksum</name>
+        <description>Compare Bitstream Checksums with Ingest Values</description>
+        <type>task</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.ctask.general.CheckChecksum</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>general</group>
+    </task>
+    <task>
+        <name>groovy_task</name>
+        <description>Test groovy task that does nothing much</description>
+        <type>task</type>
+        <impl>groovy</impl>
+        <load-addr>groovy_task</load-addr>
+        <script><![CDATA[
+            // A trivial Groovy Task
+            import org.dspace.content.DSpaceObject
+            import org.dspace.curate.Curator
+            import org.dspace.curate.AbstractCurationTask
+
+            class GroovyTask extends AbstractCurationTask {
+                 int perform(DSpaceObject dso) {
+                     setResult("Hello from Groovy Task!")
+                     return Curator.CURATE_SUCCESS
+                 }
+            }
+        ]]>
+        </script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>general</group>
+    </task>
+    <task>
+        <name>fooscript</name>
+        <description>Test script task that does nothing much</description>
+        <type>task</type>
+        <impl>script</impl>
+        <load-addr>groovy|new GroovyTask()</load-addr>
+        <script><![CDATA[
+            // A trivial Groovy Task as JSR-233 script
+            import org.dspace.content.DSpaceObject
+            import org.dspace.core.Context
+            import org.dspace.curate.Curator
+            import org.dspace.curate.Curation
+            import org.dspace.curate.ScriptedTask
+
+            class GroovyTask implements ScriptedTask {
+                 void init(Curation curation, String taskId) {}
+                 int performDso(DSpaceObject dso) {
+                     setResult("Hello from scripted DSO Groovy Task!")
+                     return Curator.CURATE_SUCCESS
+                 }
+                 int performId(Context context, String id) {
+                     setResult("Hello from scripted ID Groovy Task!")
+                     return Curator.CURATE_SUCCESS
+                 }
+            }
+        ]]>
+        </script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>general</group>
+    </task>
+    <task>
+        <name>profileProgram</name>
+        <description>Test program that simply invokes profile_formats</description>
+        <type>task</type>
+        <impl>program</impl>
+        <load-addr>profileProgram</load-addr>
+        <script><![CDATA[
+            # A Very Simple Program
+            @Suspendable
+            profile_formats
+            if %ERROR %FAIL
+              report: task failed
+            elif %SKIP
+              report: just skipped object
+            else
+              report: all OK - outta here
+            end
+        ]]>
+        </script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>general</group>
+    </task>
+    <task>
+        <name>search</name>
+        <description>Selector that uses search results</description>
+        <type>selector</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.curate.selector.SearchSelector</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>general</group>
+    </task>
+    <task>
+        <name>query</name>
+        <description>Selector that uses database queries</description>
+        <type>selector</type>
+        <impl>java</impl>
+        <load-addr>org.dspace.curate.selector.QuerySelector</load-addr>
+        <script></script>
+        <config></config>
+        <version>1.0-SNAPSHOT</version>
+        <info-url>http://dspace.org/curation/general</info-url>
+        <group>general</group>
+    </task>
+</dspace-curation-tasks>

@@ -141,13 +141,13 @@ import org.dspace.workflow.WorkflowManager;
  * @author richardrodgers
  */
 public class ContentImport {
-	
-	// name of metdata file
-	private static final String METADATAFILE = "metadata.xml";
-	// name of bitstream data directory
-	private static final String DATADIR = "data";
-	// name of remote data description file
-	private static final String FETCHFILE = "fetch.txt";
+
+    // name of metdata file
+    private static final String METADATAFILE = "metadata.xml";
+    // name of bitstream data directory
+    private static final String DATADIR = "data";
+    // name of remote data description file
+    private static final String FETCHFILE = "fetch.txt";
     private static final Logger log = LoggerFactory.getLogger(ContentImport.class);
     private static XPathFactory factory;
     private static XPath xpath;
@@ -204,31 +204,31 @@ public class ContentImport {
         try {
             parser.parseArgument(args);
             if (! importer.help) {
-            	context = new Context();
-            	String errmsg = importer.validateArguments(context);
-            	if (errmsg != null) {
-            		throw new CmdLineException(parser, errmsg);
-            	}
-            	status = importer.importData(context);
-            	context.complete();
+                context = new Context();
+                String errmsg = importer.validateArguments(context);
+                if (errmsg != null) {
+                    throw new CmdLineException(parser, errmsg);
+                }
+                status = importer.importData(context);
+                context.complete();
             } else {
-            	parser.printUsage(System.err);
-            	status = 0;
+                parser.printUsage(System.err);
+                status = 0;
             }
         }  catch (CmdLineException clE) {
             System.err.println(clE.getMessage());
             parser.printUsage(System.err);
         } catch (Exception e) {
-        	System.err.println(e.getMessage());
+            System.err.println(e.getMessage());
         } finally {
             indexer.setBatchProcessingMode(false);
             Date endTime = new Date();
             System.out.println("Started: " + startTime.getTime());
             System.out.println("Ended: " + endTime.getTime());
             System.out.println("Elapsed time: " + ((endTime.getTime() - startTime.getTime()) / 1000) + 
-            		           " secs (" + (endTime.getTime() - startTime.getTime()) + " msecs)");
+                               " secs (" + (endTime.getTime() - startTime.getTime()) + " msecs)");
             if (context != null && context.isValid()) {
-            	context.abort();
+                context.abort();
             }
         }
         System.exit(status);
@@ -296,9 +296,9 @@ public class ContentImport {
     }
     
     private int importData(Context context) throws Exception {
-    	
-    	int status = 0;
-    	
+    
+        int status = 0;
+    
         if (isTest) {
             System.out.println("**Test Run** - not actually importing items.");
         }
@@ -311,22 +311,21 @@ public class ContentImport {
         
         // delete actions are simple - dispense with them here
         if (action.equals(Action.delete)) {
-        	return deleteObjects(context, mapFileName);
+            return deleteObjects(context, mapFileName);
         }
 
         try {
-        	
             // really?
             context.turnOffAuthorisationSystem();
 
             if (action.equals(Action.add))  {
-            	addObjects(context, mapFileName);
+                addObjects(context, mapFileName);
             } else if (action.equals(Action.replace)) {
-            	replaceObjects(context, mapFileName);
+                replaceObjects(context, mapFileName);
             } else {
-            	if (verbose) {
-            		System.out.println("No action to take");
-            	}
+                if (verbose) {
+                    System.out.println("No action to take");
+                }
             }
 
         } catch (Exception e)  {
@@ -334,9 +333,9 @@ public class ContentImport {
             System.out.println(e);
             status = 1;
         } finally {
-        	if (mapOut != null) {
-        		mapOut.close();
-        	}
+            if (mapOut != null) {
+                mapOut.close();
+            }
         }
 
         if (isTest)  {
@@ -378,9 +377,9 @@ public class ContentImport {
     }
         
     private void explodeZip(ZipInputStream in) throws Exception {
-    	
-    	ZipEntry entry = null;
-    	while ((entry = in.getNextEntry()) != null) {
+    
+        ZipEntry entry = null;
+        while ((entry = in.getNextEntry()) != null) {
             if (entry.isDirectory()) {
                 if (! new File(sourceDir, entry.getName()).mkdir())  {
                     log.error("Unable to create contents directory: " + entry.getName());
@@ -409,23 +408,23 @@ public class ContentImport {
                 in.closeEntry();
                 out.close();
             }
-    	}
-    	in.close();
+        }
+        in.close();
     }
     
     private DSpaceObject resolveRoot(Context context, String objectId) throws SQLException {
-    	
+    
         if (objectId.indexOf('/') != -1) {
             // string has a / so it must be a handle - try and resolve it
-         	return HandleManager.resolveToObject(context, objectId);
+            return HandleManager.resolveToObject(context, objectId);
         } else {
             // not a handle, try to treat it as a UUID
-        	return DSpaceObject.findByObjectID(context, objectId);
+            return DSpaceObject.findByObjectID(context, objectId);
         }
     }
     
     private List<Collection> resolveCollections(Context context, List<String> collIds) throws Exception {
-    	
+    
         List<Collection> collections = new ArrayList<Collection>(collIds.size());
         // validate each collection arg to see if it's a real collection
         int i = 0;
@@ -571,7 +570,7 @@ public class ContentImport {
     }
 
     private int deleteObjects(Context c, String mapFile) throws Exception  {
-    	
+    
     	if (verbose) {
     		System.out.println("Deleting objects listed in mapfile: " + mapFile);
     	}
@@ -585,7 +584,7 @@ public class ContentImport {
         while (iterator.hasNext()) {
             String objId = myhash.get(iterator.next());
             if (verbose) {
-        		System.out.println("Deleting object " + objId);
+                System.out.println("Deleting object " + objId);
             }
             if (objId.indexOf('/') != -1) {
                 deleteObject(c, objId);
@@ -600,50 +599,70 @@ public class ContentImport {
     }
     
     private void addCommunityTree(Context c, Community parent, File workingDir,
-    							  PrintWriter mapOut) throws Exception {
-    	Community community = (parent != null) ? parent.createSubcommunity() :
-            									 Community.create(null, c);     
+                                  PrintWriter mapOut) throws Exception {
+        Community community = (parent != null) ? parent.createSubcommunity() :
+                              Community.create(null, c);     
         // now load metadata, etc
-    	loadMetadata(c, community, workingDir);
-        // add logo file if presents
-        File logoFile = new File(workingDir, "logo");
-        if (logoFile.exists()) {
-        	FileInputStream in = new FileInputStream(logoFile);
-        	community.setLogo(in);
-        	in.close();
+        loadMetadata(c, community, workingDir);
+        // add logo file if present
+        File[] logos = workingDir.listFiles(new FilenameFilter() {
+            public boolean accept(File file, String name) {
+                return name.startsWith("logo");
+            }
+        });
+        if (logos.length > 0) {
+            FileInputStream in = new FileInputStream(logos[0]);
+            community.setLogo(in);
+            in.close();
         }
-        
         community.update();
+        // now set the logo format as best we can from the file suffix
+        if (logos.length > 0) {
+            Bitstream logoBs = community.getLogo();
+            String suffix = logos[0].getName().substring(logos[0].getName().lastIndexOf(".") + 1);
+            logoBs.setFormat(BitstreamFormat.findByShortDescription(c, suffix));
+            logoBs.update();
+        }
         
         if (mapOut != null) {
             mapOut.println(workingDir.getName() + " " + community.getHandle());
         }
         // now descend into any sub-structure
         for (String dirName : workingDir.list(directoryFilter)) {
-        	if (dirName.startsWith("community")) {
-        		addCommunityTree(c, community, new File(workingDir, dirName), mapOut);
-        	} else if (dirName.startsWith("collection")) {
-        		addCollectionTree(c, community, new File(workingDir, dirName), mapOut);
-        	}
+            if (dirName.startsWith("community")) {
+                addCommunityTree(c, community, new File(workingDir, dirName), mapOut);
+            } else if (dirName.startsWith("collection")) {
+                addCollectionTree(c, community, new File(workingDir, dirName), mapOut);
+            }
         }
     }
     
     private void addCollectionTree(Context c, Community parent, File workingDir,
-    						       PrintWriter mapOut) throws Exception {
-    	
-    	Collection collection =  parent.createCollection();
-    	
+                                   PrintWriter mapOut) throws Exception {
+    
+        Collection collection =  parent.createCollection();
+    
         // now load metadata, etc
-    	loadMetadata(c, collection, workingDir);
+        loadMetadata(c, collection, workingDir);
         // add logo file if present
-        File logoFile = new File(workingDir, "logo");
-        if (logoFile.exists()) {
-        	FileInputStream in = new FileInputStream(logoFile);
-        	collection.setLogo(in);
-        	in.close();
+        File[] logos = workingDir.listFiles(new FilenameFilter() {
+            public boolean accept(File file, String name) {
+                return name.startsWith("logo");
+            }
+        });
+        if (logos.length > 0) {
+            FileInputStream in = new FileInputStream(logos[0]);
+            collection.setLogo(in);
+            in.close();
         }
-        
         collection.update();
+        // now set the logo format as best we can from the file suffix
+        if (logos.length > 0) {
+            Bitstream logoBs = collection.getLogo();
+            String suffix = logos[0].getName().substring(logos[0].getName().lastIndexOf(".") + 1);
+            logoBs.setFormat(BitstreamFormat.findByShortDescription(c, suffix));
+            logoBs.update();
+        }
         
         if (mapOut != null) {
             mapOut.println(workingDir.getName() + " " + collection.getHandle());
@@ -873,48 +892,48 @@ public class ContentImport {
     private void loadMetadata(Context c, DSpaceObject dso, File workingDir)
             throws SQLException, IOException, ParserConfigurationException,
             SAXException, TransformerException, AuthorizeException {
-    	File mdFile = new File(workingDir, METADATAFILE);
+        File mdFile = new File(workingDir, METADATAFILE);
         if (mdFile.exists()) {
-        	if (verbose) {
-        		System.out.println("\tLoading community metadata from " + mdFile.getName());
-        	}
-        	Document document = RegistryLoader.loadXML(mdFile.getPath());
-        	
+            if (verbose) {
+                System.out.println("\tLoading community metadata from " + mdFile.getName());
+            }
+            Document document = RegistryLoader.loadXML(mdFile.getPath());
+        
             NodeList mdSets = xPathFind(document, "/metadata/mdvalues");
             for (int i = 0; i < mdSets.getLength(); i++) {
-            	Node mdSet = mdSets.item(i);
-            	String schema = null;
-            	Node schemaAttr = mdSet.getAttributes().getNamedItem("schema");
-            	if (schemaAttr != null) {
-            		schema = schemaAttr.getNodeValue();
-            	} 
+                Node mdSet = mdSets.item(i);
+                String schema = null;
+                Node schemaAttr = mdSet.getAttributes().getNamedItem("schema");
+                if (schemaAttr != null) {
+                    schema = schemaAttr.getNodeValue();
+                } 
              
-            	// Get the nodes corresponding to metadata values
-            	NodeList mvNodes = xPathFind(mdSet, "mdvalue");
+                // Get the nodes corresponding to metadata values
+                NodeList mvNodes = xPathFind(mdSet, "mdvalue");
 
-            	for (int j = 0; j < mvNodes.getLength(); j++) {
-            		Node n = mvNodes.item(j);
-            		if (schema != null) {
-            			addMDValue(c, dso, schema, n);
-            		} else {
-            			// argh
-            			switch (dso.getType()) {
-            			   case Constants.COMMUNITY: ((Community)dso).setName(getStringValue(n)); break;
-            			   case Constants.COLLECTION: ((Collection)dso).setName(getStringValue(n)); break;
-            			   case Constants.BUNDLE: ((Bundle)dso).setName(getStringValue(n)); break;
-            			   case Constants.BITSTREAM: ((Bitstream)dso).setName(getStringValue(n)); break;
-            			   default: break;
-            			}
-            			//dso.setMetadataValue(getAttributeValue(n, "element"), getStringValue(n));
-            		}
-            	}
+                for (int j = 0; j < mvNodes.getLength(); j++) {
+                    Node n = mvNodes.item(j);
+                    if (schema != null) {
+                        addMDValue(c, dso, schema, n);
+                    } else {
+                        // argh
+                        switch (dso.getType()) {
+                            case Constants.COMMUNITY: ((Community)dso).setName(getStringValue(n)); break;
+                            case Constants.COLLECTION: ((Collection)dso).setName(getStringValue(n)); break;
+                            case Constants.BUNDLE: ((Bundle)dso).setName(getStringValue(n)); break;
+                            case Constants.BITSTREAM: ((Bitstream)dso).setName(getStringValue(n)); break;
+                            default: break;
+                        }
+                        //dso.setMetadataValue(getAttributeValue(n, "element"), getStringValue(n));
+                    }
+                }
             }
         }
     }
 
     private void addMDValue(Context c, DSpaceObject dso, String schema, Node n)
-    		throws TransformerException, SQLException, AuthorizeException {
-    	
+            throws TransformerException, SQLException, AuthorizeException {
+    
         // compensate for empty value getting read as "null", which won't display
         String value = Strings.nullToEmpty(getStringValue(n)); //n.getNodeValue();
        
@@ -927,7 +946,7 @@ public class ContentImport {
         int place = -1;
         String placeStr = getAttributeValue(n, "place");
         if (! Strings.isNullOrEmpty(placeStr)) {
-        	place = Integer.parseInt(placeStr);
+            place = Integer.parseInt(placeStr);
         } 
 
         if (verbose) {
@@ -950,27 +969,22 @@ public class ContentImport {
         }
 
         if (!isTest) {
-        	if (dso.getType() == Constants.ITEM) {
-        		((Item)dso).addMetadata(schema, element, qualifier, language, value);
-        	} else if (dso.getType() == Constants.BITSTREAM) {
-        		((Bitstream)dso).addMetadata(schema, element, qualifier, language, place, value);
-        	}
+            dso.addMetadata(schema, element, qualifier, language, place, value);
         } else {
             // If we're just test the import, let's check that the actual metadata field exists.
-        	MetadataSchema foundSchema = MetadataSchema.find(c,schema);
-        	
-        	if (foundSchema == null) {
-        		System.out.println("ERROR: schema '"+schema+"' was not found in the registry.");
-        		return;
-        	}
-        	
-        	int schemaID = foundSchema.getSchemaID();
-        	MetadataField foundField = MetadataField.findByElement(c, schemaID, element, qualifier);
-        	
-        	if (foundField == null) {
-        		System.out.println("ERROR: Metadata field: '"+schema+"."+element+"."+qualifier+"' was not found in the registry.");
-        		return;
-            }		
+            MetadataSchema foundSchema = MetadataSchema.find(c,schema);
+        
+            if (foundSchema == null) {
+                System.out.println("ERROR: schema '"+schema+"' was not found in the registry.");
+                return;
+            }
+        
+            int schemaID = foundSchema.getSchemaID();
+            MetadataField foundField = MetadataField.findByElement(c, schemaID, element, qualifier);
+        
+            if (foundField == null) {
+                System.out.println("ERROR: Metadata field: '"+schema+"."+element+"."+qualifier+"' was not found in the registry.");
+            }
         }
     }
 
@@ -1059,16 +1073,16 @@ public class ContentImport {
     }
     
     private static NodeList xPathFind(Node element, String match) {
-    	if (factory == null) {
-    		factory = XPathFactory.newInstance();
-    		xpath = factory.newXPath();
-    	}
-    	try {
-    		XPathExpression exp = xpath.compile(match);
-    		return (NodeList)exp.evaluate(element, XPathConstants.NODESET);
-    	} catch (Exception e) {
-    		log.error("Error evaluating expression: '" + match + "'", e);
-    	}
-    	return null;
+        if (factory == null) {
+            factory = XPathFactory.newInstance();
+            xpath = factory.newXPath();
+        }
+        try {
+            XPathExpression exp = xpath.compile(match);
+            return (NodeList)exp.evaluate(element, XPathConstants.NODESET);
+        } catch (Exception e) {
+            log.error("Error evaluating expression: '" + match + "'", e);
+        }
+        return null;
     }
 }

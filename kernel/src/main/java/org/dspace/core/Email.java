@@ -11,10 +11,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.StringReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.text.MessageFormat;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -36,6 +38,9 @@ import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
+
+import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.util.StringMapper;
 
 /**
  * Class representing an e-mail message, also used to send e-mails.
@@ -370,8 +375,73 @@ public class Email
         Transport.send(message);
     }
 
-      /**
+    /**
+     * Loads (adds) an email template.
+     *
+     * @param context
+     *        the DSpace context object
+     * @param name
+     *        the name of the email template
+     * @param template
+     *        the email template as a string
+     */
+    public static void loadTemplate(Context context, String name, String template) throws SQLException {
+        context.getHandle().execute("INSERT INTO email_template (name, template) values (?, ?)", name, template);
+    }
+
+    /**
+     * Removes an email template.
+     *
+     * @param context
+     *        the DSpace context object
+     * @param name
+     *        the name of the email template
+     */
+    public static void unloadTemplate(Context context, String name) throws SQLException {
+        context.getHandle().execute("DELETE FROM email_template WHERE name = ?", name);
+    }
+
+    /**
+     * Get the template for an email message.
+     *
+     * @param context
+     *        the DSpace context object 
+     * @param name
+     *        name for the email template
+     * 
+     * @return the template as a string
+     * 
+     * @throws IOException
+     *             if the template couldn't be found, or there was some other
+     *             error reading the template
+     */
+    public static String getTemplate(Context context, String name) throws IOException, SQLException {
+        return context.getHandle().createQuery("SELECT template FROM email_template WHERE name = :name")
+                                              .bind(":name", name).map(StringMapper.FIRST).first();
+    }
+
+    /**
      * Get the template for an email message. The message is suitable for
+     * inserting values using <code>java.text.MessageFormat</code>.
+     *
+     * @param context
+     *        the DSpace context object 
+     * @param name
+     *        name for the email template
+     * 
+     * @return the email object, with the content and subject filled out from
+     *         the template
+     * 
+     * @throws IOException
+     *             if the template couldn't be found, or there was some other
+     *             error reading the template
+     */
+    public static Email fromTemplate(Context context, String name) throws IOException, SQLException {
+        return getEmail(getTemplate(context, name));
+    }
+
+    /**
+     * Get the template for an email message from a file. The message is suitable for
      * inserting values using <code>java.text.MessageFormat</code>.
      * 
      * @param emailFile
@@ -384,13 +454,40 @@ public class Email
      *             if the template couldn't be found, or there was some other
      *             error reading the template
      */
-    public static Email getEmail(String emailFile) throws IOException {
-        String charset = null;
-        String subject = "";
-        StringBuffer contentBuffer = new StringBuffer();
-
+    public static Email fromTemplateFile(String emailFile) throws IOException {
+        
+        StringBuilder templateBuffer = new StringBuilder();
         // Read in template
         try (BufferedReader reader = new BufferedReader(new FileReader(emailFile))) {
+            String line = null;
+            while ((line = reader.readLine()) != null) {
+                templateBuffer.append(line).append("\n");
+            }
+        }
+        return getEmail(templateBuffer.toString());
+    }
+
+    /**
+     * Get the template for an email message. The message is suitable for
+     * inserting values using <code>java.text.MessageFormat</code>.
+     * 
+     * @param template
+     *            the email template as a String.
+     * 
+     * @return the email object, with the content and subject filled out from
+     *         the template
+     * 
+     * @throws IOException
+     *             if the template couldn't be found, or there was some other
+     *             error reading the template
+     */
+    public static Email getEmail(String template) throws IOException {
+        String charset = null;
+        String subject = "";
+        StringBuilder contentBuffer = new StringBuilder();
+
+        // Read in template
+        try (BufferedReader reader = new BufferedReader(new StringReader(template))) {
             String line = null;
             while ((line = reader.readLine()) != null) {
                 if (line.toLowerCase().startsWith("subject:")) {
@@ -428,7 +525,7 @@ public class Email
         String to = ConfigurationManager.getProperty("mail.admin");
         String subject = "DSpace test email";
         String server = ConfigurationManager.getProperty("mail.server");
-        String url = ConfigurationManager.getProperty("dspace.url");
+        String url = ConfigurationManager.getProperty("site.url");
         Email e = new Email();
         e.setSubject(subject);
         e.addRecipient(to);

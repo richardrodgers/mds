@@ -18,11 +18,11 @@ import org.slf4j.LoggerFactory;
 
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
-import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
 import org.dspace.event.Event;
+import org.dspace.event.ContentEvent.EventType;
 import org.dspace.storage.bitstore.BitstreamStorageManager;
 import org.dspace.storage.rdbms.DatabaseManager;
 import org.dspace.storage.rdbms.TableRow;
@@ -57,7 +57,7 @@ public class Bitstream extends DSpaceObject
      * @throws SQLException
      */
     Bitstream(Context context, TableRow row) throws SQLException  {
-    	
+    
         this.context = context;
         tableRow = row;
 
@@ -90,8 +90,7 @@ public class Bitstream extends DSpaceObject
      * @return the bitstream, or null if the ID is invalid.
      * @throws SQLException
      */
-    public static Bitstream find(Context context, int id) throws SQLException
-    {
+    public static Bitstream find(Context context, int id) throws SQLException {
         // First check the cache
         Bitstream fromCache = (Bitstream) context.fromCache(Bitstream.class, id);
 
@@ -149,6 +148,21 @@ public class Bitstream extends DSpaceObject
     }
 
     /**
+     * Returns the total number of bytes of all bitstreams. No attempt to
+     * filter based on withdrawn status or certain bundles etc, but should equal
+     * the asset storage used in all allocated asset stores, less any pending
+     * cleanup bitstreams.
+     *
+     * @param context the DSpace context
+     * @return the byte sum of all bitstreams
+     * @throws SQLException
+     */
+    public static long getExtent(Context context) throws SQLException {
+        return DatabaseManager.querySingle(context,
+               "SELECT SUM(size_bytes) AS bytesum FROM bitstream").getLongColumn("bytesum");
+    }
+
+    /**
      * Create a new bitstream, with a new ID. The checksum and file size are
      * calculated. This method is not public, and does not check authorisation;
      * other methods such as Bundle.createBitstream() will check authorisation.
@@ -177,6 +191,7 @@ public class Bitstream extends DSpaceObject
         bitstream.createDSO();
 
         context.addEvent(new Event(Event.CREATE, Constants.BITSTREAM, bitstreamID, null));
+        context.addContentEvent(bitstream, EventType.CREATE);
 
         return bitstream;
     }
@@ -196,11 +211,9 @@ public class Bitstream extends DSpaceObject
      * @throws SQLException
      */
     static Bitstream register(Context context, 
-    		int assetstore, String bitstreamPath)
-        	throws IOException, SQLException {
+           int assetstore, String bitstreamPath) throws IOException, SQLException {
         // Store the bits
-        int bitstreamID = BitstreamStorageManager.register(
-        		context, assetstore, bitstreamPath);
+        int bitstreamID = BitstreamStorageManager.register(context, assetstore, bitstreamPath);
 
         log.info(LogManager.getHeader(context,
             "create_bitstream",
@@ -243,7 +256,6 @@ public class Bitstream extends DSpaceObject
      */
     public void setSequenceID(int sid) {
         tableRow.setColumn("sequence_id", sid);
-        modifiedMetadata = true;
     }
 
     /**
@@ -286,7 +298,6 @@ public class Bitstream extends DSpaceObject
      */
     public void setSource(String n) {
         tableRow.setColumn("source", n);
-        modifiedMetadata = true;
     }
 
     /**
@@ -298,7 +309,6 @@ public class Bitstream extends DSpaceObject
     public String getDescription()  {
         return getMetadataValue("dsl.description");
     }
-
 
     /**
      * Get the checksum of the content of the bitstream, for integrity checking
@@ -388,8 +398,7 @@ public class Bitstream extends DSpaceObject
      * 
      * @return the format of this bitstream
      */
-    public BitstreamFormat getFormat()
-    {
+    public BitstreamFormat getFormat() {
         return bitstreamFormat;
     }
 
@@ -403,8 +412,7 @@ public class Bitstream extends DSpaceObject
      *            unknown
      * @throws SQLException
      */
-    public void setFormat(BitstreamFormat f) throws SQLException
-    {
+    public void setFormat(BitstreamFormat f) throws SQLException {
         // FIXME: Would be better if this didn't throw an SQLException,
         // but we need to find the unknown format!
         if (f == null)
@@ -433,7 +441,8 @@ public class Bitstream extends DSpaceObject
      * @throws SQLException
      * @throws AuthorizeException
      */
-    public void update() throws SQLException, AuthorizeException {
+    @Override
+    public void update() throws AuthorizeException, SQLException {
         // Check authorisation
         AuthorizeManager.authorizeAction(context, this, Constants.WRITE);
         log.info(LogManager.getHeader(context, "update_bitstream", "bitstream_id=" + getID()));
@@ -446,13 +455,13 @@ public class Bitstream extends DSpaceObject
      * @throws SQLException
      */
     void delete() throws AuthorizeException, SQLException {
-        boolean oracle = "oracle".equals(ConfigurationManager.getProperty("db.name"));
         // changed to a check on remove
         // Check authorisation
         //AuthorizeManager.authorizeAction(bContext, this, Constants.DELETE);
         log.info(LogManager.getHeader(context, "delete_bitstream", "bitstream_id=" + getID()));
 
         context.addEvent(new Event(Event.DELETE, Constants.BITSTREAM, getID(), String.valueOf(getSequenceID())));
+        context.addContentEvent(this, EventType.DELETE);
 
         // Remove from cache
         context.removeCached(this, getID());
@@ -461,8 +470,7 @@ public class Bitstream extends DSpaceObject
         AuthorizeManager.removeAllPolicies(context, this);
 
         // Remove references to primary bitstreams in bundle
-        String query = "update bundle set primary_bitstream_id = ";
-        query += (oracle ? "''" : "Null") + " where primary_bitstream_id = ? ";
+        String query = "update bundle set primary_bitstream_id = Null where primary_bitstream_id = ? ";
         DatabaseManager.updateQuery(context, query, tableRow.getIntColumn("bitstream_id"));
         
         // Remove any metadata

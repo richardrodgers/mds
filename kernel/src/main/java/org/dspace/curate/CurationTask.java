@@ -8,6 +8,7 @@
 package org.dspace.curate;
 
 import java.io.IOException;
+import java.sql.SQLException;
 
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.DSpaceObject;
@@ -21,24 +22,26 @@ import org.dspace.core.Context;
  */
 public interface CurationTask {
     /**
-     * Initialize task - parameters inform the task of it's invoking curator.
-     * Since the curator can provide services to the task, this represents
-     * curation DI.
+     * Initialize task - parameters inform the task of it's invoking curation
+     * context. Since this context can provide services to the task, this
+     * represents curation DI.
      * 
-     * @param curator the Curator controlling this task
+     * @param curation the Curation this task is bound to
      * @param taskId identifier task should use in invoking services
      * @throws IOException
      */
-    void init(Curator curator, String taskId) throws IOException;
+    void init(Curation curation, String taskId) throws IOException;
 
     /**
      * Perform the curation task upon passed DSO
      *
      * @param dso the DSpace object
      * @return status code
+     * @throws AuthorizeException
      * @throws IOException
+     * @throws SQLException
      */
-    int perform(DSpaceObject dso) throws AuthorizeException, IOException;
+    int perform(DSpaceObject dso) throws AuthorizeException, IOException, SQLException;
 
     /**
      * Perform the curation task for passed id
@@ -46,7 +49,9 @@ public interface CurationTask {
      * @param ctx DSpace context object
      * @param id persistent ID for DSpace object
      * @return status code
-     * @throws Exception
+     * @throws AuthorizeException
+     * @throws IOException
+     * @throws SQLException
      */
-    int perform(Context ctx, String id) throws AuthorizeException, IOException;
+    int perform(Context ctx, String id) throws AuthorizeException, IOException, SQLException;
 }

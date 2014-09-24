@@ -8,7 +8,9 @@
 package org.dspace.curate;
 
 import java.io.IOException;
+import java.sql.SQLException;
 
+import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.DSpaceObject;
 import org.dspace.core.Context;
 
@@ -32,16 +34,18 @@ public interface ScriptedTask
      * @param taskId identifier task should use in invoking services
      * @throws IOException
      */
-    public void init(Curator curator, String taskId) throws IOException;
+    public void init(Curation curation, String taskId) throws IOException;
 
     /**
      * Perform the curation task upon passed DSO
      *
      * @param dso the DSpace object
      * @return status code
+     * @throws AuthorizeException
      * @throws IOException
+     * @throws SQLException
      */
-    public int performDso(DSpaceObject dso) throws IOException;
+    public int performDso(DSpaceObject dso) throws AuthorizeException, IOException, SQLException;
 
     /**
      * Perform the curation task for passed id
@@ -49,7 +53,9 @@ public interface ScriptedTask
      * @param ctx DSpace context object
      * @param id persistent ID for DSpace object
      * @return status code
+     * @throws AuthorizeException
      * @throws IOException
+     * @throws SQLException
      */
-    public int performId(Context ctx, String id) throws IOException;
+    public int performId(Context ctx, String id) throws AuthorizeException, IOException, SQLException;
 }

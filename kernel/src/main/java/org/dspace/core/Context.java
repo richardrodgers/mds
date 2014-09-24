@@ -22,11 +22,16 @@ import org.skife.jdbi.v2.Handle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.dspace.content.DSpaceObject;
+import org.dspace.core.ConfigurationManager;
 import org.dspace.eperson.EPerson;
 import org.dspace.eperson.Group;
 import org.dspace.event.Dispatcher;
 import org.dspace.event.Event;
 import org.dspace.event.EventManager;
+import org.dspace.event.ContainerEvent;
+import org.dspace.event.ContentEvent;
+import org.dspace.event.ContentEvent.EventType;
 import org.dspace.storage.rdbms.DatabaseManager;
 
 /**
@@ -44,12 +49,14 @@ import org.dspace.storage.rdbms.DatabaseManager;
  * The context object is also used as a cache for CM API objects.
  * 
  */
-public class Context implements AutoCloseable
-{
-	/** option flags */
-	public static final short READ_ONLY = 0x01;
-	
+public class Context implements AutoCloseable {
+
+    /** option flags */
+    public static final short READ_ONLY = 0x01;
+
     private static final Logger log = LoggerFactory.getLogger(Context.class);
+
+    private static boolean flip = false;
 
     /** Database handle */
     private Handle handle;
@@ -83,6 +90,7 @@ public class Context implements AutoCloseable
 
     /** Content events */
     private List<Event> events = null;
+    private List<ContentEvent> cevents = null;
 
     /** Event dispatcher name */
     private String dispName = null;
@@ -133,7 +141,7 @@ public class Context implements AutoCloseable
         specialGroups = new ArrayList<Integer>();
 
         authStateChangeHistory = new Stack<Boolean>();
-        authStateClassCallHistory = new Stack<String>();	
+        authStateClassCallHistory = new Stack<String>();
     }
 
     /**
@@ -338,22 +346,18 @@ public class Context implements AutoCloseable
      *                if there was an error completing the database transaction
      *                or closing the connection
      */
-    public void complete() throws SQLException
-    {
+    public void complete() throws SQLException {
         // FIXME: Might be good not to do a commit() if nothing has actually
         // been written using this connection
-        try
-        {
+        try {
             // Commit any changes made as part of the transaction
-        	if (! isReadOnly())
-        	{
-        		commit();
-        	}
-        }
-        finally
-        {
+            if (! isReadOnly()) {
+                commit();
+            }
+        } finally {
             // Free the connection
-            handle.close();
+            DatabaseManager.releaseHandle(handle);
+            //handle.close();
             //DatabaseManager.freeConnection(connection);
             handle = null;
             clearCache();
@@ -368,47 +372,43 @@ public class Context implements AutoCloseable
      *                if there was an error completing the database transaction
      *                or closing the connection
      */
-    public void commit() throws SQLException
-    {
-    	/* 
-    	 * invalid condition if in read-only mode: no valid
-    	 * transactions can be committed: no recourse but to bail
-    	 */
-    	if (isReadOnly()) {
-    	    throw new IllegalStateException("Attempt to commit transaction in read-only context");
-    	}
+    public void commit() throws SQLException {
+        /* 
+         * invalid condition if in read-only mode: no valid
+         * transactions can be committed: no recourse but to bail
+         */
+        if (isReadOnly()) {
+            throw new IllegalStateException("Attempt to commit transaction in read-only context");
+        }
         // Commit any changes made as part of the transaction
         Dispatcher dispatcher = null;
 
-        try
-        {
-            if (events != null)
-            {
-
-                if (dispName == null)
-                {
+        try  {
+            if (events != null) {
+                if (dispName == null) {
                     dispName = EventManager.DEFAULT_DISPATCHER;
                 }
 
                 dispatcher = EventManager.getDispatcher(dispName);
+                EventManager.dispatchEvents(this);
                 handle.commit();
-                dispatcher.dispatch(this);
-            }
-            else
-            {
+                if (flip) {
+                    dispatcher.dispatch(this);
+                    EventManager.dispatchEvents(this);
+                } else {
+                   EventManager.dispatchEvents(this);
+                   dispatcher.dispatch(this); 
+                }
+                flip = ! flip;
+            } else {
                 handle.commit();
             }
-
-        }
-        finally
-        {
+        } finally {
             events = null;
-            if (dispatcher != null)
-            {
+            if (dispatcher != null) {
                 EventManager.returnDispatcher(dispName, dispatcher);
             }
         }
-
     }
 
     /**
@@ -426,18 +426,58 @@ public class Context implements AutoCloseable
      * @param event
      */
     public void addEvent(Event event) {
-    	/* 
-    	 * invalid condition if in read-only mode: events - which
-    	 * indicate mutation - are firing: no recourse but to bail
-    	 */
-    	if (isReadOnly()) {
-    	    throw new IllegalStateException("Attempt to mutate object in read-only context");
-    	}
+        /* 
+         * invalid condition if in read-only mode: events - which
+         * indicate mutation - are firing: no recourse but to bail
+         */
+        if (isReadOnly()) {
+            throw new IllegalStateException("Attempt to mutate object in read-only context");
+        }
         if (events == null) {
             events = new ArrayList<Event>();
         }
 
         events.add(event);
+    }
+
+    /**
+     * Add a content event to be dispatched when this context is committed.
+     * 
+     * @param event
+     */
+    public void addContentEvent(DSpaceObject dso, EventType eventType) {
+        /* 
+         * invalid condition if in read-only mode: events - which
+         * indicate mutation - are firing: no recourse but to bail
+         */
+        if (isReadOnly()) {
+            throw new IllegalStateException("Attempt to mutate object in read-only context");
+        }
+        if (cevents == null) {
+            cevents = new ArrayList<ContentEvent>();
+        }
+
+        cevents.add(new ContentEvent(this, dso, eventType));
+    }
+
+    /**
+     * Add a container event to be dispatched when this context is committed.
+     * 
+     * @param event
+     */
+    public void addContainerEvent(DSpaceObject dso, EventType eventType, DSpaceObject member) {
+        /* 
+         * invalid condition if in read-only mode: events - which
+         * indicate mutation - are firing: no recourse but to bail
+         */
+        if (isReadOnly()) {
+            throw new IllegalStateException("Attempt to mutate object in read-only context");
+        }
+        if (cevents == null) {
+            cevents = new ArrayList<ContentEvent>();
+        }
+
+        cevents.add(new ContainerEvent(this, dso, eventType, member));
     }
 
     /**
@@ -454,6 +494,10 @@ public class Context implements AutoCloseable
         return events;
     }
 
+    public List<ContentEvent> getContentEvents() {
+        return cevents;
+    }
+
     /**
      * Close the context, without committing any of the changes performed using
      * this context. The database connection is freed. No exception is thrown if
@@ -461,37 +505,26 @@ public class Context implements AutoCloseable
      * be called as part of an error-handling routine where an SQLException has
      * already been thrown.
      */
-    public void abort()
-    {
-        try
-        {
-            if (!handle.getConnection().isClosed())
-            {
-            	if (! isReadOnly())
-            	{
-            		handle.rollback();
-            	}
-            }
-        }
-        catch (SQLException se)
-        {
-            log.error(se.getMessage(), se);
-        }
-        finally
-        {
-            try
-            {
-                if (!handle.getConnection().isClosed())
-                {
-                    handle.close();
+    public void abort() {
+        try {
+            if (!handle.getConnection().isClosed()) {
+                if (! isReadOnly()) {
+                    handle.rollback();
                 }
             }
-            catch (Exception ex)
-            {
+        } catch (SQLException se) {
+            log.error(se.getMessage(), se);
+        } finally {
+            try {
+                if (!handle.getConnection().isClosed()) {
+                    DatabaseManager.releaseHandle(handle);
+                }
+            } catch (Exception ex) {
                 log.error("Exception aborting context", ex);
             }
             handle = null;
             events = null;
+            cevents = null;
             clearCache();
         }
     }
@@ -516,7 +549,7 @@ public class Context implements AutoCloseable
      *         <code>false</code>
      */
     public boolean isReadOnly()  {
-    	return (options & READ_ONLY) > 0;
+        return (options & READ_ONLY) > 0;
     }
 
     /**
@@ -544,13 +577,11 @@ public class Context implements AutoCloseable
      * @param id
      *            the object's ID
      */
-    public void cache(Object o, int id)
-    {
-    	// bypass cache if in read-only mode
-    	if (! isReadOnly()) {
-    	    String key = o.getClass().getName() + id;
-    	    objectCache.put(key, o);
-    	}
+    public void cache(Object o, int id) {
+        // bypass cache if in read-only mode
+        if (! isReadOnly()) {
+            objectCache.put(o.getClass().getName() + id, o);
+        }
     }
 
     /**
@@ -594,8 +625,7 @@ public class Context implements AutoCloseable
      * @param groupID
      *            special group's ID
      */
-    public void setSpecialGroup(int groupID)
-    {
+    public void setSpecialGroup(int groupID) {
         specialGroups.add(Integer.valueOf(groupID));
 
         // System.out.println("Added " + groupID);
@@ -608,8 +638,7 @@ public class Context implements AutoCloseable
      *            ID of special group to test
      * @return true if member
      */
-    public boolean inSpecialGroup(int groupID)
-    {
+    public boolean inSpecialGroup(int groupID) {
         if (specialGroups.contains(Integer.valueOf(groupID)))
         {
             // System.out.println("Contains " + groupID);
@@ -626,8 +655,7 @@ public class Context implements AutoCloseable
      * @return
      * @throws SQLException
      */
-    public Group[] getSpecialGroups() throws SQLException
-    {
+    public Group[] getSpecialGroups() throws SQLException {
         List<Group> myGroups = new ArrayList<Group>();
         for (Integer groupId : specialGroups)
         {
@@ -637,14 +665,12 @@ public class Context implements AutoCloseable
         return myGroups.toArray(new Group[myGroups.size()]);
     }
 
-    protected void finalize() throws Throwable
-    {
+    protected void finalize() throws Throwable {
         /*
          * If a context is garbage-collected, we roll back and free up the
          * database connection if there is one.
          */
-        if (handle != null)
-        {
+        if (handle != null) {
             abort();
         }
 

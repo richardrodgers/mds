@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!--
+
+    The contents of this file are subject to the license and copyright
+    detailed in the LICENSE and NOTICE files at the root of the source
+    tree and available online at
+
+    http://www.dspace.org/license/
+
+-->
+<web-app xmlns="http://java.sun.com/xml/ns/javaee"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://java.sun.com/xml/ns/javaee 
+        http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd"
+        version="3.0">
+<!--
+  - The is the servlet deployment descriptor for the Jersey JAX-RS
+  - servlet dispatcher.
+  -
+  -->
+
+  <display-name>DSpace Web (HTTP) API</display-name>
+
+  <listener>
+    <listener-class>
+      org.dspace.webapi.DSpaceContextListener
+    </listener-class>
+  </listener>
+
+  <!-- DSpace context parameters read from context.xml in container (e.g. Tomcat)  -->
+
+  <servlet>
+    <servlet-name>Jersey REST Service</servlet-name>
+    <servlet-class>org.glassfish.jersey.servlet.ServletContainer</servlet-class>
+    <init-param>
+      <param-name>jersey.config.server.provider.packages</param-name>
+      <param-value>org.dspace.webapi.content,org.dspace.webapi.curation,org.dspace.webapi.authz,org.dspace.webapi.registry,org.dspace.webapi.info,org.dspace.webapi.submit</param-value>
+    </init-param>
+    <load-on-startup>1</load-on-startup>
+  </servlet>
+
+  <servlet-mapping>
+    <servlet-name>Jersey REST Service</servlet-name>
+    <url-pattern>/*</url-pattern>
+  </servlet-mapping>
+
+</web-app>

@@ -567,6 +567,15 @@ public class BitstreamFormat
     }
 
     /**
+     * Returns the number of bitstreams that have this format assigned
+     *
+     */
+    public long count() throws SQLException {
+        return DatabaseManager.querySingle(bfContext,
+         "SELECT count(*) as bsct FROM bitstream WHERE bitstream_format_id = ?", getID()).getLongColumn("bsct");
+    }
+
+    /**
      * Update the bitstream format metadata
      * 
      * @throws SQLException

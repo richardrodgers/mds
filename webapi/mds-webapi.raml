@@ -1,0 +1,785 @@
+#%RAML 0.8
+title: MDS web API
+baseUri: http://mds-demo.modrepo.org:8080/webapi
+mediaType: application/json
+version: v0.1
+/content:
+  displayName: Repository content
+  post:
+    description: Create a new repository site
+    responses:
+      201:
+        description: New site created
+  /site:
+    displayName: The repository site
+    get:
+      description: Obtains the site entity
+      responses:
+        200:
+          description: the repository site entity
+    delete:
+      description: Removes the site entity
+      responses:
+        204:
+          description: the site has been removed
+    /communities:
+      displayName: Site root (top-level) communities
+      get:
+        description: Obtains an entity list of top-level communities
+        responses:
+          200:
+            description: the top-level community entity list
+      post:
+        description: Creates a new top-level community
+        responses:
+          201:
+            description: New top-level community created
+    /packages:
+      displayName: Supported package formats for site and top-level communities
+      description: Get a list of supported package formats for site and top-level communities
+      get:
+        description: Returns an entity list of supported package resources
+        responses:
+          200:
+            description: the entity list of package resources
+    /package/{name}:
+      displayName: a package resource
+      uriParameters:
+        name:
+          description: the name of the package type
+          type: string
+      description: resource for depositing new site or top-level community packages in specified format
+      post:
+        description: Creates a new top-level community from entity
+        responses:
+          201:
+            description: Top-level community created
+    /logo:
+      displayName: the Site logo
+      get:
+        description: Obtains the site logo
+        responses:
+          200:
+            description: the Site logo media file
+      put:
+        description: Updates the site logo
+        responses:
+          200:
+            description: the site logo updated
+    /mdsets:
+      displayName: the Site metadata sets
+      get:
+        description: Obtains the list of site metadata sets
+        responses:
+          200:
+            description: the entity list of site metadata sets
+    /mdset/{name}:
+      displayName: a Site metadata set
+      uriParameters:
+        name:
+          description: the metadata set name
+          type: string
+      get:
+        description: Obtains a site metadata set
+        responses:
+          200:
+            description: a site metadata set
+      put:
+        description: Upadates site metadata
+        responses:
+          200:
+            description: site metadata updated
+    /mdviews:
+      displayName: a Site metadata view set
+      get:
+        description: Obtains a list of site views
+        responses:
+          200:
+            description: A site metadata view entity list
+    /mdview/{name}:
+      displayName: a Site metadata view
+      uriParameters:
+        name:
+          description: the metdata view name
+          type: string
+      get:
+        description: Obtains a metadata view for site
+        responses:
+          200:
+            description: a site metdata view
+  /{prefix}/{id}:
+    displayName: A DSpace content object - Community, Collection, Item, or Bitstream
+    uriParameters:
+      prefix:
+        description: the content handle prefix
+        type: string
+      id:
+        description: the content handle id
+        type: string
+    get:
+      description: Obtain a content object representation
+      responses:
+        200:
+          description: Object representation
+        404:
+          description: No object found for prefix and id
+    delete:
+      description: Removes content object. If container, removes all children objects.
+      responses:
+        204:
+          description: Content object removed
+        401:
+          description: Content object removal not authorized
+    /collections:
+      description: A community's collections
+      get:
+        description: Returns an entity list of a community's collections
+        responses:
+          200:
+            description: The collection entity list
+      post:
+        description: Creates a new collection in the community
+        responses:
+          201:
+            description: New collection created
+    /subcommunities:
+      description: A community's subcommuities
+      get:
+        description: Returns an entity list of a community's subcommunities
+        responses:
+          200:
+            description: The subcommunity entity list
+      post:
+        description: Creates a new subcommunity in the community
+        responses:
+          201:
+            description: New subcommunity created
+    /items:
+      description: A collection's items
+      get:
+        description: Returns an entity list of a collection's items
+        responses:
+          200:
+            description: The item entity list
+    /filters:
+      description: An item's filters
+      get:
+        description: Returns an entity list of an item's filters (bundles)
+        responses:
+          200:
+            description: The filter entity list
+    /mdsets:
+      description: A content object's metadata sets
+      get:
+        description: Returns an entity list of a content object's metadata sets
+        responses:
+          200:
+            description: The metadata set entity list
+    /mdviews:
+      description: A content object's metadata views
+      get:
+        description: Returns an entity list of a content object's metadata views
+        responses:
+          200:
+            description: The metadata view entity list
+    /packages:
+      description: A content object's packaged archives
+      get:
+        description: Returns an entity list of a content object's defined package types
+        responses:
+          200:
+            description: The package type entity list
+    /filter/{name}:
+      description: An item's filter (bundle)
+      uriParameters:
+        name:
+          description: the filter namme (Bundle name)
+          type: string
+      get:
+        description: Returns an item filter (bundle)
+        responses:
+          200:
+            description: the item filter (bundle)
+    /mdset/{name}:
+      description: A content object's metdata set
+      uriParameters:
+        name:
+          description: the metadata set name
+          type: string
+      get:
+        description: Returns a content object's metadata set
+        responses:
+          200:
+            description: the metadata set
+      put:
+        description: Updates a content object's metadata set
+        responses:
+          200:
+            description: Metadata set updated
+    /mdview/{name}:
+      description: A content object's metadata view
+      uriParameters:
+        name:
+          description: the metadata view name
+          type: string
+      get:
+        description: Returns a metadata view
+        responses:
+          200:
+            description: the metadata view
+    /package/{name}:
+      description: A content object package
+      uriParameters:
+        name:
+          description: the package type name
+          type: string
+      get:
+        description: Returns content in a package
+        responses:
+          200:
+            description: the content object package
+      post:
+        description: create a new content object under the content object
+        responses:
+          201:
+            description: content has been created
+    /media/{name}:
+      description: A bitstream media object
+      uriParameters:
+        name:
+          description: the media object file name
+          type: string
+      get:
+        description: Returns a media object
+        responses:
+          200:
+            description: the media object
+/curation:
+  displayName: Content Curation Operations
+  /taskgroups:
+    description: Groups of curaton tasks
+    get:
+      description: Returns list of curation task groups
+      responses:
+        200:
+          description: a list of curation task groups
+  /taskgroup/{groupId}:
+    description: Returns a task group
+    uriParameters:
+      groupId:
+        description: the task group ID
+        type: string
+    get:
+      description: Returns a task group
+      responses:
+        200:
+          description: Curation task group
+  /selectorgroups:
+    description: Groups of content selectors
+    get:
+      description: List of all content selector groups
+      responses:
+        200:
+          description: a list of content selector groups
+  /selectorgroup/{groupId}:
+    description:  A content selection group
+    uriParameters:
+      groupId:
+        description: the selector group ID
+        type: string
+    get:
+      description: Returns a content selector group
+      responses:
+        200:
+          description: Curation selector group
+  /content/{prefix}/{id}:
+    description: Perform a curation task on a content object
+    uriParameters:
+      prefix:
+        description: the content object handle prefix
+        type: string
+      id:
+        description: the content object handle ID
+        type: string
+    post:
+      description: Performs a task described in the entity
+      responses:
+        200:
+          description: Curation task performed
+  /set/{selector}:
+    description: Perform a curation task on a content selector
+    uriParameters:
+      selector:
+        description: the selector name
+        type: string
+    post:
+      description: Performs a curation task on content selector
+      responses:
+        200:
+          description: Curation task performed
+/info:
+  displayName: System Information
+  get:
+    description: Obtains a list of information resources
+    responses:
+      200:
+        description: an entity list of information resources
+  /server:
+    get:
+      responses:
+        200:
+          description: Information about server environment - OS, Java, Servlet Container
+  /system:
+    get:
+      responses:
+        200:
+          description: List of installed mds modules with versions, install dates
+  /assets:
+    get:
+      responses:
+        200:
+          description: Counts of communities, collections, items, bitstreams and total storage used
+  /formats:
+    get:
+      responses:
+        200:
+          description: Bitstream format distribution (counts by format type)
+  /users:
+    get:
+      responses:
+        200:
+          description: Counts of users and groups
+  /workflow:
+    get:
+      responses:
+        200:
+          description: Counts of workspace and workflow items
+  /metadata:
+    get:
+      responses:
+        200:
+          description: Entity list of installed metadata schema
+  /metadata/{key}:
+    uriParameters:
+      key:
+        type: string
+    get:
+      responses:
+        200:
+          description: Metadata value distribution in schema (counts per metadata field)
+        404:
+          description: No such schema name or id
+/authz:
+  displayName: Authorization
+  /epeople:
+    post:
+      responses:
+        201:
+          description: EPerson created
+        401:
+          description: EPerson creation not authorized
+    /{query}:
+      description: Finds EPeople matching query
+      uriParameters:
+        query:
+          description: the query string
+          type: string
+      get:
+        responses:
+          200:
+            description: An entity list of EPersons matching query
+  /eperson/{key}:
+    uriParameters:
+      key:
+        type: string
+    get:
+      responses:
+        200:
+          description: Returns the EPerson with the given key (EMail)
+  /eperson/{id}:
+    uriParameters:
+      id:
+        type: number
+    put:
+      responses:
+        200:
+          description: EPerson data updated
+        401:
+          description: EPerson update not authorizied
+        404:
+          description: EPerson not found
+    delete:
+      responses:
+        204:
+          description: EPerson removed
+        401:
+          description: EPerson deletion not authorized
+    /groups:
+      description: The groups an EPerson is a member of
+      get:
+        responses:
+          200:
+            description: An entity list of the groups the EPerson is a member of
+  /groups:
+    post:
+      responses:
+        201:
+          description: Group created
+        401:
+          description: Group creation not authorized
+  /group/{id}:
+    uriParameters:
+      id:
+        type: number
+    get:
+      responses:
+        200:
+          description: The Group
+    put:
+      responses:
+        200:
+          description: Group data updated
+        401:
+          description: Group update not authorizied
+        404:
+          description: Group not found
+    delete:
+      responses:
+        204:
+          description: Group removed
+        401:
+          description: Group deletion not authorized
+    /members:
+      description: The EPerson members of the group
+      get:
+        responses:
+          200:
+            description: The entity list of EPerson members of the group
+    /groupmembers:
+      description: The Group members of the group
+      get:
+        responses:
+          200:
+            description: The entity list of group members of the group
+    /eperson/{id}:
+      description: An EPerson membership in a group
+      uriParameters:
+        id:
+          type: number
+      get:
+        responses:
+          200:
+            description: The EPerson membership
+      put:
+        responses:
+          201:
+            description: Eperson has been added as a member
+          401:
+            description: Membership addition not authorized
+      delete:
+        responses:
+          204:
+            description: EPerson removed from group membership
+          401:
+            description: Membership deletion not authorized
+    /group/{id}:
+      description: A group membership in a group
+      uriParameters:
+        id:
+          type: number
+      get:
+        responses:
+          200:
+            description: The Group membership
+      put:
+        responses:
+          201:
+            description: Group has been added as a member
+          401:
+            description: Membership addition not authorized
+      delete:
+        responses:
+          204:
+            description: Group removed from group membership
+          401:
+            description: Membership deletion not authorized
+  /policies:
+    post:
+      responses:
+        201:
+          description: Resource policy created
+        401:
+          description: Policy creation not authorized
+  /policy/{id}:
+    uriParameters:
+      id:
+        type: number
+    get:
+      responses:
+        200:
+          description: Returns resource policy
+    put:
+      responses:
+        200:
+          description: Resource policy updated
+    delete:
+      responses:
+        204:
+          description: Resource policy removed
+        401:
+          description: Resource policy deletion not authorized
+  /{prefix}/{id}/policies:
+    description: A content object's policies
+    uriParameters:
+      prefix:
+        type: string
+      id:
+        type: string
+    get:
+      description: Obtains the set of policies for a resource
+      responses:
+        200:
+          description: An entity list of all the resource's policies
+/registry:
+  displayName: Maintain Registry Data
+  /schemas:
+    displayName: Metadata Schemas
+    get:
+      description: Obtain a list of all metadata schemas
+      responses:
+        200:
+          description: An entity list of all defined metadata schemas
+    post:
+      description: Create a new metadata schema
+      responses:
+        201:
+          description: Metadata schema created
+  /schemas/{query}:
+    displayName: Metadata Schemas from q query
+    uriParameters:
+      query:
+        type: string
+    get:
+      responses:
+        200:
+          description: List of all metadata schemas matching query
+  /schema/{id}:
+    displayName: A Metadata Schema
+    uriParameters:
+      id:
+        type: number
+    get:
+      description: Obtain a metadata schema
+      responses:
+        200:
+          description: A metadata schema representation
+    put:
+      description: Update a metdata schema
+      responses:
+        200:
+          description: Schema updated
+    delete:
+      description: Remove a metadata schema
+      responses:
+        204:
+          description: Schema removed
+        401:
+          description: Deletion not authorized
+  /schema/{id}/fields:
+    displayName: List of fields in given schema
+    uriParameters:
+      id:
+        type: number
+    get:
+      responses:
+        200:
+          description: Entity list of fields belonging to schema
+        404:
+          description: No such schema
+  /fields:
+    displayName: Metadata Fields
+    get:
+      description: Obtain a list of all metadata fields
+      responses:
+        200:
+          description: An entity list of all defined metadata fields
+    post:
+      description: Create a new metadata field
+      responses:
+        201:
+          description: Metadata field created
+  /field/{id}:
+    displayName: A Metadata Field
+    uriParameters:
+      id:
+        type: number
+    get:
+      description: Obtain a metadata field
+      responses:
+        200:
+          description: A metadata field representation
+    put:
+      description: Update a metadata field
+      responses:
+        200:
+          description: Metadata field updated
+    delete:
+      description: Removes a metadata field
+      responses:
+        204:
+          description: Metadata field removed
+        401:
+          description: Deletion not authorized
+  /formats:
+    displayName: Bitstream Formats
+    get:
+      description: Obtain a list of all bitstream formats
+      responses:
+        200:
+          description: An entity list of all defined bitstream formats
+    post:
+      description: Create a new bitstream format
+      responses:
+        201:
+          description: Bitstream Format created
+  /format/{id}:
+    displayName: A Bitstream Format
+    uriParameters:
+      id:
+        type: number
+    get:
+      description: Obtain a bitstream format
+      responses:
+        200:
+          description: A bitstream format representation
+    put:
+      description: Update a bitstream format
+      responses:
+        200:
+          description: Format updated
+    delete:
+      description: Remove a bitstream format
+      responses:
+        204:
+          description: Bitstream format removed
+        401:
+          description: Format deletion not authorized
+/submit:
+  /{prefix}/{id}/submissions:
+    displayName: A collection's open submissions
+    uriParameters:
+      prefix:
+        description: the Collection handle prefix
+        type: string
+      id:
+        description: the Collection handle ID
+        type: string
+    get:
+      description: Obtains an entity list of open submissions to this collection
+      responses:
+        200:
+          description: The submission entity list
+    post:
+      description: Creates a new submission to this collection
+      responses:
+        201:
+          description: A new submission has been created
+  /{id}:
+    displayName: An Item Submission
+    uriParameters:
+      id:
+        description: the submission ID
+        type: number
+    get:
+      description: Obtains an item submission
+      responses:
+        200:
+          description: An entity describing the submission
+        404:
+          description: No submission with requested id
+    delete:
+      description: Removes an item submission
+      queryParameters:
+        discard:
+          displayName: Discard
+          description: submission disposition, if "true" submission not installed
+          type:  string
+          required: false
+      responses:
+        204:
+          description: Submission removed
+    /bitstreams:
+      displayName: The submission bitstreams
+      get:
+        description: Obtains the entiity list of bitstreams in submission
+        responses:
+          200:
+            description: An entity list of submission bitstreams
+      post:
+        description: Adds a new bitstream to the submission
+        responses:
+          201:
+            description: A new bitstream was added to the submission
+    /mdspecs:
+      displayName: The submission input metadata specifications
+      get:
+        description: An entity list of input specifications for the submission
+        responses:
+          200:
+            description: the input metdata spec entity list
+    /bitstream/{seqNo}:
+      displayName: A submission bitstream entity 
+      uriParameters:
+        seqNo:
+          description: the bitstream item sequence number
+          type: number
+      get:
+        description: a submission metadata specification entity
+        responses:
+          200:
+            description: a metdata input specification
+      delete:
+        description: removes a submission bitstream
+        responses:
+          204:
+            description: submission bitstream removed
+      /mdspecs:
+        displayName: The submission bitstreams's input metadata specifications
+        get:
+          description: Obtains the entity list of metadata input specifications for the bitstream
+          responses:
+            200:
+              description: Bitstream metadata specification entity list
+      /mdspec/{name}:
+        displayName: A submission bitstreams input metadata specification
+        uriParameters:
+          name:
+            description: the metdata input specification name
+            type: string
+        get:
+          description: Obtains the named specification
+          responses:
+            200:
+              description:  An input metadata specification
+        put:
+          description: Updates the submission bitstream metadata
+          responses:
+            200:
+              description: The updated submission bitstream metadata
+    /mdspec/{name}:
+      displayName: A submission metdata input specification
+      uriParameters:
+        name:
+          description: the specification name
+          type: string
+      get:
+        description: Obtains a metadata specification with existing values
+        responses:
+          200:
+            description: Metadata specification
+      put:
+        description: Updates submission metadata
+        responses:
+          200:
+            description: the updated metadata
+      

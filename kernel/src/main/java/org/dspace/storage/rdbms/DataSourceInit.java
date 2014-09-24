@@ -24,15 +24,12 @@ public class DataSourceInit {
 
     private static DataSource dataSource = null;
 
-    public static DataSource getDatasource() throws SQLException
-    {
-        if (dataSource != null)
-        {
+    public static DataSource getDatasource() throws SQLException {
+        if (dataSource != null) {
             return dataSource;
         }
 
-        try
-        {
+        try {
             // Register basic JDBC driver
             Class driverClass = Class.forName(ConfigurationManager.getProperty("db.driver"));
             DriverManager.registerDriver((Driver)driverClass.newInstance());
@@ -43,35 +40,25 @@ public class DataSourceInit {
             bcpDS.setUsername(ConfigurationManager.getProperty("db.username"));
             bcpDS.setPassword(ConfigurationManager.getProperty("db.password"));
             // pool configuration
-            bcpDS.setMaxConnectionsPerPartition(
-            		ConfigurationManager.getIntProperty("db.maxconnections", 30));
+            bcpDS.setMaxConnectionsPerPartition(ConfigurationManager.getIntProperty("db.maxconnections", 30));
             int min = ConfigurationManager.getIntProperty("db.maxidle", -1);
-            if (min > 0)
-            {
-            	bcpDS.setMinConnectionsPerPartition(min);
+            if (min > 0) {
+                bcpDS.setMinConnectionsPerPartition(min);
             }
-            bcpDS.setConnectionTimeoutInMs(
-            		ConfigurationManager.getIntProperty("db.maxwait", 5000));
+            bcpDS.setConnectionTimeoutInMs(ConfigurationManager.getIntProperty("db.maxwait", 5000));
             bcpDS.setPartitionCount(1);
 
             if (! ConfigurationManager.getBooleanProperty("db.statementpool",true))
             {
-            	bcpDS.setStatementsCacheSize(0);
+                bcpDS.setStatementsCacheSize(0);
             }
             
             String validationQuery = "SELECT 1";
-            // Oracle has a slightly different validation query
-            if ("oracle".equals(ConfigurationManager.getProperty("db.name")))
-            {
-                validationQuery = "SELECT 1 FROM DUAL";
-            }
             bcpDS.setConnectionTestStatement(validationQuery);
             log.debug("BoneCP dataSource initialized");
             dataSource = bcpDS;
             return dataSource;
-        }
-        catch (Exception e)
-        {
+        } catch (Exception e) {
             // Need to be able to catch other exceptions. Pretend they are
             // SQLExceptions, but do log
             log.warn("Exception initializing DB pool", e);

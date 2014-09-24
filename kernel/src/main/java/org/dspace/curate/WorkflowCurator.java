@@ -8,7 +8,6 @@
 package org.dspace.curate;
 
 import org.dspace.content.Item;
-import java.util.Arrays;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -49,7 +48,7 @@ public class WorkflowCurator {
       /** log4j logger */
     private static Logger log = LoggerFactory.getLogger(WorkflowCurator.class);
     
-    private static File cfgFile = new File(ConfigurationManager.getProperty("dspace.dir") +
+    private static File cfgFile = new File(ConfigurationManager.getProperty("site.home") +
                                     File.separator + "config" + File.separator +
                                     "workflow-curation.xml");
     
@@ -90,7 +89,7 @@ public class WorkflowCurator {
             // are we going to perform, or just put on queue?
             if (step.queue != null) {
                 for (Task task : step.tasks) {
-                    curator.addTask(task.name);
+                    curator.addTask(c, task.name);
                 }
                 curator.queue(c, String.valueOf(wfi.getID()), step.queue);
                 wfi.update();
@@ -133,7 +132,7 @@ public class WorkflowCurator {
             Item item = wfi.getItem();
             item.setOwningCollection(wfi.getCollection());
             for (Task task : step.tasks) {
-                curator.addTask(task.name);
+                curator.addTask(c, task.name);
                 curator.curate(item);
                 int status = curator.getStatus(task.name);
                 String result = curator.getResult(task.name);
@@ -190,13 +189,13 @@ public class WorkflowCurator {
                 if (step < 4) {
                     Group wfGroup = wfi.getCollection().getWorkflowGroup(step);
                     if (wfGroup != null) {
-                        epList.addAll(Arrays.asList(Group.allMembers(c, wfGroup)));
+                        epList.addAll(Group.allMembers(c, wfGroup));
                     }
                 }
             } else if ("$colladmin".equals(contact)) {
                 Group adGroup = wfi.getCollection().getAdministrators();
                 if (adGroup != null) {
-                    epList.addAll(Arrays.asList(Group.allMembers(c, adGroup)));
+                    epList.addAll(Group.allMembers(c, adGroup));
                 }
             } else if ("$siteadmin".equals(contact)) {
                 EPerson siteEp = EPerson.findByEmail(c, 
@@ -214,7 +213,7 @@ public class WorkflowCurator {
                 // assume it is an arbitrary group name
                 Group group = Group.findByName(c, contact);
                 if (group != null) {
-                    epList.addAll(Arrays.asList(Group.allMembers(c, group)));
+                    epList.addAll(Group.allMembers(c, group));
                 } 
             }
         }

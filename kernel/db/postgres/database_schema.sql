@@ -36,8 +36,6 @@
 -- DAMAGE.
 --
 --
---
---
 --   DSpace SQL schema
 --
 --   Authors:   Peter Breton, Robert Tansley, David Stuve, Daniel Chudnov,
@@ -80,6 +78,7 @@ CREATE SEQUENCE attribute_seq;
 CREATE SEQUENCE bitstreamformatregistry_seq;
 CREATE SEQUENCE fileextension_seq;
 CREATE SEQUENCE bitstream_seq;
+CREATE SEQUENCE site_seq;
 CREATE SEQUENCE eperson_seq;
 CREATE SEQUENCE epersongroup_seq MINVALUE 0;
 CREATE SEQUENCE item_seq;
@@ -110,9 +109,20 @@ CREATE SEQUENCE group2groupcache_seq;
 CREATE SEQUENCE harvested_collection_seq;
 CREATE SEQUENCE harvested_item_seq;
 CREATE SEQUENCE xresmap_seq;
+CREATE SEQUENCE email_template_seq;
 CREATE SEQUENCE mdtemplate_seq;
 CREATE SEQUENCE mdtemplatevalue_seq;
+CREATE SEQUENCE mdview_seq;
+CREATE SEQUENCE mddisplay_seq;
+CREATE SEQUENCE mdspec_seq;
+CREATE SEQUENCE mdfldspec_seq;
+CREATE SEQUENCE packingspec_seq;
 CREATE SEQUENCE command_seq;
+CREATE SEQUENCE cjournal_seq;
+CREATE SEQUENCE ctask_seq;
+CREATE SEQUENCE ctask_group_seq;
+CREATE SEQUENCE group2ctask_seq;
+CREATE SEQUENCE ctask_queue_seq;
 
 -------------------------------------------------------
 -- DSpaceObject table
@@ -188,6 +198,17 @@ CREATE TABLE Bitstream
 
 CREATE INDEX bitstream_dso_fk_idx ON Bitstream(dso_id);
 CREATE INDEX bit_bitstream_fk_idx ON Bitstream(bitstream_format_id);
+
+---------------------------------
+-- Site table (singleton)        
+---------------------------------
+CREATE TABLE Site
+(
+  site_id            INTEGER PRIMARY KEY,
+  dso_id             INTEGER REFERENCES DSpaceObject(dso_id),
+  name               VARCHAR(128),
+  logo_bitstream_id  INTEGER REFERENCES Bitstream(bitstream_id)
+);   
 
 -------------------------------------------------------
 -- EPerson table
@@ -329,7 +350,8 @@ CREATE TABLE MetadataSchemaRegistry
 (
   metadata_schema_id INTEGER PRIMARY KEY DEFAULT NEXTVAL('metadataschemaregistry_seq'),
   namespace          VARCHAR(256) UNIQUE,
-  short_id           VARCHAR(32) UNIQUE
+  short_id           VARCHAR(32) UNIQUE,
+  sealed             BOOL
 );
 
 CREATE TABLE MetadataFieldRegistry
@@ -575,7 +597,6 @@ CREATE TABLE RegistrationData
   expires               TIMESTAMP
 );
 
-
 -------------------------------------------------------
 --  Subscription table
 -------------------------------------------------------
@@ -588,7 +609,6 @@ CREATE TABLE Subscription
 
 CREATE INDEX subs_eperson_fk_idx ON Subscription(eperson_id);
 CREATE INDEX subs_collection_fk_idx ON Subscription(collection_id);
-
 
 -------------------------------------------------------------------------------
 -- EPersonGroup2WorkspaceItem table
@@ -628,20 +648,6 @@ SELECT Community2Collection.community_id, Collection2Item.item_id
 FROM Community2Collection, Collection2Item
 WHERE Collection2Item.collection_id   = Community2Collection.collection_id
 ;
-
--------------------------------------------------------------------------
--- Tables to manage cache of item counts for communities and collections
--------------------------------------------------------------------------
-
-CREATE TABLE collection_item_count (
-        collection_id INTEGER PRIMARY KEY REFERENCES collection(collection_id),
-        count INTEGER
-);
-
-CREATE TABLE community_item_count (
-        community_id INTEGER PRIMARY KEY REFERENCES community(community_id),
-        count INTEGER
-);
 
 -------------------------------------------------------
 --  Create 'special' groups, for anonymous access
@@ -684,19 +690,63 @@ CREATE TABLE harvested_item
 
 CREATE INDEX harvested_item_fk_idx ON harvested_item(item_id);
 
+-------------------------------------------------------
+-- curation task tables
+-------------------------------------------------------
+
 CREATE TABLE ctask_data
 (
-    ctask_id 		INTEGER PRIMARY KEY,
-    name		    VARCHAR,
-    description		VARCHAR,
-    type            INTEGER,
+    ctask_id        INTEGER PRIMARY KEY DEFAULT NEXTVAL('ctask_seq'),
+    name            VARCHAR UNIQUE,
+    description     VARCHAR,
+    type            VARCHAR,
+    impl            VARCHAR,
+    load_addr       VARCHAR,
+    script          VARCHAR,
+    config          VARCHAR,
     install_date    TIMESTAMP,
-    version_str		VARCHAR,
-    load_addr		VARCHAR,
-    config		    VARCHAR,
-    info_url		VARCHAR,
-    visible_ui      BOOL,
-    visible_api     BOOL
+    version         VARCHAR,
+    info_url        VARCHAR
+);
+
+CREATE TABLE ctask_group
+(
+    ctask_group_id  INTEGER PRIMARY KEY DEFAULT NEXTVAL('ctask_group_seq'),
+    type            VARCHAR,
+    group_name      VARCHAR,
+    description     VARCHAR,
+    ui_access       BOOLEAN,
+    api_access      BOOLEAN
+);
+
+CREATE TABLE group2ctask
+(
+    id              INTEGER PRIMARY KEY DEFAULT NEXTVAL('group2ctask_seq'),
+    group_id        INTEGER REFERENCES ctask_group(ctask_group_id),
+    ctask_id        INTEGER REFERENCES ctask_data(ctask_id)
+);
+
+CREATE TABLE ctask_queue
+(
+    ctask_queue_id   INTEGER PRIMARY KEY DEFAULT NEXTVAL('ctask_queue_seq'),
+    queue_name       VARCHAR,
+    task_list        VARCHAR,
+    eperson_id       VARCHAR,
+    enqueue_time     TIMESTAMP,
+    target           VARCHAR,
+    jrn_filter       VARCHAR,
+    ticket           INTEGER
+);
+
+CREATE TABLE cjournal
+(
+  cjournal_id    INTEGER PRIMARY KEY DEFAULT NEXTVAL('cjournal_seq'),
+  curation_date  TIMESTAMP,
+  user_id        VARCHAR,
+  task           VARCHAR,
+  object_id      VARCHAR,
+  status         INTEGER,
+  result         VARCHAR
 );
 
 -------------------------------------------------------
@@ -709,6 +759,16 @@ CREATE TABLE xresmap
     mapping       VARCHAR,
     res_key       VARCHAR,
     resource      VARCHAR
+);
+
+-------------------------------------------------------
+-- email template table
+-------------------------------------------------------
+CREATE TABLE email_template
+(
+    email_template_id    INTEGER PRIMARY KEY DEFAULT NEXTVAL('email_template_seq'),
+    name                 VARCHAR UNIQUE,
+    template             VARCHAR
 );
 
 ------------------------------------------------------
@@ -732,6 +792,76 @@ CREATE TABLE mdtemplatevalue
   text_lang            VARCHAR(24)
 );
 
+------------------------------------------------------
+-- mdview table
+------------------------------------------------------
+CREATE TABLE mdview
+(
+  mdview_id          INTEGER PRIMARY KEY DEFAULT NEXTVAL('mdview_seq'),
+  description        TEXT
+);
+
+------------------------------------------------------
+-- mddisplay table
+------------------------------------------------------
+CREATE TABLE mddisplay
+(
+  mddisplay_id         INTEGER PRIMARY KEY DEFAULT NEXTVAL('mddisplay_seq'),
+  mdview_id            INTEGER REFERENCES mdview(mdview_id),
+  metadata_field_id    INTEGER REFERENCES MetadataFieldRegistry(metadata_field_id),
+  altname              TEXT,
+  label                TEXT,
+  render_type          TEXT,
+  wrapper              TEXT,
+  disp_lang            VARCHAR(24),
+  place                INTEGER
+);
+
+------------------------------------------------------
+-- mdspec table
+------------------------------------------------------
+CREATE TABLE mdspec
+(
+  mdspec_id          INTEGER PRIMARY KEY DEFAULT NEXTVAL('mdspec_seq'),
+  description        TEXT
+);
+
+------------------------------------------------------
+-- mdfldspec table
+------------------------------------------------------
+CREATE TABLE mdfldspec
+(
+  mdfldspec_id         INTEGER PRIMARY KEY DEFAULT NEXTVAL('mdfldspec_seq'),
+  mdspec_id            INTEGER REFERENCES mdspec(mdspec_id),
+  metadata_field_id    INTEGER REFERENCES MetadataFieldRegistry(metadata_field_id),
+  altname              TEXT,
+  label                TEXT,
+  description          TEXT,
+  cardinality          TEXT,
+  input_type           TEXT,
+  locked               BOOL,
+  disp_lang            VARCHAR(24),
+  place                INTEGER
+);
+
+
+-------------------------------------------------------
+-- packingspec table
+-------------------------------------------------------
+CREATE TABLE packingspec
+(
+  packingspec_id      INTEGER PRIMARY KEY DEFAULT NEXTVAL('packingspec_seq'),
+  name                TEXT,
+  description         TEXT,
+  packer              TEXT,
+  format              TEXT,
+  content_filter      TEXT,
+  metadata_filter     TEXT,
+  reference_filter    TEXT,
+  mimetype            TEXT,
+  package_id          TEXT
+);
+
 -------------------------------------------------------
 -- Command table
 -------------------------------------------------------
@@ -742,7 +872,7 @@ CREATE TABLE command
   description          VARCHAR,
   class_name           VARCHAR,
   arguments            VARCHAR,
-  launchable	         BOOL,
+  launchable           BOOL,
   fwd_user_args        BOOL,
   successor            INTEGER 
 );

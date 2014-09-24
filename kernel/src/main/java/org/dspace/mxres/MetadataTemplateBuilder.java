@@ -21,22 +21,25 @@ import org.dspace.storage.rdbms.TableRow;
  */
 
 public class MetadataTemplateBuilder implements ResourceBuilder {
-	/**
-	 * Constructs a metadata template resource given an identifier.
-	 * Identifier presumed to be unique within the resource type.
-	 * 
-	 * @parm context - the DSpace context
-	 * @param resId - the unique (modulo class) identifier for the resource
-	 * @return resource - the extensible resource instance
-	 */
-	@Override
-	public ExtensibleResource build(Context context, String resId) {
-		try {
-			TableRow tRow = DatabaseManager.find(context, "mdtemplate", Integer.valueOf(resId));
-			if (tRow != null) {
-				return new MetadataTemplate(context, tRow);
-			}
-		} catch (SQLException sqlE) {}
-		return null;
-	}
+    
+    public MetadataTemplateBuilder() {}
+    
+    /**
+     * Constructs a metadata template resource given an identifier.
+     * Identifier presumed to be unique within the resource type.
+     * 
+     * @parm context - the DSpace context
+     * @param resId - the unique (modulo class) identifier for the resource
+     * @return resource - the extensible resource instance
+     */
+    @Override
+    public ExtensibleResource build(Context context, String resId) {
+        try {
+            TableRow tRow = DatabaseManager.find(context, "mdtemplate", Integer.valueOf(resId));
+            if (tRow != null) {
+                return new MetadataTemplate(context, tRow);
+            }
+        } catch (SQLException sqlE) {}
+        return null;
+    }
 }

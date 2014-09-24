@@ -23,6 +23,7 @@ import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
 import org.dspace.event.Event;
+import org.dspace.event.ContentEvent.EventType;
 import org.dspace.storage.rdbms.DatabaseManager;
 import org.dspace.storage.rdbms.TableRow;
 import org.dspace.storage.rdbms.TableRowIterator;
@@ -57,7 +58,7 @@ public class Bundle extends DSpaceObject
         tableRow = row;
         bitstreams = new ArrayList<Bitstream>();
         String bitstreamOrderingField  = ConfigurationManager.getProperty("webui.bitstream.order.field");
-        String bitstreamOrderingDirection   = ConfigurationManager.getProperty("webui.bitstream.order.direction");
+        String bitstreamOrderingDirection  = ConfigurationManager.getProperty("webui.bitstream.order.direction");
 
         if (bitstreamOrderingField == null) {
             bitstreamOrderingField = "sequence_id";
@@ -160,10 +161,12 @@ public class Bundle extends DSpaceObject
         log.info(LogManager.getHeader(context, "create_bundle", "bundle_id="
                 + row.getIntColumn("bundle_id")));
 
-        context.addEvent(new Event(Event.CREATE, Constants.BUNDLE, row.getIntColumn("bundle_id"), null));
-
         Bundle b = new Bundle(context, row);
         b.createDSO();
+
+        context.addEvent(new Event(Event.CREATE, Constants.BUNDLE, row.getIntColumn("bundle_id"), null));
+        context.addContentEvent(b, EventType.CREATE);
+
         return b;
     }
 
@@ -373,6 +376,7 @@ public class Bundle extends DSpaceObject
         bitstreams.add(b);
 
         context.addEvent(new Event(Event.ADD, Constants.BUNDLE, getID(), Constants.BITSTREAM, b.getID(), String.valueOf(b.getSequenceID())));
+        context.addContainerEvent(this, EventType.ADD, b);
 
         // copy authorization policies from bundle to bitstream
         // FIXME: multiple inclusion is affected by this...
@@ -463,6 +467,7 @@ public class Bundle extends DSpaceObject
         }
 
         context.addEvent(new Event(Event.REMOVE, Constants.BUNDLE, getID(), Constants.BITSTREAM, b.getID(), String.valueOf(b.getSequenceID())));
+        context.addContainerEvent(this, EventType.REMOVE, b);
 
         //Ensure that the last modified from the item is triggered !
         Item owningItem = (Item) getParentObject();
@@ -505,7 +510,8 @@ public class Bundle extends DSpaceObject
     /**
      * Update the bundle metadata
      */
-    public void update() throws SQLException, AuthorizeException {
+    @Override
+    public void update() throws AuthorizeException, SQLException {
         // Check authorisation
         //AuthorizeManager.authorizeAction(context, this, Constants.WRITE);
         log.info(LogManager.getHeader(context, "update_bundle", "bundle_id=" + getID()));
@@ -522,6 +528,7 @@ public class Bundle extends DSpaceObject
                 + getID()));
 
         context.addEvent(new Event(Event.DELETE, Constants.BUNDLE, getID(), getName()));
+        context.addContentEvent(this, EventType.DELETE);
 
         // Remove from cache
         context.removeCached(this, getID());

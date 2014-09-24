@@ -293,6 +293,18 @@ public class MetadataField {
     }
 
     /**
+     * Returns a count of metadata values in this field
+     *
+     * @param context dspace context
+     * @return count of metadata values in field
+     * @throws SQLException
+     */
+    public long count(Context context) throws SQLException {
+        return DatabaseManager.querySingle(context,
+        "SELECT count(*) as vct from metadatavalue WHERE metadata_field_id = ?", getFieldID()).getLongColumn("vct");
+    }
+
+    /**
      * Update the metadata field in the database.
      *
      * @param context dspace context
@@ -406,7 +418,7 @@ public class MetadataField {
     static class Mapper implements ResultSetMapper<MetadataField> {
         @Override
         public MetadataField map(int index, ResultSet rs, StatementContext sctx) throws SQLException {
-            return new MetadataField(rs.getInt(0), rs.getInt(1), rs.getString(2), rs.getString(3), rs.getString(4));
+            return new MetadataField(rs.getInt(1), rs.getInt(2), rs.getString(3), rs.getString(4), rs.getString(5));
         }
     }
 

@@ -542,7 +542,7 @@ public class WorkflowManager
             if ((mygroup != null) && !(mygroup.isEmpty()))
             {
                 // get a list of all epeople in group (or any subgroups)
-                EPerson[] epa = Group.allMembers(c, mygroup);
+                List<EPerson> epa = Group.allMembers(c, mygroup);
                 
                 // there were reviewers, change the state
                 //  and add them to the list
@@ -584,7 +584,7 @@ public class WorkflowManager
             if ((mygroup != null) && !(mygroup.isEmpty()))
             {
                 //get a list of all epeople in group (or any subgroups)
-                EPerson[] epa = Group.allMembers(c, mygroup);
+                List<EPerson> epa = Group.allMembers(c, mygroup);
                 
                 // there were approvers, change the state
                 //  timestamp, and add them to the list
@@ -621,7 +621,7 @@ public class WorkflowManager
             if ((mygroup != null) && !(mygroup.isEmpty()))
             {
                 // get a list of all epeople in group (or any subgroups)
-                EPerson[] epa = Group.allMembers(c, mygroup);
+                List<EPerson> epa = Group.allMembers(c, mygroup);
                 
                 // there were editors, change the state
                 //  timestamp, and add them to the list
@@ -729,7 +729,7 @@ public class WorkflowManager
             //EPerson ep = i.getSubmitter();
             // Get the Locale
             Locale supportedLocale = I18nUtil.getEPersonLocale(ep);
-            Email email = ConfigurationManager.getEmail(I18nUtil.getEmailFilename(supportedLocale, "submit_archive"));
+            Email email = Email.fromTemplate(c, I18nUtil.getEmailFilename(supportedLocale, "submit_archive"));
             
             // Get the item handle to email to user
             String handle = HandleManager.findHandle(c, i);
@@ -863,16 +863,14 @@ public class WorkflowManager
 
     // creates workflow tasklist entries for a workflow
     // for all the given EPeople
-    private static void createTasks(Context c, WorkflowItem wi, EPerson[] epa)
-            throws SQLException
-    {
+    private static void createTasks(Context c, WorkflowItem wi, List<EPerson> eps)
+            throws SQLException {
         // create a tasklist entry for each eperson
-        for (int i = 0; i < epa.length; i++)
-        {
+        for (EPerson ep : eps) {
             // can we get away without creating a tasklistitem class?
             // do we want to?
             TableRow tr = DatabaseManager.row("tasklistitem");
-            tr.setColumn("eperson_id", epa[i].getID());
+            tr.setColumn("eperson_id", ep.getID());
             tr.setColumn("workflow_id", wi.getID());
             DatabaseManager.insert(c, tr);
         }
@@ -904,8 +902,7 @@ public class WorkflowManager
             for (int i = 0; i < epa.length; i++)
             {
                 Locale supportedLocale = I18nUtil.getEPersonLocale(epa[i]);
-                Email email = ConfigurationManager.getEmail(I18nUtil.getEmailFilename(supportedLocale,
-                                                                                  "flowtask_notify"));
+                Email email = Email.fromTemplate(c, I18nUtil.getEmailFilename(supportedLocale, "flowtask_notify"));
                 email.addArgument(title);
                 email.addArgument(coll.getMetadata("name"));
                 email.addArgument(submitter);
@@ -924,7 +921,7 @@ public class WorkflowManager
     }
 
     private static void notifyGroupOfTask(Context c, WorkflowItem wi,
-            Group mygroup, EPerson[] epa) throws SQLException, IOException
+            Group mygroup, List<EPerson> epa) throws SQLException, IOException
     {
         // check to see if notification is turned off
         // and only do it once - delete key after notification has
@@ -951,10 +948,9 @@ public class WorkflowManager
 
                 String message = "";
 
-                for (int i = 0; i < epa.length; i++)
-                {
-                    Locale supportedLocale = I18nUtil.getEPersonLocale(epa[i]);
-                    Email email = ConfigurationManager.getEmail(I18nUtil.getEmailFilename(supportedLocale, "submit_task"));
+                for (EPerson ep : epa) {
+                    Locale supportedLocale = I18nUtil.getEPersonLocale(ep);
+                    Email email = Email.fromTemplate(c, I18nUtil.getEmailFilename(supportedLocale, "submit_task"));
                     email.addArgument(title);
                     email.addArgument(coll.getMetadata("name"));
                     email.addArgument(submitter);
@@ -979,7 +975,7 @@ public class WorkflowManager
                     }
                     email.addArgument(message);
                     email.addArgument(getMyDSpaceLink());
-                    email.addRecipient(epa[i].getEmail());
+                    email.addRecipient(ep.getEmail());
                     email.send();
                 }
             }
@@ -996,7 +992,7 @@ public class WorkflowManager
 
     private static String getMyDSpaceLink()
     {
-        return ConfigurationManager.getProperty("dspace.url") + "/mydspace";
+        return ConfigurationManager.getProperty("site.url") + "/mydspace";
     }
 
     private static void notifyOfReject(Context c, WorkflowItem wi, EPerson e,
@@ -1013,7 +1009,7 @@ public class WorkflowManager
             // Get rejector's name
             String rejector = getEPersonName(e);
             Locale supportedLocale = I18nUtil.getEPersonLocale(e);
-            Email email = ConfigurationManager.getEmail(I18nUtil.getEmailFilename(supportedLocale,"submit_reject"));
+            Email email = Email.fromTemplate(c, I18nUtil.getEmailFilename(supportedLocale,"submit_reject"));
 
             email.addRecipient(getSubmitterEPerson(wi).getEmail());
             email.addArgument(title);

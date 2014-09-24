@@ -23,13 +23,12 @@ import org.dspace.authorize.AuthorizeConfiguration;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.authorize.ResourcePolicy;
-import org.dspace.browse.ItemCounter;
-import org.dspace.browse.ItemCountException;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.I18nUtil;
 import org.dspace.core.LogManager;
 import org.dspace.eperson.Group;
+import org.dspace.event.ContentEvent.EventType;
 import org.dspace.event.Event;
 import org.dspace.handle.HandleManager;
 import org.dspace.storage.rdbms.DatabaseManager;
@@ -184,10 +183,12 @@ public class Community extends DSpaceObject
         myPolicy.update();
 
         context.addEvent(new Event(Event.CREATE, Constants.COMMUNITY, c.getID(), c.handle));
+        context.addContentEvent(c, EventType.CREATE);
 
         // if creating a top-level Community, simulate an ADD event at the Site.
         if (parent == null) {
             context.addEvent(new Event(Event.ADD, Constants.SITE, Site.SITE_ID, Constants.COMMUNITY, c.getID(), c.handle));
+            context.addContainerEvent(null, EventType.ADD, c);
         }
 
         log.info(LogManager.getHeader(context, "create_community",
@@ -323,14 +324,14 @@ public class Community extends DSpaceObject
     @Override
     public String getHandle() {
         if (handle == null) {
-        	try {
-				handle = HandleManager.findHandle(context, this);
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				//e.printStackTrace();
-			}
+            try {
+                handle = HandleManager.findHandle(context, this);
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+                //e.printStackTrace();
+            }
         }
-    	return handle;
+        return handle;
     }
 
     /**
@@ -377,6 +378,10 @@ public class Community extends DSpaceObject
 
         if (is != null) {
             Bitstream newLogo = Bitstream.create(context, is);
+            // give it some standard attributes
+            newLogo.setSequenceID(1);
+            newLogo.setName("logo");
+            newLogo.update();
             tableRow.setColumn("logo_bitstream_id", newLogo.getID());
             logo = newLogo;
 
@@ -396,7 +401,8 @@ public class Community extends DSpaceObject
     /**
      * Update the community metadata (including logo) to the database.
      */
-    public void update() throws SQLException, IOException, AuthorizeException {
+    @Override
+    public void update() throws AuthorizeException, SQLException {
         // Check authorisation
         canEdit();
         log.info(LogManager.getHeader(context, "update_community", "community_id=" + getID()));
@@ -679,6 +685,7 @@ public class Community extends DSpaceObject
                 mappingRow.setColumn("collection_id", c.getID());
 
                 context.addEvent(new Event(Event.ADD, Constants.COMMUNITY, getID(), Constants.COLLECTION, c.getID(), c.getHandle()));
+                context.addContainerEvent(this, EventType.ADD, c);
 
                 DatabaseManager.insert(context, mappingRow);
             }
@@ -746,6 +753,7 @@ public class Community extends DSpaceObject
                 mappingRow.setColumn("child_comm_id", c.getID());
 
                 context.addEvent(new Event(Event.ADD, Constants.COMMUNITY, getID(), Constants.COMMUNITY, c.getID(), c.getHandle()));
+                context.addContainerEvent(this, EventType.ADD, c);
 
                 DatabaseManager.insert(context, mappingRow);
             }
@@ -790,6 +798,7 @@ public class Community extends DSpaceObject
         DatabaseManager.setConstraintImmediate(context, "comm2coll_collection_fk");
         
         context.addEvent(new Event(Event.REMOVE, Constants.COMMUNITY, getID(), Constants.COLLECTION, c.getID(), c.getHandle()));
+        context.addContainerEvent(this, EventType.REMOVE, c);
     }
 
     /**
@@ -823,6 +832,7 @@ public class Community extends DSpaceObject
                 " AND child_comm_id= ? ", getID(),c.getID());
 
         context.addEvent(new Event(Event.REMOVE, Constants.COMMUNITY, getID(), Constants.COMMUNITY, c.getID(), c.getHandle()));
+        context.addContainerEvent(this, EventType.REMOVE, c);
         
         DatabaseManager.setConstraintImmediate(context, "com2com_child_fk");
     }
@@ -873,6 +883,7 @@ public class Community extends DSpaceObject
                 "community_id=" + getID()));
 
         context.addEvent(new Event(Event.DELETE, Constants.COMMUNITY, getID(), getHandle()));
+        context.addContentEvent(this, EventType.DELETE);
 
         // Remove from cache
         context.removeCached(this, getID());
@@ -899,16 +910,6 @@ public class Community extends DSpaceObject
 
         // Remove all authorization policies
         AuthorizeManager.removeAllPolicies(context, this);
-
-        // get rid of the content count cache if it exists
-        try {
-            ItemCounter ic = new ItemCounter(context);
-            ic.remove(this);
-        } catch (ItemCountException e) {
-            // FIXME: upside down exception handling due to lack of good
-            // exception framework
-            throw new IllegalStateException(e.getMessage(),e);
-        }
 
         // Remove any Handle
         HandleManager.unbindHandle(context, this);

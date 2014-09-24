@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+
+<!--
+  - packing-specs.xml
+  -
+  - Named packaging specifications
+  -->
+
+<dspace-packing-specs>
+
+  <packing-spec>
+    <name>pkgspec:community-bagit-aip</name>
+    <scope>replicate-aip</scope>
+    <rule>pkgspec:community-bagit-aip</rule>
+    <description>Bagit AIP of Community</description>
+    <packer>org.dspace.pack.bagit.DSpaceObjectPacker</packer>
+    <format>zip</format>
+    <content-filter></content-filter>
+    <metadata-filter></metadata-filter>
+    <reference-filter></reference-filter>
+    <mimetype>application/zip</mimetype>
+    <package-id>X-Packaging-BagitAIP</package-id>
+  </packing-spec>
+
+  <packing-spec>
+    <name>pkgspec:collection-bagit-aip</name>
+    <scope>replicate-aip</scope>
+    <rule>pkgspec:collection-bagit-aip</rule>
+    <description>Bagit AIP of Collection</description>
+    <packer>org.dspace.pack.bagit.DSpaceObjectPacker</packer>
+    <format>zip</format>
+    <content-filter></content-filter>
+    <metadata-filter></metadata-filter>
+    <reference-filter></reference-filter>
+    <mimetype>application/zip</mimetype>
+    <package-id>X-Packaging-BagitAIP</package-id>
+  </packing-spec>
+
+  <packing-spec>
+    <name>pkgspec:item-bagit-aip</name>
+    <scope>replicate-aip</scope>
+    <!-- rule means that if the owning collection defines an item view, that supercedes this -->
+    <rule>pkgspec:item-bagit-aip</rule>
+    <description>Bagit AIP of Item</description>
+    <packer>org.dspace.pack.bagit.DSpaceObjectPacker</packer>
+    <format>zip</format>
+    <!-- skip derivatives -->
+    <content-filter>TEXT,THUMBNAIL</content-filter>
+    <metadata-filter></metadata-filter>
+    <reference-filter></reference-filter>
+    <mimetype>application/zip</mimetype>
+    <package-id>X-Packaging-BagitAIP</package-id>
+  </packing-spec>
+
+</dspace-packing-specs>

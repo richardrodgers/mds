@@ -1,4 +1,4 @@
-/**
+    /**
  * The contents of this file are subject to the license and copyright
  * detailed in the LICENSE and NOTICE files at the root of the source
  * tree and available online at
@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Strings;
+import com.google.common.eventbus.Subscribe;
 
 import org.dspace.content.Bitstream;
 import org.dspace.content.BoundedIterator;
@@ -51,6 +52,10 @@ import org.dspace.core.Context;
 import org.dspace.core.Email;
 import org.dspace.core.I18nUtil;
 import org.dspace.core.LogManager;
+import org.dspace.event.Consumes;
+import org.dspace.event.ContainerEvent;
+import org.dspace.event.ContentEvent;
+import org.dspace.event.ContentEvent.EventType;
 import org.dspace.handle.HandleManager;
 import org.dspace.sort.SortOption;
 import org.dspace.sort.OrderFormat;
@@ -67,8 +72,9 @@ import org.dspace.sort.OrderFormat;
  *
  * @author richardrodgers
  */
+@Consumes("content")
 public class DSIndexer {
-	
+
     private static final Logger log = LoggerFactory.getLogger(DSIndexer.class);
 
     public static final String LAST_INDEXED_FIELD = "DSIndexer.lastIndexed";
@@ -127,6 +133,41 @@ public class DSIndexer {
     		distributeTask(new IndexingTask(enable ?
     				                        IndexingTask.Action.TX_BEGIN :
     		                                IndexingTask.Action.TX_END));
+    }
+
+    /**
+     * Event Listeners for Indexing
+     *
+     */
+    @Subscribe
+    public void indexContentEvent(ContentEvent event) throws IOException, SQLException {
+        String handle = event.getObject().getHandle();
+        switch(event.getEventType()) {
+            case CREATE:
+            case MODIFY:
+                if (handle != null) {
+                    indexContent(event.getContext(), event.getObject(), true);
+                }
+                break;
+            case DELETE: 
+                if (handle != null) {
+                    // RLR NOte - context not used!
+                    unIndexContent(event.getContext(), handle);
+                }
+                break;
+            default: break;
+        }
+    }
+
+    @Subscribe
+    public void indexContainerEvent(ContainerEvent event) throws IOException, SQLException {
+        switch(event.getEventType()) {
+            case ADD:
+            case REMOVE:
+                indexContent(event.getContext(), event.getMember(), true);
+                break;
+            default: break;
+        }
     }
 
     /**
@@ -200,7 +241,7 @@ public class DSIndexer {
         	unIndexContent(context, dso.getHandle());
         } catch(Exception exception) {
             log.error("Error Unindexing", exception.getMessage(),exception);
-            emailException(exception);
+            emailException(context, exception);
         }
     }
 
@@ -237,7 +278,7 @@ public class DSIndexer {
         	indexContent(context, dso, false);
         } catch(Exception exception) {
             log.error(exception.getMessage(), exception);
-            emailException(exception);
+            emailException(context, exception);
         }
     }
     
@@ -364,14 +405,14 @@ public class DSIndexer {
     	}
     }
 
-    private static void emailException(Exception exception) {
+    private static void emailException(Context context, Exception exception) {
 		// Also email an alert, system admin may need to check for stale lock
 		try {
 			String recipient = ConfigurationManager
 					.getProperty("alert.recipient");
 
 			if (recipient != null) {
-				Email email = ConfigurationManager.getEmail(I18nUtil.getEmailFilename(Locale.getDefault(), "internal_error"));
+				Email email = Email.fromTemplate(context, I18nUtil.getEmailFilename(Locale.getDefault(), "internal_error"));
 				email.addRecipient(recipient);
 				email.addArgument(ConfigurationManager
 						.getProperty("dspace.url"));
@@ -451,11 +492,11 @@ public class DSIndexer {
      * @throws IOException
      */
     private IndexingTask buildItemTask(Item item, IndexConfig config) throws SQLException, IOException {
-    	String handle = item.getHandle();
-    	IndexingTask task = new IndexingTask(IndexingTask.Action.UPDATE);
-    	task.addField(DOCUMENT_KEY, handle);
+        String handle = item.getHandle();
+        IndexingTask task = new IndexingTask(IndexingTask.Action.UPDATE);
+        task.addField(DOCUMENT_KEY, handle);
         task.addFieldSet(buildCommon(item));
-    	
+    
         log.debug("Building Item: " + handle);
         
         // generic item metadata
@@ -533,23 +574,23 @@ public class DSIndexer {
      * Create map of all fields common to DSOs
      */
     private Map<String, String> buildCommon(DSpaceObject dso) throws SQLException {
-    	Map<String, String> fieldMap = new HashMap<String, String>();
-    	// always record last update
-    	fieldMap.put(LAST_INDEXED_FIELD, Long.toString(System.currentTimeMillis()));
-    	fieldMap.put(DOCUMENT_STATUS_FIELD, "archived");
-    	fieldMap.put("search.resourcetype", Integer.toString(dso.getType()));
-    	fieldMap.put("search.resourceid", Integer.toString(dso.getID()));
-    	String handle = dso.getHandle();
-    	if (handle != null) {
-    		fieldMap.put("handle", handle);
-    		fieldMap.put("default", handle);
-    	}
-    	StringBuffer sb = new StringBuffer();
-    	int type = dso.getType();
-    	if (type == Constants.COLLECTION) {
-    		for (Community community : ((Collection)dso).getCommunities()) {
-    			sb.append(" m").append(community.getID());
-    		}
+        Map<String, String> fieldMap = new HashMap<String, String>();
+        // always record last update
+        fieldMap.put(LAST_INDEXED_FIELD, Long.toString(System.currentTimeMillis()));
+        fieldMap.put(DOCUMENT_STATUS_FIELD, "archived");
+        fieldMap.put("search.resourcetype", Integer.toString(dso.getType()));
+        fieldMap.put("search.resourceid", Integer.toString(dso.getID()));
+        String handle = dso.getHandle();
+        if (handle != null) {
+            fieldMap.put("handle", handle);
+            fieldMap.put("default", handle);
+        }
+        StringBuffer sb = new StringBuffer();
+        int type = dso.getType();
+        if (type == Constants.COLLECTION) {
+            for (Community community : ((Collection)dso).getCommunities()) {
+                sb.append(" m").append(community.getID());
+            }
     	} else if (type == Constants.ITEM) {
        		for (Community community : ((Item)dso).getCommunities()) {
     			sb.append(" m").append(community.getID());
@@ -625,7 +666,7 @@ public class DSIndexer {
     	public IndexConfig(String indexName, String svcInfo) {
     		this.indexName = indexName;
     		// try to load service
-    		String[] parts = svcInfo.split("@");
+    		String[] parts = svcInfo.split("\\|");
     		try {
     			service = (IndexService)Class.forName(parts[0]).newInstance();
     		} catch (Exception e) {}

@@ -58,135 +58,115 @@ import org.dspace.storage.rdbms.TableRowIterator;
  *
  * @author richardrodgers
  */
-public class QuerySelector implements ObjectSelector
-{
+public class QuerySelector implements ObjectSelector {
+
     private static Logger log = LoggerFactory.getLogger(QuerySelector.class);
    
     private Context context = null;
     private String query = null;
     private BoundedIterator<Item> itemIter = null;
+    private String name;
 
-    public QuerySelector()
-    {
+    public QuerySelector() {}
+
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public void setName(String name) {
+        this.name = name;
     }
     
     @Override
-    public Context getContext()
-    {
-    	return context;
+    public Context getContext() {
+        return context;
     }
     
     @Override
-    public void setContext(Context context)
-    {
-    	this.context = context;
+    public void setContext(Context context) {
+        this.context = context;
     }
     
     @Override
-    public void configure(String definition)
-    {
-    	setQuery(definition);
+    public void configure(String definition) {
+        setQuery(definition);
     }
     
     @Override
-    public DSpaceObject next()
-    {
-       	try
-    	{
-    		if (itemIter == null) {
-    			doQuery();
-    		}
-       		return itemIter.next();
-       	}
-      	catch (AuthorizeException authE)
-    	{
-    		log.error("Error executing query: '" + query + "' error: " + authE.getMessage());
-    	}
-    	catch (SQLException sqlE)
-    	{
-    		log.error("Error executing query: '" + query + "' error: " + sqlE.getMessage());
-    	}
+    public DSpaceObject next() {
+        try {
+            if (itemIter == null) {
+                doQuery();
+            }
+            return itemIter.next();
+        } catch (AuthorizeException | SQLException e) {
+            log.error("Error executing query: '" + query + "' error: " + e.getMessage());
+        } 
         return null;
     }
     
     @Override
-    public boolean hasNext()
-    {
-    	try
-    	{
-    		if (itemIter == null)
-    		{
-    			doQuery();
-    		}
-       		return itemIter.hasNext();
-       	}
-       	catch (AuthorizeException authE)
-    	{
-    		log.error("Error executing query: '" + query + "' error: " + authE.getMessage());
-    	}
-    	catch (SQLException sqlE)
-    	{
-    		log.error("Error executing query: '" + query + "' error: " + sqlE.getMessage());
-    	}
-    	return false;
+    public boolean hasNext() {
+        try {
+            if (itemIter == null) {
+                doQuery();
+            }
+            return itemIter.hasNext();
+        }
+        catch (AuthorizeException | SQLException e) {
+            log.error("Error executing query: '" + query + "' error: " + e.getMessage());
+        }
+        return false;
     }
     
     @Override
-    public void remove()
-    {
-    	throw new UnsupportedOperationException("remove() not supported");
+    public void remove() {
+        throw new UnsupportedOperationException("remove() not supported");
     }
     
-    public void setQuery(String query)
-    {
-    	this.query = query.trim();
+    public void setQuery(String query) {
+        this.query = query.trim();
     }
     
-    private void doQuery() throws AuthorizeException, SQLException
-    {
+    private void doQuery() throws AuthorizeException, SQLException {
     	// parse the query string to produce the SQL
     	SqlGenerator sqlGen = new SqlGenerator();
     	sqlGen.parseQuery();
     	List<Object> parameters = sqlGen.getParameters();
     	TableRowIterator rows = null;
-    	if (parameters.size() > 0)
-    	{
+    	if (parameters.size() > 0) {
     		rows = DatabaseManager.queryTable(context, "item", sqlGen.getSql(), parameters);
-    	}
-    	else
-    	{
+    	} else {
     		rows = DatabaseManager.queryTable(context, "item", sqlGen.getSql());
     	}
     	itemIter = new BoundedIterator<Item>(context, rows);
     }
         
-    private class SqlGenerator
-    {   	
+    private class SqlGenerator {
+
     	private int aliasIdx = 1;
     	private StringBuilder fromSb = new StringBuilder(" FROM item");
     	private StringBuilder whereSb = new StringBuilder(" WHERE");
     	private List<Object> params = new ArrayList<Object>();
     	private int parseIdx = 0;
     	
-    	public SqlGenerator()
-    	{
-    	}
-    	
-    	public String getSql()
-    	{
+    	public SqlGenerator() {}
+    
+    	public String getSql() {
     		return "SELECT item.*" + fromSb.toString() + whereSb.toString();
     	}
-    	
-    	public List<Object> getParameters()
-    	{
+    
+    	public List<Object> getParameters() {
     		return params;
     	}
-    	
+    
     	private void parseQuery() throws AuthorizeException, SQLException
     	{
     		int tokenIdx = 0;
     		String token = null;
-    		
+    
     		while((token = nextToken()) != null)
     		{
     			switch(tokenIdx % 4)
@@ -203,7 +183,7 @@ public class QuerySelector implements ObjectSelector
     			++tokenIdx;
     		}
     	}
-    	
+    
     	private String nextToken()
     	{
     		// main thing to worry about is internal whitespace in literals
@@ -266,10 +246,8 @@ public class QuerySelector implements ObjectSelector
     		}
     	}
     	
-       	private void doValue(String value) throws SQLException
-    	{
-    		if (value.startsWith("${"))
-    		{
+       	private void doValue(String value) throws SQLException {
+    		if (value.startsWith("${")) {
     			// it's a variable - evaluate it and set as SQL positional parameter
     			whereSb.append("?");
     			int closeIdx = value.indexOf("}");

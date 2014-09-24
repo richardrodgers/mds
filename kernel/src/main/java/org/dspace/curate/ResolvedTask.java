@@ -8,9 +8,12 @@
 package org.dspace.curate;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,64 +34,79 @@ import org.dspace.eperson.EPerson;
  *
  * @author richardrodgers
  */
-public class ResolvedTask
-{
-	private static Logger log = LoggerFactory.getLogger(ResolvedTask.class);
-	
-	private static final String recorderKey = Recorder.class.getName();
-	
-	// wrapped objects
-	private CurationTask cTask;
-	private ScriptedTask sTask;
-	// local name of task
-	private String taskName;
-	// recorder (if any)
-	private Recorder recorder = null;
-	// annotation data
-	private boolean distributive = false;
-	private boolean mutative = false;
-	private Curator.Invoked mode = null;
+public class ResolvedTask {
+
+    private static Logger log = LoggerFactory.getLogger(ResolvedTask.class);
+
+    private static final String recorderKey = Recorder.class.getName();
+
+    // wrapped objects (one or the other)
+    private CurationTask cTask;
+    private ScriptedTask sTask;
+    // local name of task
+    private String taskName;
+    // recorder (if any)
+    private Recorder recorder = null;
+    // annotation data
+    private boolean distributive = false;
+    private boolean mutative = false;
+    private Curator.Invoked mode = null;
     private int[] codes = null;
     // record annotation metadata
     private List<RecordMetadata> recList = null;
-	
-	protected ResolvedTask(String taskName, CurationTask cTask)
-	{
-		this.taskName = taskName;
-		this.cTask = cTask;
-		// process annotations
-		Class ctClass = cTask.getClass();
-		distributive = ctClass.isAnnotationPresent(Distributive.class);
-		mutative = ctClass.isAnnotationPresent(Mutative.class);
-		Suspendable suspendAnno = (Suspendable)ctClass.getAnnotation(Suspendable.class);
-        if (suspendAnno != null)
-        {
+    // optional task properties
+    private Properties taskProps = null;
+
+    protected ResolvedTask(String taskName, CurationTask cTask) {
+        this.taskName = taskName;
+        this.cTask = cTask;
+        // process annotations
+        Class ctClass = cTask.getClass();
+        distributive = ctClass.isAnnotationPresent(Distributive.class);
+        mutative = ctClass.isAnnotationPresent(Mutative.class);
+        Suspendable suspendAnno = (Suspendable)ctClass.getAnnotation(Suspendable.class);
+        if (suspendAnno != null) {
             mode = suspendAnno.invoked();
             codes = suspendAnno.statusCodes();
         }
         Record recAnno = (Record)ctClass.getAnnotation(Record.class);
-        if (recAnno != null)
-        {
-        	processRecord(recAnno);
+        if (recAnno != null) {
+            processRecord(recAnno);
         }
         // maybe multiple messages ?
         Records recsAnno = (Records)ctClass.getAnnotation(Records.class);
-        if (recsAnno != null)
-        {
-        	for (Record rAnno : recsAnno.value())
-        	{
-        		processRecord(rAnno);
-        	}
+        if (recsAnno != null) {
+            for (Record rAnno : recsAnno.value()) {
+                processRecord(rAnno);
+            }
         }
-	}
-	
-	protected ResolvedTask(String taskName, ScriptedTask sTask)
-	{
-		this.taskName = taskName;
-		this.sTask = sTask;
-		// annotation processing TBD
-	}
-	
+    }
+
+    protected ResolvedTask(String taskName, Program program) {
+        this.taskName = taskName;
+        this.cTask = program;
+        // annotation processing TBD
+    }
+
+    protected ResolvedTask(String taskName, ScriptedTask sTask) {
+        this.taskName = taskName;
+        this.sTask = sTask;
+        // annotation processing TBD
+    }
+
+    // copy contructor
+    protected ResolvedTask(ResolvedTask task) {
+        this.taskName = task.getName();
+        try {
+            if (task.cTask != null) {
+                this.cTask = task.cTask.getClass().newInstance();
+            } else {
+                // will this even work?
+                this.sTask = task.sTask.getClass().newInstance();
+            }
+        } catch (Exception e) {}
+    }
+
     /**
      * Initialize task - parameters inform the task of it's invoking curator.
      * Since the curator can provide services to the task, this represents
@@ -97,43 +115,36 @@ public class ResolvedTask
      * @param curator the Curator controlling this task
      * @throws IOException
      */
-    public void init(Curator curator) throws IOException
-    {
-    	// any recorder required?
-    	if (recList != null)
-    	{
-    		recorder = (Recorder)curator.obtainResource(recorderKey);
-    		if (recorder == null)
-    		{
-    			String recorderClass = ConfigurationManager.getProperty("curate", "recorder.impl");
-    			if (recorderClass != null) {
-    				try {
-    					recorder = (Recorder)Class.forName(recorderClass).newInstance();
-    					recorder.init();
-    					String policy = null;
-    					if (recorder instanceof Closeable)
-    					{
-    						policy = "close";
-    					}
-    					curator.manageResource(recorderKey, recorder, policy);
-    				} catch (Exception e) {
-    					log.error("Error instantiating recorder", e);
-    					throw new IOException("Missing Recorder");
-    				}
-    			} else {
-    				log.error("No recorder configured");
-    				throw new IOException("Missing Recorder");
-    			}
-    		}
-    	}
-    	if (unscripted())
-    	{
-    		cTask.init(curator, taskName);
-    	}
-    	else
-    	{
-    		sTask.init(curator, taskName);
-    	}
+    public void init(Curation curation) throws IOException {
+        // any recorder required?
+        if (recList != null) {
+            recorder = (Recorder)curation.obtainResource(recorderKey);
+            if (recorder == null) {
+                String recorderClass = ConfigurationManager.getProperty("curate", "recorder.impl");
+                if (recorderClass != null) {
+                    try {
+                        recorder = (Recorder)Class.forName(recorderClass).newInstance();
+                        recorder.init();
+                        String policy = null;
+                        if (recorder instanceof Closeable) {
+                            policy = "close";
+                        }
+                        curation.manageResource(recorderKey, recorder, policy);
+                    } catch (Exception e) {
+                        log.error("Error instantiating recorder", e);
+                        throw new IOException("Missing Recorder");
+                    }
+                } else {
+                    log.error("No recorder configured");
+                    throw new IOException("Missing Recorder");
+                }
+            }
+        }
+        if (unscripted()) {
+            cTask.init(curation, taskName);
+        } else {
+            sTask.init(curation, taskName);
+        }
     }
 
     /**
@@ -141,10 +152,12 @@ public class ResolvedTask
      *
      * @param dso the DSpace object
      * @return status code
+     * @throws AuthorizeException
      * @throws IOException
+     * @throws SQLException
      */
-    public int perform(DSpaceObject dso) throws AuthorizeException, IOException {
-    	return unscripted() ? cTask.perform(dso) : sTask.performDso(dso);
+    public int perform(DSpaceObject dso) throws AuthorizeException, IOException, SQLException {
+        return unscripted() ? cTask.perform(dso) : sTask.performDso(dso);
     }
 
     /**
@@ -153,10 +166,40 @@ public class ResolvedTask
      * @param ctx DSpace context object
      * @param id persistent ID for DSpace object
      * @return status code
-     * @throws Exception
+     * @throws AuthorizeException
+     * @throws IOException
+     * @throws SQLException
      */
-    public int perform(Context ctx, String id) throws AuthorizeException, IOException {
-    	return unscripted() ? cTask.perform(ctx, id) : sTask.performId(ctx, id);	
+    public int perform(Context ctx, String id) throws AuthorizeException, IOException, SQLException {
+        return unscripted() ? cTask.perform(ctx, id) : sTask.performId(ctx, id);
+    }
+
+    /**
+     * Returns a task property value for a given key (name)
+     *
+     * @param name the property name
+     * @return value the property value
+     */
+    protected String taskProperty(Context ctx, String name) {
+        if (taskProps == null) {
+            // load properties
+            taskProps = new Properties();
+            StringBuilder modName = new StringBuilder();
+            for (String segment : taskName.split("\\.")) {
+                // load property segments if present
+                modName.append(segment);
+                Properties modProps = TaskResolver.taskConfig(ctx, modName.toString()); //ConfigurationManager.getProperties(modName.toString());
+                if (modProps != null) {
+                    taskProps.putAll(modProps);
+                }
+                modName.append(".");
+            }
+            // warn if *no* properties found
+            if (taskProps.size() == 0) {
+                log.warn("Warning: No configuration properties found for task: " + taskName);
+            }
+        }
+        return taskProps.getProperty(name);
     }
     
     /**
@@ -167,27 +210,22 @@ public class ResolvedTask
      * @param status the status code returned by the task
      * @param result the result string assigned by to task or null if absent
      */
-    public void record(String objId, Context ctx, int status, String result) throws IOException
-    {
-    	if (recorder != null && recList != null)
-    	{
-    		String epId = null;
-			if (ctx != null)
-			{
-				EPerson eperson = ctx.getCurrentUser();
-				epId = (eperson != null) ? eperson.getName() : null;
-			}
-			long timestamp = System.currentTimeMillis();
-    		for (RecordMetadata rmd : recList)
-    		{
-    			// is status code among those we respond to?
-    			if (rmd.recCodes.contains(status))
-    			{
-    				recorder.record(timestamp, objId, epId, taskName,
-    				        		rmd.recType, rmd.recValue, status, result);
-    			}
-    		}
-    	}
+    public void record(String objId, Context ctx, int status, String result) throws IOException {
+        if (recorder != null && recList != null) {
+            String epId = null;
+            if (ctx != null) {
+                EPerson eperson = ctx.getCurrentUser();
+                epId = (eperson != null) ? eperson.getName() : null;
+            }
+            long timestamp = System.currentTimeMillis();
+            for (RecordMetadata rmd : recList) {
+                // is status code among those we respond to?
+                if (rmd.recCodes.contains(status)) {
+                    recorder.record(timestamp, objId, epId, taskName,
+                                    rmd.recType, rmd.recValue, status, result);
+                }
+            }
+        }
     }
     
     /**
@@ -195,9 +233,8 @@ public class ResolvedTask
      * @return name
      *         the local name of the task
      */
-    public String getName()
-    {
-    	return taskName;
+    public String getName() {
+        return taskName;
     }
     
     /**
@@ -205,59 +242,53 @@ public class ResolvedTask
      * @return boolean 
      *         true if the task is distributive
      */
-    public boolean isDistributive()
-    {
-    	return distributive;
+    public boolean isDistributive() {
+        return distributive;
     }
     
     /**
      * Returns whether task alters (mutates) it's target objects
      * 
      */
-    public boolean isMutative()
-    {
-    	return mutative;
+    public boolean isMutative() {
+        return mutative;
     }
     
-    public Curator.Invoked getMode()
-    {
-    	return mode;
+    /**
+     * Returns the invocation mode for this task
+     *
+     */
+    public Curator.Invoked getMode() {
+        return mode;
     }
     
-    public int[] getCodes()
-    {
-    	return codes;
+    public int[] getCodes() {
+        return codes;
     }
     
-    private void processRecord(Record recAnno)
-    {
-    	if (recList == null)
-    	{
-    		recList = new ArrayList<RecordMetadata>();
-    	}
-    	recList.add(new RecordMetadata(recAnno));
+    private void processRecord(Record recAnno) {
+        if (recList == null) {
+            recList = new ArrayList<RecordMetadata>();
+        }
+        recList.add(new RecordMetadata(recAnno));
     }
     
-    private boolean unscripted()
-    {
-    	return sTask == null;
+    private boolean unscripted() {
+        return sTask == null;
     }
     
-    private class RecordMetadata
-    {
-    	public String recType;
-    	public String recValue;
-    	public List<Integer> recCodes;
-    	
-    	public RecordMetadata(Record rec)
-    	{
-    		recType = rec.type();
-        	recValue = rec.value();
-        	recCodes = new ArrayList<Integer>();
-        	for (int code : rec.statusCodes())
-        	{
-        		recCodes.add(code);
-        	}
-    	}
+    private class RecordMetadata {
+        public String recType;
+        public String recValue;
+        public List<Integer> recCodes;
+    
+        public RecordMetadata(Record rec) {
+            recType = rec.type();
+            recValue = rec.value();
+            recCodes = new ArrayList<Integer>();
+            for (int code : rec.statusCodes()) {
+                recCodes.add(code);
+            }
+        }
     }
 }

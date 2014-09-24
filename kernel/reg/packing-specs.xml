@@ -1,0 +1,170 @@
+<?xml version="1.0"?>
+
+<!--
+  - packing-specs.xml
+  -
+  - Named packaging specifications
+  -->
+
+<dspace-packing-specs>
+
+  <packing-spec>
+    <name>pkgspec:site-bagit-aip</name>
+    <scope>site-pspec-aip</scope>
+    <rule>pkgspec:site-bagit-aip</rule>
+    <description>Bagit AIP of Site</description>
+    <packer>org.dspace.pack.bagit.DSpaceObjectPacker</packer>
+    <format>zip</format>
+    <content-filter></content-filter>
+    <metadata-filter></metadata-filter>
+    <reference-filter></reference-filter>
+    <mimetype>application/zip</mimetype>
+    <package-id>X-Packaging-BagitAIP</package-id>
+  </packing-spec>
+
+  <packing-spec>
+    <name>pkgspec:community-bagit-aip</name>
+    <scope>community-pspec-aip</scope>
+    <rule>pkgspec:?,pkgspec:community-bagit-aip</rule>
+    <description>Bagit AIP of Community</description>
+    <packer>org.dspace.pack.bagit.DSpaceObjectPacker</packer>
+    <format>zip</format>
+    <content-filter></content-filter>
+    <metadata-filter></metadata-filter>
+    <reference-filter></reference-filter>
+    <mimetype>application/zip</mimetype>
+    <package-id>X-Packaging-BagitAIP</package-id>
+  </packing-spec>
+
+  <packing-spec>
+    <name>pkgspec:collection-bagit-aip</name>
+    <scope>collection-pspec-aip</scope>
+    <rule>pkgspec:?,pkgspec:collection-bagit-aip</rule>
+    <description>Bagit AIP of Collection</description>
+    <packer>org.dspace.pack.bagit.DSpaceObjectPacker</packer>
+    <format>zip</format>
+    <content-filter></content-filter>
+    <metadata-filter></metadata-filter>
+    <reference-filter></reference-filter>
+    <mimetype>application/zip</mimetype>
+    <package-id>X-Packaging-BagitAIP</package-id>
+  </packing-spec>
+
+  <packing-spec>
+    <name>pkgspec:item-bagit-aip</name>
+    <scope>item-pspec-aip</scope>
+    <!-- rule means that if the owning collection defines an item view, that supercedes this -->
+    <rule>^pkgspec:?,pkgspec:item-bagit-aip</rule>
+    <description>Bagit AIP of Item</description>
+    <packer>org.dspace.pack.bagit.DSpaceObjectPacker</packer>
+    <format>zip</format>
+    <!-- skip derivatives -->
+    <content-filter>TEXT,THUMBNAIL</content-filter>
+    <metadata-filter></metadata-filter>
+    <reference-filter></reference-filter>
+    <mimetype>application/zip</mimetype>
+    <package-id>X-Packaging-BagitAIP</package-id>
+  </packing-spec>
+
+  <packing-spec>
+    <name>pkgspec:site-bagit-dip</name>
+    <scope>site-pspec-dip</scope>
+    <rule>pkgspec:site-bagit-dip</rule>
+    <description>Bagit DIP of Site</description>
+    <packer>org.dspace.pack.bagit.DSpaceObjectPacker</packer>
+    <format>zip</format>
+    <content-filter></content-filter>
+    <metadata-filter></metadata-filter>
+    <reference-filter></reference-filter>
+    <mimetype>application/zip</mimetype>
+    <package-id>X-Packaging-BagitDIP</package-id>
+  </packing-spec>
+
+  <packing-spec>
+    <name>pkgspec:community-bagit-dip</name>
+    <scope>community-pspec-dip</scope>
+    <rule>pkgspec:?,pkgspec:community-bagit-dip</rule>
+    <description>Bagit DIP of Community</description>
+    <packer>org.dspace.pack.bagit.DSpaceObjectPacker</packer>
+    <format>zip</format>
+    <content-filter></content-filter>
+    <metadata-filter></metadata-filter>
+    <reference-filter></reference-filter>
+    <mimetype>application/zip</mimetype>
+    <package-id>X-Packaging-BagitDIP</package-id>
+  </packing-spec>
+
+  <packing-spec>
+    <name>pkgspec:collection-bagit-dip</name>
+    <scope>collection-pspec-dip</scope>
+    <rule>pkgspec:?,pkgspec:collection-bagit-dip</rule>
+    <description>Bagit DIP of Collection</description>
+    <packer>org.dspace.pack.bagit.DSpaceObjectPacker</packer>
+    <format>zip</format>
+    <content-filter></content-filter>
+    <metadata-filter></metadata-filter>
+    <reference-filter></reference-filter>
+    <mimetype>application/zip</mimetype>
+    <package-id>X-Packaging-BagitDIP</package-id>
+  </packing-spec>
+
+  <packing-spec>
+    <name>pkgspec:item-bagit-dip</name>
+    <scope>item-pspec-dip</scope>
+    <!-- rule means that if the owning collection defines an item view, that supercedes this -->
+    <rule>^pkgspec:?,pkgspec:item-bagit-dip</rule>
+    <description>Bagit DIP of Item</description>
+    <packer>org.dspace.pack.bagit.DSpaceObjectPacker</packer>
+    <format>zip</format>
+    <!-- include thumbnails, but skip TEXT for display -->
+    <content-filter>TEXT</content-filter>
+    <metadata-filter>dsl</metadata-filter>
+    <reference-filter></reference-filter>
+    <mimetype>application/zip</mimetype>
+    <package-id>X-Packaging-BagitDIP</package-id>
+  </packing-spec>
+
+  <packing-spec>
+    <name>pkgspec:community-bagit-sip</name>
+    <scope>community-pspec-sip</scope>
+    <rule>pkgspec:?,pkgspec:community-bagit-sip</rule>
+    <description>Bagit SIP of Community</description>
+    <packer>org.dspace.pack.bagit.DSpaceObjectPacker</packer>
+    <format>zip</format>
+    <content-filter></content-filter>
+    <metadata-filter></metadata-filter>
+    <reference-filter></reference-filter>
+    <mimetype>application/zip</mimetype>
+    <package-id>X-Packaging-BagitSIP</package-id>
+  </packing-spec>
+
+  <packing-spec>
+    <name>pkgspec:collection-bagit-sip</name>
+    <scope>collection-pspec-sip</scope>
+    <rule>pkgspec:?,pkgspec:collection-bagit-sip</rule>
+    <description>Bagit SIP of Collection</description>
+    <packer>org.dspace.pack.bagit.DSpaceObjectPacker</packer>
+    <format>zip</format>
+    <content-filter></content-filter>
+    <metadata-filter></metadata-filter>
+    <reference-filter></reference-filter>
+    <mimetype>application/zip</mimetype>
+    <package-id>X-Packaging-BagitSIP</package-id>
+  </packing-spec>
+
+  <packing-spec>
+    <name>pkgspec:item-bagit-sip</name>
+    <scope>item-pspec-sip</scope>
+    <rule>pkgspec:?,pkgspec:item-bagit-sip</rule>
+    <description>Bagit SIP of Item</description>
+    <packer>org.dspace.pack.bagit.DSpaceObjectPacker</packer>
+    <format>zip</format>
+    <!-- include thumbnails, but skip TEXT for display -->
+    <content-filter></content-filter>
+    <metadata-filter></metadata-filter>
+    <reference-filter></reference-filter>
+    <mimetype>application/zip</mimetype>
+    <package-id>X-Packaging-BagitSIP</package-id>
+  </packing-spec>
+
+</dspace-packing-specs>

@@ -88,6 +88,8 @@ public class TestConsumer implements Consumer
         {
             out.println("TestConsumer.consume(): " + msg);
         }
+        long elapsed = event.getTimeStamp() - System.currentTimeMillis();
+        System.out.println("TestConsumer got object: " + event.getSubjectID() + " type: " + event.getEventType() + " elapsed: " + elapsed);
     }
 
     public void end(Context ctx) throws Exception
@@ -107,7 +109,6 @@ public class TestConsumer implements Consumer
         {
             out.println("TestConsumer.finish();");
         }
-
     }
 
     private String applyDateFormat(Date thisDate)

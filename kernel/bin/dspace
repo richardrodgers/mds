@@ -60,8 +60,18 @@ else
     FULLPATH=$CLASSPATH:$JARS:$DSPACEDIR/conf
 fi
 
-
-
+# Pick up any environment variables
+if [ -r "$BINDIR/setenv.sh" ]; then
+    . "$BINDIR/setenv.sh"
+fi
+if [ -r "$BINDIR/site.env" ]; then
+    while read line; do
+        # if not a comment or empty line, process
+        if [[ $line != '#'* && ! -z $line ]]; then
+            eval export "$line"
+        fi
+    done < "$BINDIR/site.env"
+fi
 
 #Allow user to specify java options through JAVA_OPTS variable
 if [ "$JAVA_OPTS" = "" ]; then

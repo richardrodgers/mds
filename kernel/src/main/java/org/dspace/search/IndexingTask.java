@@ -25,7 +25,7 @@ import com.google.common.collect.Multimap;
  */
 
 public class IndexingTask {
-	
+
     enum Action { ADD, UPDATE, DELETE, TX_BEGIN, TX_END, PURGE };
 
     private Action action;
@@ -38,44 +38,44 @@ public class IndexingTask {
     }
     
     void addField(String name, String value) {
-    	fields.put(name, value);
+        fields.put(name, value);
     }
     
     void addFieldSet(Map<String, String> fieldSet) {
-    	for (String key : fieldSet.keySet()) {
-    		addField(key, fieldSet.get(key));
-    	}
+        for (String key : fieldSet.keySet()) {
+            addField(key, fieldSet.get(key));
+        }
     }
     
     void addStream(String name, InputStream stream) {
-    	if (streams == null) {
-    		streams = ArrayListMultimap.create();
-    	}
-    	streams.put(name, stream);
+        if (streams == null) {
+            streams = ArrayListMultimap.create();
+        }
+        streams.put(name, stream);
     }
     
     public Action getAction() {
-    	return action;
+        return action;
     }
     
     public Set<String> getFieldKeys() {
-    	return fields.keySet();
+        return fields.keySet();
     }
     
     public Collection<String> getFieldValues(String key) {
-    	return fields.get(key);
+        return fields.get(key);
     }
     
     public String getFieldValue(String key) {
-    	Collection<String> ret = getFieldValues(key);
-    	return (ret.size() > 0) ? ret.iterator().next() : null;
+        Collection<String> ret = getFieldValues(key);
+        return (ret.size() > 0) ? ret.iterator().next() : null;
     }
     
     public Set<String> getStreamKeys() {
-    	return (streams != null) ? streams.keySet() : new HashSet<String>();
+        return (streams != null) ? streams.keySet() : new HashSet<String>();
     }
     
     public Collection<InputStream> getStreamValues(String key) {
-    	return (streams != null) ? streams.get(key) : new HashSet<InputStream>();
+        return (streams != null) ? streams.get(key) : new HashSet<InputStream>();
     }
 }

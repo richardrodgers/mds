@@ -102,6 +102,14 @@
     </command>
 
     <command>
+        <name>manage-site</name>
+        <description>Create, update or delete a site record from command-line arguments</description>
+        <step>
+            <class>org.dspace.administer.SiteManager</class>
+        </step>
+    </command>
+
+    <command>
         <name>registry-loader</name>
         <description>Load entries into a registry</description>
         <step>

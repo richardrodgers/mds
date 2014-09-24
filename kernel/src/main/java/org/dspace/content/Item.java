@@ -28,15 +28,11 @@ import org.dspace.authorize.AuthorizeConfiguration;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.AuthorizeManager;
 import org.dspace.authorize.ResourcePolicy;
-import org.dspace.browse.BrowseException;
-import org.dspace.browse.IndexBrowse;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
-import org.dspace.authority.Choices;
-import org.dspace.authority.ChoiceAuthorityManager;
-import org.dspace.authority.MetadataAuthorityManager;
 import org.dspace.event.Event;
+import org.dspace.event.ContentEvent.EventType;
 import org.dspace.eperson.EPerson;
 import org.dspace.eperson.Group;
 import org.dspace.handle.HandleManager;
@@ -145,6 +141,7 @@ public class Item extends DSpaceObject
         context.restoreAuthSystemState();
 
         context.addEvent(new Event(Event.CREATE, Constants.ITEM, i.getID(), null));
+        context.addContentEvent(i, EventType.CREATE);
 
         log.info(LogManager.getHeader(context, "create_item", "item_id="
                 + row.getIntColumn("item_id")));
@@ -504,6 +501,7 @@ public class Item extends DSpaceObject
         DatabaseManager.insert(context, mappingRow);
 
         context.addEvent(new Event(Event.ADD, Constants.ITEM, getID(), Constants.BUNDLE, b.getID(), b.getName()));
+        context.addContainerEvent(this, EventType.ADD, b);
     }
 
     /**
@@ -540,6 +538,7 @@ public class Item extends DSpaceObject
                 getID(), b.getID());
 
         context.addEvent(new Event(Event.REMOVE, Constants.ITEM, getID(), Constants.BUNDLE, b.getID(), b.getName()));
+        context.addContainerEvent(this, EventType.REMOVE, b);
 
         // If the bundle is orphaned, it's removed
         TableRowIterator tri = DatabaseManager.query(context,
@@ -635,6 +634,30 @@ public class Item extends DSpaceObject
     }
 
     /**
+     * Get the Item bitstream with given sequence ID, or null if no
+     * Bitstream exists with given sequence ID. Optimization for
+     * crawling the bundle sets to find a bitstream with a given sequence ID
+     *
+     * @param sequenceID the Item-relative sequence ID
+     * @return bitstream the bitstream
+     */
+    public Bitstream getBitstreamBySequenceID(int sequenceID) throws SQLException {
+        TableRow tr = DatabaseManager.querySingle(context,
+                        "SELECT bitstream.* FROM bitstream, item2bundle, bundle2bitstream " +
+                        "WHERE bitstream.sequence_id= ? " +
+                        "AND item2bundle.item_id= ? " +
+                        "AND item2bundle.bundle_id=bundle2bitstream.bundle_id " +
+                        "AND bundle2bitstream.bitstream_id=bitstream.bitstream_id",
+                        sequenceID, getID());
+        if (tr == null) {
+            log.debug(LogManager.getHeader(context, "get_bitstream_by_sequence_id",
+                                   "not_found,item_id=" + getID() + "sequence_id=" + sequenceID));
+            return null;
+        }
+        return new Bitstream(context, tr);
+    }
+
+    /**
      * Remove just the DSpace license from an item This is useful to update the
      * current DSpace license, in case the user must accept the DSpace license
      * again (either the item was rejected, or resumed after saving)
@@ -695,7 +718,8 @@ public class Item extends DSpaceObject
      * @throws SQLException
      * @throws AuthorizeException
      */
-    public void update() throws SQLException, AuthorizeException {
+    @Override
+    public void update() throws AuthorizeException, SQLException {
         // Check authorisation
         // only do write authorization if user is not an editor
         if (!canEdit()) {
@@ -827,6 +851,7 @@ public class Item extends DSpaceObject
         update();
 
         context.addEvent(new Event(Event.MODIFY, Constants.ITEM, getID(), "WITHDRAW"));
+        context.addContentEvent(this, EventType.WITHDRAW);
 
         // and all of our authorization policies
         // FIXME: not very "multiple-inclusion" friendly
@@ -883,6 +908,7 @@ public class Item extends DSpaceObject
         update();
 
         context.addEvent(new Event(Event.MODIFY, Constants.ITEM, getID(), "REINSTATE"));
+        context.addContentEvent(this, EventType.REINSTATE);
 
         // authorization policies
         if (colls.size() > 0)  {
@@ -914,35 +940,13 @@ public class Item extends DSpaceObject
         AuthorizeManager.authorizeAction(context, this, Constants.REMOVE);
 
         context.addEvent(new Event(Event.DELETE, Constants.ITEM, getID(), getHandle()));
+        context.addContentEvent(this, EventType.DELETE);
 
         log.info(LogManager.getHeader(context, "delete_item", "item_id="
                 + getID()));
 
         // Remove from cache
         context.removeCached(this, getID());
-
-        // Remove from browse indices, if appropriate
-        /** XXX FIXME
-         ** Although all other Browse index updates are managed through
-         ** Event consumers, removing an Item *must* be done *here* (inline)
-         ** because otherwise, tables are left in an inconsistent state
-         ** and the DB transaction will fail.
-         ** Any fix would involve too much work on Browse code that
-         ** is likely to be replaced soon anyway.   --lcs, Aug 2006
-         **
-         ** NB Do not check to see if the item is archived - withdrawn /
-         ** non-archived items may still be tracked in some browse tables
-         ** for administrative purposes, and these need to be removed.
-         **/
-//               FIXME: there is an exception handling problem here
-        try  {
-//               Remove from indices
-            IndexBrowse ib = new IndexBrowse(context);
-            ib.itemRemoved(this);
-        } catch (BrowseException e) {
-            log.error("caught exception: ", e);
-            throw new SQLException(e.getMessage(), e);
-        }
 
         // Delete the metadata
         deleteMetadata();
@@ -1231,6 +1235,7 @@ public class Item extends DSpaceObject
             // so we only do this here if the owning collection hasn't changed.
             
             context.addEvent(new Event(Event.MODIFY, Constants.ITEM, getID(), null));
+            context.addContentEvent(this, EventType.MODIFY);
         }
     }
     
