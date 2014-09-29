@@ -11,6 +11,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.HashSet;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.eventbus.EventBus;
 
 import org.dspace.event.ContentEvent.EventType;
@@ -18,15 +21,20 @@ import org.dspace.event.ContentEvent.EventType;
 /**
  * Channel is an abstraction over an event bus with
  * optional additional logic to transform event lists.
- * 
+ *
  * @author richardrodgers
  */
 public class Channel {
 
-    private final String name;
-    private final EventBus bus;
+    /** log4j category */
+    private static Logger log = LoggerFactory.getLogger(Channel.class);
 
-    Channel(String name) {
+    private String name;
+    private EventBus bus;
+
+    public Channel() {}
+
+    public void init(String name) {
         this.name = name;
         this.bus = new EventBus(name);
     }
@@ -39,7 +47,11 @@ public class Channel {
 
     public void propogate(List<ContentEvent> events) {
         // apply transforms then push to bus
-        for (ContentEvent event : transform(events)) {
+        log.info("Propogate - enter size: " + events.size());
+        List<ContentEvent> trans = transform(events);
+        log.info("Propogate - after trans");
+        for (ContentEvent event : trans) {
+            log.info("Propogate - post event");
             bus.post(event);
         }
     }

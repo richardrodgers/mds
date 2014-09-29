@@ -36,7 +36,7 @@ public class MockConsumer {
 
     @Subscribe
     public void consume(ContentEvent event) {
-        long elapsed = event.getTimestamp() - System.currentTimeMillis();
+        long elapsed = System.currentTimeMillis() - event.getTimestamp();
         System.out.println("MockConsumer got object: " + event.getObject().getID() + " type: " + event.getEventType() + " elapsed: " + elapsed);
     }
 }

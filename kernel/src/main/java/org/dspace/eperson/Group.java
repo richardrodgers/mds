@@ -30,14 +30,14 @@ import org.dspace.content.DSpaceObject;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
-import org.dspace.event.Event;
+import org.dspace.event.ContentEvent.EventType;
 import org.dspace.storage.rdbms.DatabaseManager;
 import org.dspace.storage.rdbms.TableRow;
 import org.dspace.storage.rdbms.TableRowIterator;
 
 /**
  * Class representing a group of e-people.
- * 
+ *
  * @author David Stuve
  * @version $Revision: 5926 $
  */
@@ -67,7 +67,7 @@ public class Group extends DSpaceObject
 
     /**
      * Construct a Group from a given context and tablerow
-     * 
+     *
      * @param context
      * @param row
      */
@@ -81,7 +81,7 @@ public class Group extends DSpaceObject
 
     /**
      * Populate Group with eperson and group objects
-     * 
+     *
      * @throws SQLException
      */
     public void loadData()
@@ -177,7 +177,7 @@ public class Group extends DSpaceObject
 
     /**
      * Create a new group
-     * 
+     *
      * @param context
      *            DSpace context object
      */
@@ -200,24 +200,24 @@ public class Group extends DSpaceObject
         log.info(LogManager.getHeader(context, "create_group", "group_id="
                 + g.getID()));
 
-        context.addEvent(new Event(Event.CREATE, Constants.GROUP, g.getID(), null));
+        context.addContentEvent(g, EventType.CREATE);
 
         return g;
     }
 
     /**
      * get the ID of the group object
-     * 
+     *
      * @return id
      */
     public int getID()
     {
         return tableRow.getIntColumn("eperson_group_id");
     }
-    
+
     /**
      * get name of group
-     * 
+     *
      * @return name
      */
     public String getName()
@@ -227,7 +227,7 @@ public class Group extends DSpaceObject
 
     /**
      * set name of group
-     * 
+     *
      * @param name
      *            new group name
      */
@@ -239,7 +239,7 @@ public class Group extends DSpaceObject
 
     /**
      * add an eperson member
-     * 
+     *
      * @param e
      *            eperson
      */
@@ -255,12 +255,12 @@ public class Group extends DSpaceObject
         epeople.add(e);
         epeopleChanged = true;
 
-        context.addEvent(new Event(Event.ADD, Constants.GROUP, getID(), Constants.EPERSON, e.getID(), e.getEmail()));
+        context.addContainerEvent(this, EventType.ADD, e);
     }
 
     /**
      * add group to this group
-     * 
+     *
      * @param g
      */
     public void addMember(Group g)
@@ -277,12 +277,12 @@ public class Group extends DSpaceObject
         groups.add(g);
         groupsChanged = true;
 
-        context.addEvent(new Event(Event.ADD, Constants.GROUP, getID(), Constants.GROUP, g.getID(), g.getName()));
+        context.addContainerEvent(this, EventType.ADD, g);
     }
 
     /**
      * remove an eperson from a group
-     * 
+     *
      * @param e
      *            eperson
      */
@@ -293,13 +293,13 @@ public class Group extends DSpaceObject
         if (epeople.remove(e))
         {
             epeopleChanged = true;
-            context.addEvent(new Event(Event.REMOVE, Constants.GROUP, getID(), Constants.EPERSON, e.getID(), e.getEmail()));
+            context.addContainerEvent(this, EventType.REMOVE, e);
         }
     }
 
     /**
      * remove group from this group
-     * 
+     *
      * @param g
      */
     public void removeMember(Group g)
@@ -309,14 +309,14 @@ public class Group extends DSpaceObject
         if (groups.remove(g))
         {
             groupsChanged = true;
-            context.addEvent(new Event(Event.REMOVE, Constants.GROUP, getID(), Constants.GROUP, g.getID(), g.getName()));
+            context.addContainerEvent(this, EventType.REMOVE, g);
         }
     }
 
     /**
      * check to see if an eperson is a direct member.
      * If the eperson is a member via a subgroup will be returned <code>false</code>
-     * 
+     *
      * @param e
      *            eperson to check membership
      */
@@ -336,7 +336,7 @@ public class Group extends DSpaceObject
     /**
      * check to see if g is a direct group member.
      * If g is a subgroup via another group will be returned <code>false</code>
-     * 
+     *
      * @param g
      *            group to check
      * @return
@@ -352,7 +352,7 @@ public class Group extends DSpaceObject
      * fast check to see if an eperson is a member called with eperson id, does
      * database lookup without instantiating all of the epeople objects and is
      * thus a static method
-     * 
+     *
      * @param c
      *            context
      * @param groupid
@@ -373,7 +373,7 @@ public class Group extends DSpaceObject
 
     /**
      * Get all of the groups that an eperson is a member of
-     * 
+     *
      * @param c
      * @param e
      * @return
@@ -398,7 +398,7 @@ public class Group extends DSpaceObject
 
     /**
      * get Set of Integers all of the group memberships for an eperson
-     * 
+     *
      * @param c
      * @param e
      * @return Set of Integer groupIDs
@@ -408,7 +408,7 @@ public class Group extends DSpaceObject
             throws SQLException
     {
         Set<Integer> groupIDs = new HashSet<Integer>();
-        
+
         if (e != null)
         {
             // two queries - first to get groups eperson is a member of
@@ -453,9 +453,9 @@ public class Group extends DSpaceObject
             }
         }
 
-        // all the users are members of the anonymous group 
+        // all the users are members of the anonymous group
         groupIDs.add(Integer.valueOf(0));
-        
+
         // now we have all owning groups, also grab all parents of owning groups
         // yes, I know this could have been done as one big query and a union,
         // but doing the Oracle port taught me to keep to simple SQL!
@@ -473,7 +473,7 @@ public class Group extends DSpaceObject
             int groupID = (i.next()).intValue();
 
             parameters[idx++] = Integer.valueOf(groupID);
-            
+
             groupQuery.append("child_id= ? ");
             if (i.hasNext())
             {
@@ -510,16 +510,16 @@ public class Group extends DSpaceObject
 
         return groupIDs;
     }
-    
-    
+
+
     /**
      * Get all of the epeople who are a member of the
      * specified group, or a member of a sub-group of the
      * specified group, etc.
-     * 
-     * @param c   
+     *
+     * @param c
      *          DSpace context
-     * @param g   
+     * @param g
      *          Group object
      * @return   Array of EPerson objects
      * @throws SQLException
@@ -542,7 +542,7 @@ public class Group extends DSpaceObject
     /**
      * Get Set of all Integers all of the epeople
      * members for a group
-     * 
+     *
      * @param c
      *          DSpace context
      * @param g
@@ -556,12 +556,12 @@ public class Group extends DSpaceObject
         // two queries - first to get all groups which are a member of this group
         // second query gets all members of each group in the first query
         Set<Integer> epeopleIDs = new HashSet<Integer>();
-        
+
         // Get all groups which are a member of this group
         TableRowIterator tri = DatabaseManager.queryTable(c, "group2groupcache",
                 "SELECT * FROM group2groupcache WHERE parent_id= ? ",
                 g.getID());
-        
+
         Set<Integer> groupIDs = new HashSet<Integer>();
 
         try
@@ -603,12 +603,12 @@ public class Group extends DSpaceObject
         {
             epersonQuery.append(" OR ");
         }
-        
+
         while (i.hasNext())
         {
             int groupID = (i.next()).intValue();
             parameters[idx++] = Integer.valueOf(groupID);
-            
+
             epersonQuery.append("eperson_group_id= ? ");
             if (i.hasNext())
             {
@@ -656,7 +656,7 @@ public class Group extends DSpaceObject
 
     /**
      * find the group by its ID
-     * 
+     *
      * @param context
      * @param id
      */
@@ -684,10 +684,10 @@ public class Group extends DSpaceObject
 
     /**
      * Find the group by its name - assumes name is unique
-     * 
+     *
      * @param context
      * @param name
-     * 
+     *
      * @return the named Group, or null if not found
      */
     public static Group findByName(Context context, String name)
@@ -719,12 +719,12 @@ public class Group extends DSpaceObject
 
     /**
      * Finds all groups in the site
-     * 
+     *
      * @param context
      *            DSpace context
      * @param sortField
      *            field to sort by -- Group.ID or Group.NAME
-     * 
+     *
      * @return array of all groups in the site
      */
     public static List<Group> findAll(Context context, int sortField)
@@ -748,7 +748,7 @@ public class Group extends DSpaceObject
             s = "name";
         }
 
-        // NOTE: The use of 's' in the order by clause can not cause an SQL 
+        // NOTE: The use of 's' in the order by clause can not cause an SQL
         // injection because the string is derived from constant values above.
         TableRowIterator rows = DatabaseManager.queryTable(
         		context, "epersongroup",
@@ -788,16 +788,16 @@ public class Group extends DSpaceObject
             }
         }
     }
-    
-    
+
+
     /**
      * Find the groups that match the search query across eperson_group_id or name
-     * 
+     *
      * @param context
      *            DSpace context
      * @param query
      *            The search string
-     * 
+     *
      * @return array of Group objects
      */
     public static Group[] search(Context context, String query)
@@ -805,19 +805,19 @@ public class Group extends DSpaceObject
 	{
 	    return search(context, query, -1, -1);
 	}
-    
+
     /**
      * Find the groups that match the search query across eperson_group_id or name
-     * 
+     *
      * @param context
      *            DSpace context
      * @param query
      *            The search string
      * @param offset
-     *            Inclusive offset 
+     *            Inclusive offset
      * @param limit
      *            Maximum number of matches returned
-     * 
+     *
      * @return array of Group objects
      */
     public static Group[] search(Context context, String query, int offset, int limit) throws SQLException {
@@ -895,14 +895,14 @@ public class Group extends DSpaceObject
 	}
 
     /**
-     * Returns the total number of groups returned by a specific query, without the overhead 
+     * Returns the total number of groups returned by a specific query, without the overhead
      * of creating the Group objects to store the results.
-     * 
+     *
      * @param context
      *            DSpace context
      * @param query
      *            The search string
-     * 
+     *
      * @return the number of groups matching the query
      */
     public static int searchResultCount(Context context, String query) throws SQLException {
@@ -925,17 +925,17 @@ public class Group extends DSpaceObject
 
         return count.intValue();
     }
-    
-    
+
+
     /**
      * Delete a group
-     * 
+     *
      */
     public void delete() throws SQLException
     {
         // FIXME: authorizations
 
-        context.addEvent(new Event(Event.DELETE, Constants.GROUP, getID(), getName()));
+        context.addContentEvent(this, EventType.DELETE);
 
         // Remove from cache
         context.removeCached(this, getID());
@@ -960,7 +960,7 @@ public class Group extends DSpaceObject
 
         // don't forget the new table
         deleteEpersonGroup2WorkspaceItem();
-        
+
         // Remove DSO info
         destroyDSO();
 
@@ -990,10 +990,10 @@ public class Group extends DSpaceObject
         loadData(); // make sure all data is loaded
         return epeople;
     }
-   
+
     /**
      * Return Group members of a Group
-     * 
+     *
      * @return
      */
     public Group[] getMemberGroups()
@@ -1005,17 +1005,17 @@ public class Group extends DSpaceObject
 
         return myArray;
     }
-    
+
     /**
      * Return true if group has no direct or indirect members
      */
     public boolean isEmpty()
     {
         loadData(); // make sure all data is loaded
-        
-        // the only fast check available is on epeople... 
+
+        // the only fast check available is on epeople...
         boolean hasMembers = (epeople.size() != 0);
-        
+
         if (hasMembers)
         {
             return false;
@@ -1097,10 +1097,10 @@ public class Group extends DSpaceObject
     /**
      * Return <code>true</code> if <code>other</code> is the same Group as
      * this object, <code>false</code> otherwise
-     * 
+     *
      * @param obj
      *            object to compare to
-     * 
+     *
      * @return <code>true</code> if object passed in represents the same group
      *         as this object
      */
@@ -1136,7 +1136,7 @@ public class Group extends DSpaceObject
     /**
      * Regenerate the group cache AKA the group2groupcache table in the database -
      * meant to be called when a group is added or removed from another group
-     * 
+     *
      */
     private void rethinkGroupCache() throws SQLException
     {
@@ -1217,7 +1217,7 @@ public class Group extends DSpaceObject
     /**
      * Used recursively to generate a map of ALL of the children of the given
      * parent
-     * 
+     *
      * @param parents
      *            Map of parent,child relationships
      * @param parent
@@ -1253,7 +1253,7 @@ public class Group extends DSpaceObject
 
         return myChildren;
     }
-    
+
     public DSpaceObject getParentObject() throws SQLException
     {
         // could a collection/community administrator manage related groups?
@@ -1285,7 +1285,7 @@ public class Group extends DSpaceObject
             {
                 Collection collection = Collection.find(context, qResult
                         .getIntColumn("collection_id"));
-                
+
                 if ((qResult.getIntColumn("workflow_step_1") == getID() ||
                         qResult.getIntColumn("workflow_step_2") == getID() ||
                         qResult.getIntColumn("workflow_step_3") == getID()))

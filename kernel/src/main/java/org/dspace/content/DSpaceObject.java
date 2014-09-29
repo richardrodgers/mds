@@ -21,7 +21,6 @@ import org.slf4j.LoggerFactory;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
-import org.dspace.event.Event;
 import org.dspace.event.ContentEvent.EventType;
 import org.dspace.storage.bitstore.BitstreamStorageManager;
 import org.dspace.storage.rdbms.DatabaseManager;
@@ -35,25 +34,25 @@ public abstract class DSpaceObject
 {
     /** logger */
     private static Logger log = LoggerFactory.getLogger(DSpaceObject.class);
-    
+
     /** Our context */
     protected Context context;
-    
+
     /** The row in the table representing this object */
     protected TableRow tableRow;
-        
+
     // Object identifier (UUID)
     private String objectId;
-    
+
     // Object metadata
     private List<MDValue> metadata;
-    
+
     // Flag set when metadata is modified
     protected boolean modifiedMetadata;
-    
+
     /** Flag set when data is modified, for events */
     protected boolean modified;
-    
+
     /**
      * Returns a DSpaceObject for given objectID, or null
      * if no object can be found
@@ -71,7 +70,7 @@ public abstract class DSpaceObject
         }
         return null;
     }
-    
+
     public static DSpaceObject composeDSO(Context context, int type, TableRow row) throws SQLException {
         switch (type) {
             case Constants.COMMUNITY:  return new Community(context, row);
@@ -82,7 +81,7 @@ public abstract class DSpaceObject
             default: return null;
         }
     }
-    
+
     public static Class<? extends DSpaceObject> classFromType(int type) {
         switch (type) {
             case Constants.COMMUNITY:  return Community.class;
@@ -104,7 +103,7 @@ public abstract class DSpaceObject
         return DatabaseManager.querySingle(context,
          "SELECT count(*) as objct FROM dspaceobject WHERE dso_type_id = ?", type).getLongColumn("objct");
     }
-    
+
     /**
      * Creates the DSpaceObject. This includes assigning
      * a unique object ID (a UUID).
@@ -117,26 +116,25 @@ public abstract class DSpaceObject
         // bind the DSO ID as a foreign key to this object
         tableRow.setColumn("dso_id", dsoRow.getIntColumn("dso_id"));
     }
-    
+
     protected void updateDSO() throws AuthorizeException, SQLException {
         DatabaseManager.update(context, tableRow);
         if (modified) {
-            context.addEvent(new Event(Event.MODIFY, getType(), getID(), null));
             context.addContentEvent(this, EventType.MODIFY);
             modified = false;
         }
         updateMetadata();
     }
-    
+
     /**
      * Destroys the DSpaceObject belonging to this subclass.
      */
     protected void destroyDSO() throws SQLException {
-        // first remove any attributes 
+        // first remove any attributes
         DatabaseManager.updateQuery(context, "DELETE FROM attribute WHERE dso_id = ?", getDSOiD());
         DatabaseManager.delete(context, "dspaceobject", getDSOiD());
     }
-    
+
     /**
      * Get metadata for the bitstream in a chosen schema.
      * See <code>MetadataSchema</code> for more information about schemas.
@@ -184,7 +182,7 @@ public abstract class DSpaceObject
      * @return metadata fields that match the parameters
      */
     public List<MDValue> getMetadata(String schema, String element, String qualifier, String lang) {
-    
+
         // Build up list of matching values
         List<MDValue> values = new ArrayList<MDValue>();
         for (MDValue mdv : getMetadata()) {
@@ -194,7 +192,7 @@ public abstract class DSpaceObject
         }
         return values;
     }
-    
+
     /**
      * Retrieve metadata field values from a given metadata string
      * of the form <schema prefix>.<element>[.<qualifier>|.*]
@@ -205,7 +203,7 @@ public abstract class DSpaceObject
      */
     public List<MDValue> getMetadata(String mdString) {
         StringTokenizer dcf = new StringTokenizer(mdString, ".");
-        
+
         String[] tokens = { "", "", "" };
         int i = 0;
         while(dcf.hasMoreTokens()) {
@@ -215,7 +213,7 @@ public abstract class DSpaceObject
         String schema = tokens[0];
         String element = tokens[1];
         String qualifier = tokens[2];
-        
+
         if ("*".equals(qualifier))
         {
             return getMetadata(schema, element, MDValue.ANY, MDValue.ANY);
@@ -229,28 +227,28 @@ public abstract class DSpaceObject
             return getMetadata(schema, element, qualifier, MDValue.ANY);
         }
     }
-    
+
     public String getMetadataValue(String name) {
         List<MDValue> vals = getMetadata(name);
         return (vals.size() >= 1) ? vals.get(0).getValue() : null;
     }
-    
+
     public void addMetadata(String schema, String element, String qualifier, String lang, String value) {
         addMetadata(schema, element, qualifier, lang, -1, value);
     }
-    
+
     public void addMetadata(String schema, String element, String qualifier, String lang,
                             int place, String value) {
         List<String> values = new ArrayList<String>();
         values.add(value);
         addMetadata(schema, element, qualifier, lang, place, values);
     }
-    
+
     public void addMetadata(String schema, String element, String qualifier, String lang,
                             List<String> values) {
         addMetadata(schema, element, qualifier, lang, -1, values);
     }
-    
+
     /**
      * Add metadata fields. These are appended to existing values.
      * Use <code>clearMetadata</code> to remove values. The ordering of values
@@ -303,7 +301,7 @@ public abstract class DSpaceObject
             modifiedMetadata = true;
         }
     }
-    
+
     /**
      * Clear metadata values. As with <code>getMetadata</code> above,
      * passing in <code>null</code> only matches fields where the qualifier or
@@ -341,18 +339,18 @@ public abstract class DSpaceObject
         metadata = values;
         modifiedMetadata = true;
     }
-    
+
     public void setMetadataValue(String name, String value) throws AuthorizeException, SQLException {
         String[] tokens = name.split("\\.");
         String qualifier = (tokens.length > 2) ? tokens[2] : null;
         if ("*".equals(qualifier)) {
             qualifier = MDValue.ANY;
         }
-        
+
         clearMetadata(tokens[0], tokens[1], qualifier, MDValue.ANY);
         addMetadata(tokens[0], tokens[1], qualifier, "us_en", value);
     }
-    
+
     protected void updateMetadata() throws AuthorizeException, SQLException {
         if (modifiedMetadata) {
             // Synchonize DB to in-memory MD values
@@ -378,11 +376,12 @@ public abstract class DSpaceObject
                     DatabaseManager.delete(context, createMetadataRow(delValue));
                 }
             }
-            context.addEvent(new Event(Event.MODIFY_METADATA, getType(), getID(), details.toString()));
+            //RLR - FIXME
+            //context.addEvent(new Event(Event.MODIFY_METADATA, getType(), getID(), details.toString()));
             modifiedMetadata = false;
         }
     }
-    
+
     protected void deleteMetadata() throws AuthorizeException, SQLException {
         DatabaseManager.updateQuery(context, "DELETE FROM MetadataValue WHERE dso_id = ? ",
             getDSOiD());
@@ -395,37 +394,37 @@ public abstract class DSpaceObject
 
     /**
      * Get the type of this object, found in Constants
-     * 
+     *
      * @return type of the object
      */
     public abstract int getType();
 
     /**
      * Get the internal ID (database primary key) of this object
-     * 
+     *
      * @return internal ID of object
      */
     public abstract int getID();
-    
+
     /**
      * Get the DSpaceObject ID (database primary key) of this object
-     * 
+     *
      * @return internal DSpaceObject ID of object
      */
     int getDSOiD() {
         return tableRow.getIntColumn("dso_id");
     }
-    
+
     /**
      * Get the Handle of the object. This may return <code>null</code>
-     * 
+     *
      * @return Handle of the object, or <code>null</code> if it doesn't have
      *         one
      */
     public String getHandle() {
         return null;
     }
-    
+
     public String getObjectId() throws SQLException {
         if (objectId == null) {
             TableRow row = DatabaseManager.find(context, "dspaceobject", getDSOiD());
@@ -462,7 +461,7 @@ public abstract class DSpaceObject
      * Default behaviour is ADMIN right on the object grant right on all other
      * action on the object itself. Subclass should override this method as
      * need.
-     * 
+     *
      * @param action
      *            ID of action being attempted, from
      *            <code>org.dspace.core.Constants</code>. The ADMIN action is
@@ -489,7 +488,7 @@ public abstract class DSpaceObject
      * related to it. It defines the "first" dspace object <b>OTHER</b> then the
      * current one, where allowed ADMIN actions imply allowed ADMIN actions on
      * the object self.
-     * 
+     *
      * @return the dspace object that "own" the current object in
      *         the hierarchy
      * @throws SQLException
@@ -497,16 +496,16 @@ public abstract class DSpaceObject
     public DSpaceObject getParentObject() throws SQLException {
         return null;
     }
-    
+
     public void decacheMe() throws SQLException {
         // Remove item and it's submitter from cache
         context.removeCached(this, getID());
     }
-    
+
     /**
      * Sets a scoped attribute on this object. If attribute does not exist,
      * it is created; if it does, its value is reset.
-     * 
+     *
      * @param scope - the attribute scope
      * @param name - the name of the attribute
      * @param value - the attribute value
@@ -534,13 +533,13 @@ public abstract class DSpaceObject
             if (tri != null) {
                 tri.close();
             }
-        }   
+        }
     }
-    
+
     /**
      * Returns the value of the attribute with passed name, or <code>null</code>
      * if the attribute does not exist in the passed scope.
-     * 
+     *
      * @param scope - the attribute scope
      * @param name - the name of the attribute
      * @return - the attribute value, or null if undefined
@@ -552,21 +551,21 @@ public abstract class DSpaceObject
             return tri.hasNext() ? tri.next().getStringColumn("attr_value") : null;
         }
     }
-    
+
     /**
      * Clears all attributes in the passed scope.
-     * 
+     *
      * @param scope - the attribute scope
      */
     public void clearAttributes(String scope) throws SQLException {
         DatabaseManager.updateQuery(context, "DELETE FROM attribute WHERE dso_id = ? AND scope = ?",
                                     getDSOiD(), scope);
     }
-    
+
     /**
      * Obtains a set of all the attribute names in the given scope.
      * If there are no attributes, an empty set is returned
-     * 
+     *
      * @param scope - the attribute scope
      * @return the set of attribute names in the passed scope.
      */
@@ -581,7 +580,7 @@ public abstract class DSpaceObject
         }
         return keySet;
     }
-    
+
     // lazy load of metadata
     private List<MDValue> getMetadata() {
         if (metadata == null) {
@@ -590,7 +589,7 @@ public abstract class DSpaceObject
         }
         return metadata;
     }
-    
+
     private void loadMetadata(List<MDValue> mdList) {
         TableRowIterator tri = null;
         try {
@@ -627,19 +626,19 @@ public abstract class DSpaceObject
             }
         }
     }
-       
+
     private TableRowIterator retrieveMetadata() throws SQLException {
         return DatabaseManager.queryTable(context, "MetadataValue",
                 "SELECT * FROM MetadataValue WHERE dso_id= ? ORDER BY metadata_field_id, place",
                 getDSOiD());
     }
-    
+
     private TableRow createMetadataRow(MDValue value) throws SQLException, AuthorizeException {
-    
+
         MetadataSchema schema = MetadataSchema.find(context, value.getSchema());
         MetadataField field = MetadataField.findByElement(context, schema.getSchemaID(),
                                                           value.getElement(), value.getQualifier());
-    
+
         // Create a table row and update it with the values
         TableRow row = DatabaseManager.row("MetadataValue");
         row.setColumn("dso_id", getDSOiD());

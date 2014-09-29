@@ -7,16 +7,14 @@
  */
 package org.dspace.event;
 
-import java.util.List;
-
 import org.dspace.content.DSpaceObject;
 import org.dspace.core.Context;
 
 /**
  * ContainerEvents are used to express container
  * lifecycle changes of content objects - addition or removal
- * members
- * 
+ * of members
+ *
  * @author richardrodgers
  */
 public class ContainerEvent extends ContentEvent {

@@ -22,7 +22,6 @@ import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
-import org.dspace.event.Event;
 import org.dspace.event.ContentEvent.EventType;
 import org.dspace.storage.rdbms.DatabaseManager;
 import org.dspace.storage.rdbms.TableRow;
@@ -31,9 +30,9 @@ import org.dspace.storage.rdbms.TableRowIterator;
 /**
  * Class representing bundles of bitstreams stored in the DSpace system
  * <P>
- * The corresponding Bitstream objects are loaded into memory. 
+ * The corresponding Bitstream objects are loaded into memory.
  * Creating, adding or removing bitstreams has instant effect in the database.
- * 
+ *
  * @author Robert Tansley
  * @version $Revision: 6887 $
  */
@@ -47,7 +46,7 @@ public class Bundle extends DSpaceObject
 
     /**
      * Construct a bundle object with the given table row
-     * 
+     *
      * @param context
      *            the context this object exists in
      * @param row
@@ -114,12 +113,12 @@ public class Bundle extends DSpaceObject
     /**
      * Get a bundle from the database. The bundle and bitstream metadata are all
      * loaded into memory.
-     * 
+     *
      * @param context
      *            DSpace context object
      * @param id
      *            ID of the bundle
-     * 
+     *
      * @return the bundle, or null if the ID is invalid.
      */
     public static Bundle find(Context context, int id) throws SQLException {
@@ -148,10 +147,10 @@ public class Bundle extends DSpaceObject
      * bundles need to be created within the context of an item. For this
      * reason, authorisation is also not checked; that is the responsibility of
      * the caller.
-     * 
+     *
      * @param context
      *            DSpace context object
-     * 
+     *
      * @return the newly created bundle
      */
     static Bundle create(Context context) throws SQLException  {
@@ -164,7 +163,6 @@ public class Bundle extends DSpaceObject
         Bundle b = new Bundle(context, row);
         b.createDSO();
 
-        context.addEvent(new Event(Event.CREATE, Constants.BUNDLE, row.getIntColumn("bundle_id"), null));
         context.addContentEvent(b, EventType.CREATE);
 
         return b;
@@ -172,14 +170,14 @@ public class Bundle extends DSpaceObject
 
     /**
      * Get the internal identifier of this bundle
-     * 
+     *
      * @return the internal identifier
      */
     @Override
     public int getID() {
         return tableRow.getIntColumn("bundle_id");
     }
-    
+
     /**
      * return type found in Constants
      */
@@ -187,10 +185,10 @@ public class Bundle extends DSpaceObject
     public int getType() {
         return Constants.BUNDLE;
     }
-    
+
     /**
      * Get the name of the bundle
-     * 
+     *
      * @return name of the bundle (ORIGINAL, TEXT, THUMBNAIL) or NULL if not set
      */
     @Override
@@ -200,7 +198,7 @@ public class Bundle extends DSpaceObject
 
     /**
      * Set the name of the bundle
-     * 
+     *
      * @param name
      *            string name of the bundle (ORIGINAL, TEXT, THUMBNAIL) are the
      *            values currently used
@@ -212,7 +210,7 @@ public class Bundle extends DSpaceObject
 
     /**
      * Get the primary bitstream ID of the bundle
-     * 
+     *
      * @return primary bitstream ID or -1 if not set
      */
     public int getPrimaryBitstreamID() {
@@ -221,7 +219,7 @@ public class Bundle extends DSpaceObject
 
     /**
      * Set the primary bitstream ID of the bundle
-     * 
+     *
      * @param bitstreamID
      *            int ID of primary bitstream (e.g. index html file)
      */
@@ -236,11 +234,11 @@ public class Bundle extends DSpaceObject
     public void unsetPrimaryBitstreamID() {
     	tableRow.setColumnNull("primary_bitstream_id");
     }
-    
+
     /**
      * @param name
      *            name of the bitstream you're looking for
-     * 
+     *
      * @return the bitstream or null if not found
      */
     public Bitstream getBitstreamByName(String name) {
@@ -260,7 +258,7 @@ public class Bundle extends DSpaceObject
 
     /**
      * Get the bitstreams in this bundle
-     * 
+     *
      * @return the bitstreams
      */
     public List<Bitstream> getBitstreams() {
@@ -269,7 +267,7 @@ public class Bundle extends DSpaceObject
 
     /**
      * Get the items this bundle appears in
-     * 
+     *
      * @return array of <code>Item</code> s this bundle appears in
      */
     public List<Item> getItems() throws SQLException {
@@ -308,10 +306,10 @@ public class Bundle extends DSpaceObject
 
     /**
      * Create a new bitstream in this bundle.
-     * 
+     *
      * @param is
      *            the stream to read the new bitstream from
-     * 
+     *
      * @return the newly created bitstream
      */
     public Bitstream createBitstream(InputStream is) throws AuthorizeException,
@@ -332,7 +330,7 @@ public class Bundle extends DSpaceObject
      * bitstreams.
      *
      * @param assetstore corresponds to an assetstore in dspace.cfg
-     * @param bitstreamPath the path and filename relative to the assetstore 
+     * @param bitstreamPath the path and filename relative to the assetstore
      * @return  the newly created bitstream
      * @throws IOException
      * @throws SQLException
@@ -352,7 +350,7 @@ public class Bundle extends DSpaceObject
 
     /**
      * Add an existing bitstream to this bundle
-     * 
+     *
      * @param b
      *            the bitstream to add
      */
@@ -375,7 +373,6 @@ public class Bundle extends DSpaceObject
         // Add the bitstream object
         bitstreams.add(b);
 
-        context.addEvent(new Event(Event.ADD, Constants.BUNDLE, getID(), Constants.BITSTREAM, b.getID(), String.valueOf(b.getSequenceID())));
         context.addContainerEvent(this, EventType.ADD, b);
 
         // copy authorization policies from bundle to bitstream
@@ -443,7 +440,7 @@ public class Bundle extends DSpaceObject
      * bundle the primary bitstream field is unset in order to free the
      * bitstream from the foreign key constraint so that the
      * <code>cleanup</code> process can run normally.
-     * 
+     *
      * @param b
      *            the bitstream to remove
      */
@@ -466,7 +463,6 @@ public class Bundle extends DSpaceObject
             }
         }
 
-        context.addEvent(new Event(Event.REMOVE, Constants.BUNDLE, getID(), Constants.BITSTREAM, b.getID(), String.valueOf(b.getSequenceID())));
         context.addContainerEvent(this, EventType.REMOVE, b);
 
         //Ensure that the last modified from the item is triggered !
@@ -482,11 +478,11 @@ public class Bundle extends DSpaceObject
         if (b.getID() == getPrimaryBitstreamID())  {
             unsetPrimaryBitstreamID();
         }
-        
+
         // Delete the mapping row
         DatabaseManager.updateQuery(context,
                 "DELETE FROM bundle2bitstream WHERE bundle_id= ? "+
-                "AND bitstream_id= ? ", 
+                "AND bitstream_id= ? ",
                 getID(), b.getID());
 
         // If the bitstream is orphaned, it's removed
@@ -527,7 +523,6 @@ public class Bundle extends DSpaceObject
         log.info(LogManager.getHeader(context, "delete_bundle", "bundle_id="
                 + getID()));
 
-        context.addEvent(new Event(Event.DELETE, Constants.BUNDLE, getID(), getName()));
         context.addContentEvent(this, EventType.DELETE);
 
         // Remove from cache
@@ -537,24 +532,24 @@ public class Bundle extends DSpaceObject
         for (Bitstream bs : getBitstreams()) {
             removeBitstream(bs);
         }
-        
+
         // Delete the metadata
         deleteMetadata();
 
         // remove our authorization policies
         AuthorizeManager.removeAllPolicies(context, this);
-        
+
         // shed DSO data
         destroyDSO();
 
         // Remove ourself
         DatabaseManager.delete(context, tableRow);
     }
-   
+
     /**
      * remove all policies on the bundle and its contents, and replace them with
      * the DEFAULT_BITSTREAM_READ policies belonging to the collection.
-     * 
+     *
      * @param c
      *            Collection
      * @throws java.sql.SQLException
@@ -583,11 +578,11 @@ public class Bundle extends DSpaceObject
 
         replaceAllBitstreamPolicies(policies);
     }
-    
+
     /**
      * remove all of the policies for the bundle and bitstream contents and replace
      * them with a new list of policies
-     * 
+     *
      * @param newpolicies -
      *            this will be all of the new policies for the bundle and
      *            bitstream contents
@@ -617,7 +612,7 @@ public class Bundle extends DSpaceObject
         }
         return list;
     }
-    
+
     public DSpaceObject getAdminObject(int action) throws SQLException {
         DSpaceObject adminObject = null;
         List<Item> items = getItems();
@@ -673,7 +668,7 @@ public class Bundle extends DSpaceObject
         }
         return adminObject;
     }
-    
+
     public DSpaceObject getParentObject() throws SQLException {
         List<Item> items = getItems();
         return (items.size() > 0) ? items.get(0) : null;

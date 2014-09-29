@@ -23,14 +23,14 @@ import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.LogManager;
 import org.dspace.core.Utils;
-import org.dspace.event.Event;
+import org.dspace.event.ContentEvent.EventType;
 import org.dspace.storage.rdbms.DatabaseManager;
 import org.dspace.storage.rdbms.TableRow;
 import org.dspace.storage.rdbms.TableRowIterator;
 
 /**
  * Class representing an e-person.
- * 
+ *
  * @author David Stuve
  * @version $Revision: 6677 $
  */
@@ -50,14 +50,14 @@ public class EPerson extends DSpaceObject
 
     /** The e-mail field (for sorting) */
     public static final int LANGUAGE = 5;
-    
+
     /** log4j logger */
     private static Logger log = LoggerFactory.getLogger(EPerson.class);
 
 
     /**
      * Construct an EPerson
-     * 
+     *
      * @param context
      *            the context this object exists in
      * @param row
@@ -73,7 +73,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Return true if this object equals obj, false otherwise.
-     * 
+     *
      * @param obj
      * @return true if ResourcePolicy objects are equal
      */
@@ -100,12 +100,12 @@ public class EPerson extends DSpaceObject
 
     /**
      * Get an EPerson from the database.
-     * 
+     *
      * @param context
      *            DSpace context object
      * @param id
      *            ID of the EPerson
-     * 
+     *
      * @return the EPerson format, or null if the ID is invalid.
      */
     public static EPerson find(Context context, int id) throws SQLException {
@@ -127,7 +127,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Find the eperson by their email address.
-     * 
+     *
      * @return EPerson, or {@code null} if none such exists.
      */
     public static EPerson findByEmail(Context context, String email)
@@ -135,8 +135,8 @@ public class EPerson extends DSpaceObject
         if (email == null) {
             return null;
         }
-        
-        // All email addresses are stored as lowercase, so ensure that the email address is lowercased for the lookup 
+
+        // All email addresses are stored as lowercase, so ensure that the email address is lowercased for the lookup
         TableRow row = DatabaseManager.findByUnique(context, "eperson",
                 "email", email.toLowerCase());
 
@@ -163,12 +163,12 @@ public class EPerson extends DSpaceObject
 
     /**
      * Find the eperson by their netid.
-     * 
+     *
      * @param context
      *            DSpace context
      * @param netid
      *            Network ID
-     * 
+     *
      * @return corresponding EPerson, or <code>null</code>
      */
     public static EPerson findByNetid(Context context, String netid)
@@ -204,32 +204,32 @@ public class EPerson extends DSpaceObject
 
     /**
      * Find the epeople that match the search query across firstname, lastname or email.
-     * 
+     *
      * @param context
      *            DSpace context
      * @param query
      *            The search string
-     * 
+     *
      * @return array of EPerson objects
      */
     public static EPerson[] search(Context context, String query)
             throws SQLException {
         return search(context, query, -1, -1);
     }
-    
+
     /**
-     * Find the epeople that match the search query across firstname, lastname or email. 
-     * This method also allows offsets and limits for pagination purposes. 
-     * 
+     * Find the epeople that match the search query across firstname, lastname or email.
+     * This method also allows offsets and limits for pagination purposes.
+     *
      * @param context
      *            DSpace context
      * @param query
      *            The search string
      * @param offset
-     *            Inclusive offset 
+     *            Inclusive offset
      * @param limit
      *            Maximum number of matches returned
-     * 
+     *
      * @return array of EPerson objects
      */
     public static EPerson[] search(Context context, String query, int offset, int limit) throws SQLException {
@@ -272,7 +272,7 @@ public class EPerson extends DSpaceObject
         }
 
         // Get all the epeople that match the query
-		TableRowIterator rows = DatabaseManager.query(context, 
+		TableRowIterator rows = DatabaseManager.query(context,
 		        dbquery, paramArr);
 		try
         {
@@ -308,14 +308,14 @@ public class EPerson extends DSpaceObject
     }
 
     /**
-     * Returns the total number of epeople returned by a specific query, without the overhead 
+     * Returns the total number of epeople returned by a specific query, without the overhead
      * of creating the EPerson objects to store the results.
-     * 
+     *
      * @param context
      *            DSpace context
      * @param query
      *            The search string
-     * 
+     *
      * @return the number of epeople matching the query
      */
     public static int searchResultCount(Context context, String query) throws SQLException {
@@ -337,10 +337,10 @@ public class EPerson extends DSpaceObject
                 new Object[] {int_param,dbquery,dbquery,dbquery});
 
         count = Long.valueOf(row.getLongColumn("epcount"));
-        
+
         return count.intValue();
     }
-    
+
     /**
      * Find all the epeople that match a particular query
      * <ul>
@@ -349,7 +349,7 @@ public class EPerson extends DSpaceObject
      * <li><code>EMAIL</code></li>
      * <li><code>NETID</code></li>
      * </ul>
-     * 
+     *
      * @return array of EPerson objects
      */
     public static List<EPerson> findAll(Context context, int sortField)
@@ -378,13 +378,13 @@ public class EPerson extends DSpaceObject
             s = "lastname";
         }
 
-        // NOTE: The use of 's' in the order by clause can not cause an SQL 
+        // NOTE: The use of 's' in the order by clause can not cause an SQL
         // injection because the string is derived from constant values above.
-        TableRowIterator tri = DatabaseManager.query(context, 
+        TableRowIterator tri = DatabaseManager.query(context,
                 "SELECT * FROM eperson ORDER BY "+s);
 
         List<EPerson> epeople = new ArrayList<EPerson>();
-        
+
         try {
             while (tri.hasNext()) {
             	TableRow row = tri.next();
@@ -408,7 +408,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Create a new eperson
-     * 
+     *
      * @param context
      *            DSpace context object
      */
@@ -431,14 +431,14 @@ public class EPerson extends DSpaceObject
         log.info(LogManager.getHeader(context, "create_eperson", "eperson_id="
                 + e.getID()));
 
-        context.addEvent(new Event(Event.CREATE, Constants.EPERSON, e.getID(), null));
+        context.addContentEvent(e, EventType.CREATE);
 
         return e;
     }
 
     /**
      * Delete an eperson
-     * 
+     *
      */
     public void delete() throws SQLException, AuthorizeException,
             EPersonDeletionException
@@ -460,7 +460,7 @@ public class EPerson extends DSpaceObject
             throw new EPersonDeletionException(constraintList);
         }
 
-        context.addEvent(new Event(Event.DELETE, Constants.EPERSON, getID(), getEmail()));
+        context.addContentEvent(this, EventType.DELETE);
 
         // Remove from cache
         context.removeCached(this, getID());
@@ -477,7 +477,7 @@ public class EPerson extends DSpaceObject
         DatabaseManager.updateQuery(context,
                 "DELETE FROM subscription WHERE eperson_id= ? ",
                 getID());
-        
+
         // remove DSO info
         destroyDSO();
 
@@ -490,29 +490,29 @@ public class EPerson extends DSpaceObject
 
     /**
      * Get the e-person's internal identifier
-     * 
+     *
      * @return the internal identifier
      */
     @Override
     public int getID() {
         return tableRow.getIntColumn("eperson_id");
     }
-        
+
     /**
      * Get the e-person's language
-     * 
+     *
      * @return  language
      */
      public String getLanguage()
      {
          return tableRow.getStringColumn("language");
      }
-     
+
      /**
      * Set the EPerson's language.  Value is expected to be a Unix/POSIX
      * Locale specification of the form {language} or {language}_{territory},
      * e.g. "en", "en_US", "pt_BR" (the latter is Brazilian Portugese).
-     * 
+     *
      * @param language
      *            language
      */
@@ -520,7 +520,7 @@ public class EPerson extends DSpaceObject
      {
          tableRow.setColumn("language", language);
      }
- 
+
 
     public String getHandle()
     {
@@ -530,7 +530,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Get the e-person's email address
-     * 
+     *
      * @return their email address
      */
     public String getEmail()
@@ -540,7 +540,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Set the EPerson's email
-     * 
+     *
      * @param s
      *            the new email
      */
@@ -557,7 +557,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Get the e-person's netid
-     * 
+     *
      * @return their netid
      */
     public String getNetid()
@@ -567,7 +567,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Set the EPerson's netid
-     * 
+     *
      * @param s
      *            the new netid
      */
@@ -580,7 +580,7 @@ public class EPerson extends DSpaceObject
     /**
      * Get the e-person's full name, combining first and last name in a
      * displayable string.
-     * 
+     *
      * @return their full name
      */
     public String getFullName() {
@@ -603,7 +603,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Get the eperson's first name.
-     * 
+     *
      * @return their first name
      */
     public String getFirstName()
@@ -613,7 +613,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Set the eperson's first name
-     * 
+     *
      * @param firstname
      *            the person's first name
      */
@@ -625,7 +625,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Get the eperson's last name.
-     * 
+     *
      * @return their last name
      */
     public String getLastName()
@@ -635,7 +635,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Set the eperson's last name
-     * 
+     *
      * @param lastname
      *            the person's last name
      */
@@ -647,7 +647,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Indicate whether the user can log in
-     * 
+     *
      * @param login
      *            boolean yes/no
      */
@@ -659,7 +659,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Can the user log in?
-     * 
+     *
      * @return boolean, yes/no
      */
     public boolean canLogIn()
@@ -669,7 +669,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Set require cert yes/no
-     * 
+     *
      * @param isrequired
      *            boolean yes/no
      */
@@ -681,7 +681,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Get require certificate or not
-     * 
+     *
      * @return boolean, yes/no
      */
     public boolean getRequireCertificate()
@@ -691,7 +691,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Indicate whether the user self-registered
-     * 
+     *
      * @param sr
      *            boolean yes/no
      */
@@ -703,7 +703,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Can the user log in?
-     * 
+     *
      * @return boolean, yes/no
      */
     public boolean getSelfRegistered()
@@ -713,12 +713,12 @@ public class EPerson extends DSpaceObject
 
     /**
      * Get the value of a metadata field
-     * 
+     *
      * @param field
      *            the name of the metadata field to get
-     * 
+     *
      * @return the value of the metadata field
-     * 
+     *
      * @exception IllegalArgumentException
      *                if the requested metadata field doesn't exist
      */
@@ -729,12 +729,12 @@ public class EPerson extends DSpaceObject
 
     /**
      * Set a metadata value
-     * 
+     *
      * @param field
      *            the name of the metadata field to get
      * @param value
      *            value to set the field to
-     * 
+     *
      * @exception IllegalArgumentException
      *                if the requested metadata field doesn't exist
      */
@@ -746,7 +746,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Set the EPerson's password
-     * 
+     *
      * @param s
      *            the new email
      */
@@ -761,7 +761,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Set the EPerson's password hash
-     * 
+     *
      * @param s
      *          hash of the password
      */
@@ -782,7 +782,7 @@ public class EPerson extends DSpaceObject
 
     /**
      * Check EPerson's password
-     * 
+     *
      * @param attempt
      *            the password attempt
      * @return boolean successful/unsuccessful
@@ -810,7 +810,7 @@ public class EPerson extends DSpaceObject
 
         log.info(LogManager.getHeader(context, "update_eperson",
                 "eperson_id=" + getID()));
-        
+
         updateDSO();
     }
 
@@ -827,10 +827,10 @@ public class EPerson extends DSpaceObject
      * Check for presence of EPerson in tables that have constraints on
      * EPersons. Called by delete() to determine whether the eperson can
      * actually be deleted.
-     * 
+     *
      * An EPerson cannot be deleted if it exists in the item, workflowitem, or
      * tasklistitem tables.
-     * 
+     *
      * @return List of tables that contain a reference to the eperson.
      */
     public List<String> getDeleteConstraints() throws SQLException
@@ -838,7 +838,7 @@ public class EPerson extends DSpaceObject
         List<String> tableList = new ArrayList<String>();
 
         // check for eperson in item table
-        TableRowIterator tri = DatabaseManager.query(context, 
+        TableRowIterator tri = DatabaseManager.query(context,
                 "SELECT * from item where submitter_id= ? ",
                 getID());
 
@@ -939,7 +939,7 @@ public class EPerson extends DSpaceObject
     private void getOriginalWorkflowConstraints(List<String> tableList) throws SQLException {
         TableRowIterator tri;
         // check for eperson in workflowitem table
-        tri = DatabaseManager.query(context, 
+        tri = DatabaseManager.query(context,
                 "SELECT * from workflowitem where owner= ? ",
                 getID());
 
@@ -960,7 +960,7 @@ public class EPerson extends DSpaceObject
         }
 
         // check for eperson in tasklistitem table
-        tri = DatabaseManager.query(context, 
+        tri = DatabaseManager.query(context,
                 "SELECT * from tasklistitem where eperson_id= ? ",
                 getID());
 

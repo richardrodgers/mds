@@ -7,8 +7,6 @@
  */
 package org.dspace.event;
 
-import java.util.List;
-
 import org.dspace.content.DSpaceObject;
 import org.dspace.core.Context;
 
@@ -16,7 +14,7 @@ import org.dspace.core.Context;
  * ContentEvents are used to express basic
  * lifecycle changes of content objects - creation,
  * modification, deletion, etc
- * 
+ *
  * @author richardrodgers
  */
 public class ContentEvent {

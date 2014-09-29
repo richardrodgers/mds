@@ -26,8 +26,6 @@ import org.dspace.content.DSpaceObject;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.eperson.EPerson;
 import org.dspace.eperson.Group;
-import org.dspace.event.Dispatcher;
-import org.dspace.event.Event;
 import org.dspace.event.EventManager;
 import org.dspace.event.ContainerEvent;
 import org.dspace.event.ContentEvent;
@@ -47,7 +45,7 @@ import org.dspace.storage.rdbms.DatabaseManager;
  * changes and free up the resources.
  * <P>
  * The context object is also used as a cache for CM API objects.
- * 
+ *
  */
 public class Context implements AutoCloseable {
 
@@ -55,8 +53,6 @@ public class Context implements AutoCloseable {
     public static final short READ_ONLY = 0x01;
 
     private static final Logger log = LoggerFactory.getLogger(Context.class);
-
-    private static boolean flip = false;
 
     /** Database handle */
     private Handle handle;
@@ -89,19 +85,15 @@ public class Context implements AutoCloseable {
     private List<Integer> specialGroups;
 
     /** Content events */
-    private List<Event> events = null;
-    private List<ContentEvent> cevents = null;
+    private List<ContentEvent> events = null;
 
-    /** Event dispatcher name */
-    private String dispName = null;
-    
     /** Options */
     private short options = 0;
 
     /**
      * Construct a new context object. A database connection is opened. No user
      * is authenticated.
-     * 
+     *
      * @exception SQLException
      *                if there was an error obtaining a database connection
      */
@@ -110,11 +102,11 @@ public class Context implements AutoCloseable {
     	log.debug("CTOR");
     	init();
     }
-    
+
     /**
      * Construct a new context object with passed options.
      *  A database connection is opened. No user is authenticated.
-     * 
+     *
      * @param options a short word with option flags (e.g. READ_ONLY)
      * @exception SQLException
      *                if there was an error obtaining a database connection
@@ -125,7 +117,7 @@ public class Context implements AutoCloseable {
     	this.options = options;
     	init();
     }
-    
+
     private void init() throws SQLException
     {
         // Obtain a non-auto-committing connection
@@ -146,7 +138,7 @@ public class Context implements AutoCloseable {
 
     /**
      * Get the database handle associated with the context
-     * 
+     *
      * @return the database handle
      */
     public Handle getHandle() {
@@ -154,67 +146,53 @@ public class Context implements AutoCloseable {
     }
 
     /**
-     * Get the database connection associated with the context
-     * 
-     * @return the database connection
-     */
-    //public Connection getDBConnection() {
-    //    return handle.getConnection();
-    //}
-
-    /**
      * Set the current user. Authentication must have been performed by the
      * caller - this call does not attempt any authentication.
-     * 
+     *
      * @param user
      *            the new current user, or <code>null</code> if no user is
      *            authenticated
      */
-    public void setCurrentUser(EPerson user)
-    {
+    public void setCurrentUser(EPerson user) {
         currentUser = user;
     }
 
     /**
      * Get the current (authenticated) user
-     * 
+     *
      * @return the current user, or <code>null</code> if no user is
      *         authenticated
      */
-    public EPerson getCurrentUser()
-    {
+    public EPerson getCurrentUser() {
         return currentUser;
     }
 
     /**
      * Gets the current Locale
-     * 
+     *
      * @return Locale the current Locale
      */
-    public Locale getCurrentLocale()
-    {
+    public Locale getCurrentLocale() {
         return currentLocale;
     }
 
     /**
      * set the current Locale
-     * 
+     *
      * @param locale
      *            the current Locale
      */
-    public void setCurrentLocale(Locale locale)
-    {
+    public void setCurrentLocale(Locale locale) {
         currentLocale = locale;
     }
 
     /**
      * Find out if the authorisation system should be ignored for this context.
-     * 
+     *
      * @return <code>true</code> if authorisation should be ignored for this
      *         session.
      */
-    public boolean ignoreAuthorization()
-    {
+    public boolean ignoreAuthorization() {
         return ignoreAuth;
     }
 
@@ -222,11 +200,9 @@ public class Context implements AutoCloseable {
      * Turn Off the Authorisation System for this context and store this change
      * in a history for future use.
      */
-    public void turnOffAuthorisationSystem()
-    {
+    public void turnOffAuthorisationSystem() {
         authStateChangeHistory.push(ignoreAuth);
-        if (log.isDebugEnabled())
-        {
+        if (log.isDebugEnabled()) {
             Thread currThread = Thread.currentThread();
             StackTraceElement[] stackTrace = currThread.getStackTrace();
             String caller = stackTrace[stackTrace.length - 1].getClassName();
@@ -242,26 +218,21 @@ public class Context implements AutoCloseable {
      * <code>
      *     mycontext.turnOffAuthorisationSystem();
      *     some java code that require no authorisation check
-     *     mycontext.restoreAuthSystemState(); 
+     *     mycontext.restoreAuthSystemState();
          * </code> If Context debug is enabled, the correct sequence calling will be
      * checked and a warning will be displayed if not.
      */
-    public void restoreAuthSystemState()
-    {
+    public void restoreAuthSystemState() {
         Boolean previousState;
-        try
-        {
+        try {
             previousState = authStateChangeHistory.pop();
-        }
-        catch (EmptyStackException ex)
-        {
+        } catch (EmptyStackException ex) {
             log.warn(LogManager.getHeader(this, "restore_auth_sys_state",
                     "not previous state info available "
                             + ex.getLocalizedMessage()));
             previousState = Boolean.FALSE;
         }
-        if (log.isDebugEnabled())
-        {
+        if (log.isDebugEnabled()) {
             Thread currThread = Thread.currentThread();
             StackTraceElement[] stackTrace = currThread.getStackTrace();
             String caller = stackTrace[stackTrace.length - 1].getClassName();
@@ -269,17 +240,14 @@ public class Context implements AutoCloseable {
             String previousCaller = (String) authStateClassCallHistory.pop();
 
             // if previousCaller is not the current caller *only* log a warning
-            if (!previousCaller.equals(caller))
-            {
-                log
-                        .warn(LogManager
-                                .getHeader(
-                                        this,
-                                        "restore_auth_sys_state",
-                                        "Class: "
-                                                + caller
-                                                + " call restore but previous state change made by "
-                                                + previousCaller));
+            if (!previousCaller.equals(caller)) {
+                log.warn(LogManager
+                          .getHeader(this,
+                                     "restore_auth_sys_state",
+                                      "Class: "
+                                      + caller
+                                      + " call restore but previous state change made by "
+                                      + previousCaller));
             }
         }
         ignoreAuth = previousState.booleanValue();
@@ -288,7 +256,7 @@ public class Context implements AutoCloseable {
     /**
      * Specify whether the authorisation system should be ignored for this
      * context. This should be used sparingly.
-     * 
+     *
      * @deprecated use turnOffAuthorisationSystem() for make the change and
      *             restoreAuthSystemState() when change are not more required
      * @param b
@@ -305,23 +273,21 @@ public class Context implements AutoCloseable {
      * current Web user's session:
      * <P>
      * <code>setExtraLogInfo("session_id="+request.getSession().getId());</code>
-     * 
+     *
      * @param info
      *            the extra information to log
      */
-    public void setExtraLogInfo(String info)
-    {
+    public void setExtraLogInfo(String info) {
         extraLogInfo = info;
     }
 
     /**
      * Get extra information to be logged with message logged in the scope of
      * this context.
-     * 
+     *
      * @return the extra log info - guaranteed non- <code>null</code>
      */
-    public String getExtraLogInfo()
-    {
+    public String getExtraLogInfo() {
         return extraLogInfo;
     }
 
@@ -341,7 +307,7 @@ public class Context implements AutoCloseable {
      * Close the context object after all of the operations performed in the
      * context have completed successfully. Any transaction with the database is
      * committed.
-     * 
+     *
      * @exception SQLException
      *                if there was an error completing the database transaction
      *                or closing the connection
@@ -367,66 +333,39 @@ public class Context implements AutoCloseable {
     /**
      * Commit any transaction that is currently in progress, but do not close
      * the context.
-     * 
+     *
      * @exception SQLException
      *                if there was an error completing the database transaction
      *                or closing the connection
      */
     public void commit() throws SQLException {
-        /* 
+        /*
          * invalid condition if in read-only mode: no valid
          * transactions can be committed: no recourse but to bail
          */
         if (isReadOnly()) {
             throw new IllegalStateException("Attempt to commit transaction in read-only context");
         }
-        // Commit any changes made as part of the transaction
-        Dispatcher dispatcher = null;
 
         try  {
             if (events != null) {
-                if (dispName == null) {
-                    dispName = EventManager.DEFAULT_DISPATCHER;
-                }
-
-                dispatcher = EventManager.getDispatcher(dispName);
-                EventManager.dispatchEvents(this);
                 handle.commit();
-                if (flip) {
-                    dispatcher.dispatch(this);
-                    EventManager.dispatchEvents(this);
-                } else {
-                   EventManager.dispatchEvents(this);
-                   dispatcher.dispatch(this); 
-                }
-                flip = ! flip;
+                EventManager.dispatchEvents(this);
             } else {
                 handle.commit();
             }
         } finally {
             events = null;
-            if (dispatcher != null) {
-                EventManager.returnDispatcher(dispName, dispatcher);
-            }
         }
     }
 
     /**
-     * Select an event dispatcher, <code>null</code> selects the default
-     * 
-     */
-    public void setDispatcher(String dispatcher) {
-        log.debug(this.toString() + ": setDispatcher(\"" + dispatcher + "\")");
-        dispName = dispatcher;
-    }
-
-    /**
-     * Add an event to be dispatched when this context is committed.
-     * 
+     * Add a content event to be dispatched when this context is committed.
+     *
      * @param event
      */
-    public void addEvent(Event event) {
-        /* 
+    public void addContentEvent(DSpaceObject dso, EventType eventType) {
+        /*
          * invalid condition if in read-only mode: events - which
          * indicate mutation - are firing: no recourse but to bail
          */
@@ -434,68 +373,40 @@ public class Context implements AutoCloseable {
             throw new IllegalStateException("Attempt to mutate object in read-only context");
         }
         if (events == null) {
-            events = new ArrayList<Event>();
+            events = new ArrayList<ContentEvent>();
         }
 
-        events.add(event);
-    }
-
-    /**
-     * Add a content event to be dispatched when this context is committed.
-     * 
-     * @param event
-     */
-    public void addContentEvent(DSpaceObject dso, EventType eventType) {
-        /* 
-         * invalid condition if in read-only mode: events - which
-         * indicate mutation - are firing: no recourse but to bail
-         */
-        if (isReadOnly()) {
-            throw new IllegalStateException("Attempt to mutate object in read-only context");
-        }
-        if (cevents == null) {
-            cevents = new ArrayList<ContentEvent>();
-        }
-
-        cevents.add(new ContentEvent(this, dso, eventType));
+        events.add(new ContentEvent(this, dso, eventType));
     }
 
     /**
      * Add a container event to be dispatched when this context is committed.
-     * 
+     *
      * @param event
      */
     public void addContainerEvent(DSpaceObject dso, EventType eventType, DSpaceObject member) {
-        /* 
+        /*
          * invalid condition if in read-only mode: events - which
          * indicate mutation - are firing: no recourse but to bail
          */
         if (isReadOnly()) {
             throw new IllegalStateException("Attempt to mutate object in read-only context");
         }
-        if (cevents == null) {
-            cevents = new ArrayList<ContentEvent>();
+        if (events == null) {
+            events = new ArrayList<ContentEvent>();
         }
 
-        cevents.add(new ContainerEvent(this, dso, eventType, member));
+        events.add(new ContainerEvent(this, dso, eventType, member));
     }
 
     /**
      * Get the current event list. If there is a separate list of events from
      * already-committed operations combine that with current list.
-     * 
-     * TODO WARNING: events uses an ArrayList, a class not ready for concurrency.
-     * Read http://download.oracle.com/javase/6/docs/api/java/util/Collections.html#synchronizedList%28java.util.List%29
-     * on how to properly synchronize the class when calling this method
      *
      * @return List of all available events.
      */
-    public List<Event> getEvents() {
-        return events;
-    }
-
     public List<ContentEvent> getContentEvents() {
-        return cevents;
+        return events;
     }
 
     /**
@@ -524,16 +435,15 @@ public class Context implements AutoCloseable {
             }
             handle = null;
             events = null;
-            cevents = null;
             clearCache();
         }
     }
 
     /**
-     * 
+     *
      * Find out if this context is valid. Returns <code>false</code> if this
      * context has been aborted or completed.
-     * 
+     *
      * @return <code>true</code> if the context is still valid, otherwise
      *         <code>false</code>
      */
@@ -541,10 +451,10 @@ public class Context implements AutoCloseable {
         // Only return true if our DB connection is live
         return (handle != null);
     }
-    
+
     /**
      * Reports whether context supports updating DSpaceObjects, or only reading.
-     * 
+     *
      * @return <code>true</code> if the context is read-only, otherwise
      *         <code>false</code>
      */
@@ -554,24 +464,23 @@ public class Context implements AutoCloseable {
 
     /**
      * Store an object in the object cache.
-     * 
+     *
      * @param objectClass
      *            Java Class of object to check for in cache
      * @param id
      *            ID of object in cache
-     * 
+     *
      * @return the object from the cache, or <code>null</code> if it's not
      *         cached.
      */
     public Object fromCache(Class<?> objectClass, int id) {
         String key = objectClass.getName() + id;
-
         return objectCache.get(key);
     }
 
     /**
      * Store an object in the object cache.
-     * 
+     *
      * @param o
      *            the object to store
      * @param id
@@ -586,7 +495,7 @@ public class Context implements AutoCloseable {
 
     /**
      * Remove an object from the object cache.
-     * 
+     *
      * @param o
      *            the object to remove
      * @param id
@@ -610,9 +519,9 @@ public class Context implements AutoCloseable {
      * objects build up. We recommend logging a cache count periodically or
      * episodically at the INFO or DEBUG level, but ONLY when you are diagnosing
      * cache leaks.
-     * 
+     *
      * @return count of entries in the cache.
-     * 
+     *
      * @return the number of items in the cache
      */
     public int getCacheSize() {
@@ -621,7 +530,7 @@ public class Context implements AutoCloseable {
 
     /**
      * set membership in a special group
-     * 
+     *
      * @param groupID
      *            special group's ID
      */
@@ -633,7 +542,7 @@ public class Context implements AutoCloseable {
 
     /**
      * test if member of special group
-     * 
+     *
      * @param groupID
      *            ID of special group to test
      * @return true if member
@@ -651,7 +560,7 @@ public class Context implements AutoCloseable {
     /**
      * gets an array of all of the special groups that current user is a member
      * of
-     * 
+     *
      * @return
      * @throws SQLException
      */

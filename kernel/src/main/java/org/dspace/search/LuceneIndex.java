@@ -32,24 +32,28 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.LimitTokenCountAnalyzer;
+import org.apache.lucene.analysis.miscellaneous.LimitTokenCountAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.DateTools;
+import org.apache.lucene.index.AtomicReader;
 import org.apache.lucene.index.CorruptIndexException;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermDocs;
-import org.apache.lucene.queryParser.ParseException;
-import org.apache.lucene.queryParser.QueryParser;
-import org.apache.lucene.queryParser.TokenMgrError;
+import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.queryparser.classic.ParseException;
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.queryparser.flexible.standard.parser.TokenMgrError;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
+import org.apache.lucene.search.SortField.Type;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
@@ -72,7 +76,7 @@ import static org.dspace.search.DSIndexer.*;
 /**
  * LuceneIndex provides indexing and querying services backed by a
  * Lucene index on local disk. This has been factored out of DSIndexer.
- * 
+ *
  * NB: there are several ways this service could be generalized.
  * It was implemented to offer compatibility with the old search code,
  * which had a number of limitations. For example, the 'schema'
@@ -82,7 +86,7 @@ import static org.dspace.search.DSIndexer.*;
  * Also, the threading model seems defective, if configured in
  * valid ways, collisions over IndexWriters seems possible.
  * For further analysis and refactor. Essentially bypassed for now.
- * 
+ *
  * @author richardrodgers
  */
 public class LuceneIndex implements IndexService
@@ -95,9 +99,9 @@ public class LuceneIndex implements IndexService
     private int indexFlushDelay = ConfigurationManager.getIntProperty("search", "flush.delay", -1);
 
     private int batchFlushAfterDocuments = ConfigurationManager.getIntProperty("search", "batch.documents", 20);
-    
+
     private boolean batchProcessingMode = false;
-    
+
     // search field schema - hard-coded here, but could easily be made more configurable
     private static final Map<String, FieldConfig> schema = new HashMap<String, FieldConfig>() {{
     	put(LAST_INDEXED_FIELD,    new FieldConfig(LAST_INDEXED_FIELD, "text", Field.Store.YES, Field.Index.NOT_ANALYZED));
@@ -111,23 +115,23 @@ public class LuceneIndex implements IndexService
     	// following are templates
     	put("sort_",               new FieldConfig("sort_", "text", Field.Store.NO, Field.Index.NOT_ANALYZED));
     }};
-        
+
     private String indexDirectory;
-    
+
     private int maxFieldLength = -1;
-    	
+
     // TODO: Support for analyzers per language, or multiple indices
     /** The analyzer for this DSpace instance */
     private volatile Analyzer analyzer = null;
-    
+
     // cache a Lucene IndexSearcher for more efficient searches
     private static IndexSearcher searcher = null;
-    
+
     private static long lastModified;
-    
+
     public LuceneIndex() {}
 
-    static { 	        
+    static {
         /*
          * Increase the default write lock so that Indexing can be interrupted.
          */
@@ -135,7 +139,7 @@ public class LuceneIndex implements IndexService
         int maxClauses = ConfigurationManager.getIntProperty("search", "max-clauses", -1);
         if (maxClauses > 0){
             BooleanQuery.setMaxClauseCount(maxClauses);
-        } 
+        }
     }
 
     public void setBatchProcessingMode(boolean mode) {
@@ -144,7 +148,7 @@ public class LuceneIndex implements IndexService
             flushIndexingTaskQueue();
         }
     }
-     
+
 	/**
      * Get the Lucene analyzer to use according to current configuration (or
      * default). TODO: Should have multiple analyzers (and maybe indices?) for
@@ -320,34 +324,34 @@ public class LuceneIndex implements IndexService
     ////////////////////////////////////
     //      Private
     ////////////////////////////////////
-    
+
     /**
 	 * Is stale checks the lastModified time stamp in the database and the index
 	 * to determine if the index is stale.
-	 * 
+	 *
 	 * @param lastModified
 	 * @throws SQLException
 	 * @throws IOException
 	 */
     @Override
     public boolean isDocumentStale(String documentKey, Date lastModified)  throws IOException {
-		
+
 		boolean reindexItem = false;
 		boolean inIndex = false;
-		
+
 		IndexReader ir = getSearcher().getIndexReader();
 		Term t = new Term("handle", documentKey);
-		TermDocs docs = ir.termDocs(t);
-						
-		while(docs.next())
-		{
+    AtomicReader ar = (AtomicReader)ir;
+		DocsEnum docsE = ar.termDocsEnum(t);
+
+    int docId;
+		while((docId = docsE.nextDoc()) != DocsEnum.NO_MORE_DOCS) {
 			inIndex = true;
-			int id = docs.doc();
-			Document doc = ir.document(id);
+			Document doc = ir.document(docId);
 
-			Field lastIndexed = (Field)doc.getFieldable(LAST_INDEXED_FIELD);
+			IndexableField lastIndexed = doc.getField(LAST_INDEXED_FIELD);
 
-			if (lastIndexed == null || Long.parseLong(lastIndexed.stringValue()) < 
+			if (lastIndexed == null || Long.parseLong(lastIndexed.stringValue()) <
 					lastModified.getTime()) {
 				reindexItem = true;
 			}
@@ -369,13 +373,13 @@ public class LuceneIndex implements IndexService
         }
 
         IndexWriter writer = new IndexWriter(dir, iwc);
-        
+
         return writer;
     }
-    
+
     @Override
     public void doTask(IndexingTask task) throws IOException {
-    	
+
     	switch (task.getAction()) {
     		case DELETE:
     			commit(task.getFieldValue(DOCUMENT_KEY), null, false);
@@ -417,7 +421,7 @@ public class LuceneIndex implements IndexService
     		  break;
     	}
     }
-        
+
     @Override
     public QueryResults doQuery(QueryArgs args) throws IOException {
         String querystring = args.getQuery();
@@ -438,14 +442,14 @@ public class LuceneIndex implements IndexService
         querystring = DSQuery.checkEmptyQuery(querystring); // change nulls to an empty string
         querystring = DSQuery.stripHandles(querystring); // remove handles from query string
         querystring = DSQuery.stripAsterisk(querystring); // remove asterisk from beginning of string
-        
+
         try  {
             // grab a searcher, and do the search
             IndexSearcher searcher = getSearcher();
             // FIXME
             QueryParser qp = new QueryParser(Version.LUCENE_36, "default", getAnalyzer());
             log.debug("Final query string: " + querystring);
-            
+
             String operator = DSQuery.getOperator();
             if (operator == null || operator.equals("OR")) {
             	qp.setDefaultOperator(QueryParser.OR_OPERATOR);
@@ -518,7 +522,7 @@ public class LuceneIndex implements IndexService
 
     	return qr;
     }
-    
+
     private static TopDocs performQuery(QueryArgs args, IndexSearcher searcher, Query myquery, int max) throws IOException {
         TopDocs hits;
         try
@@ -526,16 +530,16 @@ public class LuceneIndex implements IndexService
             if (args.getSortOption() == null)
             {
                 SortField[] sortFields = new SortField[] {
-                        new SortField("search.resourcetype", SortField.INT, true),
-                        new SortField(null, SortField.SCORE, SortOption.ASCENDING.equals(args.getSortOrder()))
+                        new SortField("search.resourcetype", Type.INT, true),
+                        new SortField(null, Type.SCORE, SortOption.ASCENDING.equals(args.getSortOrder()))
                     };
                 hits = searcher.search(myquery, max, new Sort(sortFields));
             }
             else
             {
                 SortField[] sortFields = new SortField[] {
-                        new SortField("search.resourcetype", SortField.INT, true),
-                        new SortField("sort_" + args.getSortOption().getName(), SortField.STRING, SortOption.DESCENDING.equals(args.getSortOrder())),
+                        new SortField("search.resourcetype", Type.INT, true),
+                        new SortField("sort_" + args.getSortOption().getName(), Type.STRING, SortOption.DESCENDING.equals(args.getSortOrder())),
                         SortField.FIELD_SCORE
                     };
                 hits = searcher.search(myquery, max, new Sort(sortFields));
@@ -550,12 +554,14 @@ public class LuceneIndex implements IndexService
         }
         return hits;
     }
-    
+
     @Override
     public void init(String config) {
     	indexDirectory = config;
         try {
-            if (!IndexReader.indexExists(FSDirectory.open(new File(indexDirectory)))) {
+            Directory dir = FSDirectory.open(new File(indexDirectory));
+            DirectoryReader dirReader = DirectoryReader.open(dir);
+            if (!dirReader.indexExists(dir)) {
                 if (!new File(indexDirectory).mkdirs()) {
                     log.error("Unable to create index directory: " + indexDirectory);
                 }
@@ -567,7 +573,7 @@ public class LuceneIndex implements IndexService
     	// set maxfieldlength
         maxFieldLength = ConfigurationManager.getIntProperty("search", "maxfieldlength", -1);
     }
-    
+
     private void commit(String documentKey, Document doc, boolean update) throws IOException {
         IndexWriter writer = null;
         Term term = new Term(DOCUMENT_KEY, documentKey);
@@ -590,9 +596,9 @@ public class LuceneIndex implements IndexService
                     log.error("Unable to close IndexWriter", e);
                 }
             }
-        } 	
+        }
     }
-    
+
     private void mapValue(String value, FieldConfig fc, Document doc) {
     	if ("timestamp".equals(fc.fieldType)) {
     		Date date = toDate(value);
@@ -647,24 +653,25 @@ public class LuceneIndex implements IndexService
             }
         }
     }
-    
+
     /**
      * get an IndexSearcher, hopefully a cached one (gives much better
      * performance.) checks to see if the index has been modified - if so, it
      * creates a new IndexSearcher
      */
     protected synchronized IndexSearcher getSearcher() throws IOException {
-       
+
         // If we have already opened a searcher, check to see if the index has been updated
         // If it has, we need to close the existing searcher - we will open a new one later
         Directory searchDir = FSDirectory.open(new File(indexDirectory));
-        IndexReader idxReader = getSearcher().getIndexReader();
+        DirectoryReader idxReader = DirectoryReader.open(searchDir);//getSearcher().getIndexReader();
         if (searcher != null && lastModified != idxReader.getVersion())
-        {
+        { /*
             try
             {
                 // Close the cached IndexSearcher
-                searcher.close();
+                // RLR FIXME
+                //searcher.close();
             }
             catch (IOException ioe)
             {
@@ -676,6 +683,7 @@ public class LuceneIndex implements IndexService
             {
             	searcher = null;
             }
+            */
         }
 
         // There is no existing searcher - either this is the first execution,
@@ -698,7 +706,8 @@ public class LuceneIndex implements IndexService
                      */
                     @Override
                     protected void finalize() throws Throwable {
-                        this.close();
+                        //RLR FIXME
+                        //this.close();
                         super.finalize();
                     }
                 };
@@ -714,12 +723,12 @@ public class LuceneIndex implements IndexService
 
     /**
      * Helper function to retrieve a date using a best guess of the potential date encodings on a field
-     *  
+     *
      * @param t
      * @return
      */
     private static Date toDate(String t) {
-    	
+
     	List<String> fmts = new ArrayList<String>();
         // Choose the likely date formats based on string length
         switch (t.length())  {
@@ -794,13 +803,13 @@ public class LuceneIndex implements IndexService
             }
         }
     }
-    
+
     private static class FieldConfig {
     	String fieldName;
     	String fieldType;
     	Field.Store store;
     	Field.Index index;
-    	
+
     	public FieldConfig(String fieldName, String fieldType, Field.Store store, Field.Index index) {
     		this.fieldName = fieldName;
     		this.fieldType = fieldType;

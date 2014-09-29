@@ -19,29 +19,28 @@ import org.dspace.authorize.AuthorizeException;
 import org.dspace.core.Constants;
 import org.dspace.core.Context;
 import org.dspace.core.LifecycleMux;
-import org.dspace.event.Event;
 import org.dspace.event.ContentEvent.EventType;
 import org.dspace.handle.HandleManager;
 
 /**
  * Support to install an Item in the archive.
- * 
+ *
  * @author dstuve
  */
 public class InstallItem {
 	// ISO8601 date formatters
-	private static final DateTimeFormatter iso8601 = 
+	private static final DateTimeFormatter iso8601 =
 			ISODateTimeFormat.dateTimeNoMillis().withZone(DateTimeZone.UTC);
 	private static final DateTimeFormatter isoDate = ISODateTimeFormat.date();
     /**
      * Take an InProgressSubmission and turn it into a fully-archived Item,
      * creating a new Handle.
-     * 
+     *
      * @param c
      *            DSpace Context
      * @param is
      *            submission to install
-     * 
+     *
      * @return the fully archived Item
      */
     public static Item installItem(Context c, InProgressSubmission is)
@@ -51,13 +50,13 @@ public class InstallItem {
 
     /**
      * Take an InProgressSubmission and turn it into a fully-archived Item.
-     * 
+     *
      * @param c  current context
      * @param is
      *            submission to install
      * @param suppliedHandle
      *            the existing Handle to give to the installed item
-     * 
+     *
      * @return the fully archived Item
      */
     public static Item installItem(Context c, InProgressSubmission is,
@@ -65,7 +64,7 @@ public class InstallItem {
             IOException, AuthorizeException {
         Item item = is.getItem();
         String handle;
-        
+
         // if no previous handle supplied, create one
         if (suppliedHandle == null) {
             // create a new handle for this item
@@ -121,19 +120,19 @@ public class InstallItem {
         // double check that it has a date accessioned and date issued, and if either of those dates
         // are not set then set them to today.
         long now = System.currentTimeMillis();
-        
+
         // If the item dosn't have a date.accessioned create one.
         List<MDValue> dateAccessioned = item.getMetadata(MetadataSchema.DC_SCHEMA, "date", "accessioned", MDValue.ANY);
         if (dateAccessioned.size() == 0) {
 	        item.addMetadata("dc", "date", "accessioned", null, iso8601.print(now));
         }
-        
+
         // create issue date if not present
         List<MDValue> currentDateIssued = item.getMetadata(MetadataSchema.DC_SCHEMA, "date", "issued", MDValue.ANY);
         if (currentDateIssued.size() == 0) {
             item.addMetadata("dc", "date", "issued", null, isoDate.print(now));
         }
-        
+
         // Record that the item was restored
 		String provDescription = "Restored into DSpace on "+ now + " (GMT).";
 		item.addMetadata("dc", "description", "provenance", "en", provDescription);
@@ -205,8 +204,6 @@ public class InstallItem {
         item.update();
 
         // Notify interested parties of newly archived Item
-        c.addEvent(new Event(Event.INSTALL, Constants.ITEM, item.getID(),
-                item.getHandle()));
         c.addContentEvent(item, EventType.INSTALL);
 
         // remove in-progress submission
@@ -225,9 +222,9 @@ public class InstallItem {
     /**
      * Generate provenance-worthy description of the bitstreams contained in an
      * item.
-     * 
+     *
      * @param myitem  the item generate description for
-     * 
+     *
      * @return provenance description
      */
     public static String getBitstreamProvenanceMessage(Item myitem)
