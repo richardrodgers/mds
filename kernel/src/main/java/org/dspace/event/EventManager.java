@@ -7,9 +7,7 @@
  */
 package org.dspace.event;
 
-import java.util.HashMap;
 import java.util.Properties;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +20,7 @@ import org.dspace.core.Context;
  * acts as a factory for Dispatchers, which are used by the Context to send
  * events to subscribers. It also contains generally useful utility methods.
  *
- * Version: $Revision: 5844 $
+ * @author richardrodgers
  */
 public class EventManager
 {

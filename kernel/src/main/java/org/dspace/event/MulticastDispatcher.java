@@ -49,7 +49,7 @@ public class MulticastDispatcher {
         } else {
             // misconfiguration - subscriber must be annotated with a channel
             // to listen to
-            throw new IllegalStateException("Subscriber lacks channel");
+            throw new IllegalStateException("Subscriber: '" + name + "' lacks channel annotation");
         }
         // now register this subscriber
         chan.register(subscriber);

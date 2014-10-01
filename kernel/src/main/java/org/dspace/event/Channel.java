@@ -47,11 +47,8 @@ public class Channel {
 
     public void propogate(List<ContentEvent> events) {
         // apply transforms then push to bus
-        log.info("Propogate - enter size: " + events.size());
         List<ContentEvent> trans = transform(events);
-        log.info("Propogate - after trans");
         for (ContentEvent event : trans) {
-            log.info("Propogate - post event");
             bus.post(event);
         }
     }
