@@ -20,23 +20,23 @@ import java.util.Map;
 
 public interface BitStore
 {
-	/**
+    /**
      * Initialize the asset store
      * 
      * @param config
      *        String used to characterize configuration - may be a configuration
      *        value, or the name of a config file containing such values
      */
-	void init(String config) throws IOException;
-	
-	/**
+    void init(String config) throws IOException;
+
+    /**
      * Return an identifier unique to this asset store instance
      * 
      * @return a unique ID
      */
-	String generateId();
-	
-	/**
+    String generateId();
+
+    /**
      * Retrieve the bits for the asset with ID.
      * 
      * @param id
@@ -47,8 +47,8 @@ public interface BitStore
      * 
      * @return The stream of bits
      */
-	InputStream get(String id) throws IOException;
-	
+    InputStream get(String id) throws IOException;
+
     /**
      * Store a stream of bits.
      * 
@@ -68,8 +68,8 @@ public interface BitStore
      * 
      * @return Map containing technical metadata (size, checksum, etc)
      */
-	Map<String, String> put(InputStream in, String id) throws IOException;
-	
+    Map<String, String> put(InputStream in, String id) throws IOException;
+
     /**
      * Obtain technical metadata about an asset in the asset store.
      * 
@@ -85,8 +85,8 @@ public interface BitStore
      * @return attrs
      *            A Map with key/value pairs of desired metadata
      */
-	Map<String, String> about(String id, Map<String, String> attrs) throws IOException;
-	
+    Map<String, String> about(String id, Map<String, String> attrs) throws IOException;
+
     /**
      * Remove an asset from the asset store.
      * 
@@ -97,5 +97,5 @@ public interface BitStore
      * @exception IOException
      *            If a problem occurs while removing the asset
      */
-	void remove(String id) throws IOException;
+    void remove(String id) throws IOException;
 }

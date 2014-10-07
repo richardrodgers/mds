@@ -19,11 +19,11 @@ export MDS_SITE_NAME
 MDS_SITE_HOME=/mds/rt
 export MDS_SITE_HOME
 
-# DB Connection parameters - leave undefined if deployed in a Docker container
-DB_PORT_5432_TCP_ADDR=localhost
-export DB_PORT_5432_TCP_ADDR
-DB_PORT_5432_TCP_PORT=5432
-export DB_PORT_5432_TCP_PORT
+# DB Connection parameters - define only if *not* deployed in a Docker container
+#DB_PORT_5432_TCP_ADDR=localhost
+#export DB_PORT_5432_TCP_ADDR
+#DB_PORT_5432_TCP_PORT=5432
+#export DB_PORT_5432_TCP_PORT
 
 # Site administrator
 MDS_ADMIN_EMAIL=admin@mysite.edu
