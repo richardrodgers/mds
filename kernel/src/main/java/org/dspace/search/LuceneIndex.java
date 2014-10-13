@@ -159,8 +159,7 @@ public class LuceneIndex implements IndexService
      *             if the configured analyzer can't be instantiated
      */
     Analyzer getAnalyzer() {
-        if (analyzer == null)
-        {
+        if (analyzer == null) {
             // We need to find the analyzer class from the configuration
             String analyzerClassName = ConfigurationManager.getProperty("search", "analyzer.default");
 
@@ -373,7 +372,6 @@ public class LuceneIndex implements IndexService
         }
 
         IndexWriter writer = new IndexWriter(dir, iwc);
-
         return writer;
     }
 
@@ -557,20 +555,17 @@ public class LuceneIndex implements IndexService
 
     @Override
     public void init(String config) {
-    	indexDirectory = config;
+        indexDirectory = config;
+        File indexDir = new File(indexDirectory);
         try {
-            Directory dir = FSDirectory.open(new File(indexDirectory));
-            DirectoryReader dirReader = DirectoryReader.open(dir);
-            if (!dirReader.indexExists(dir)) {
-                if (!new File(indexDirectory).mkdirs()) {
-                    log.error("Unable to create index directory: " + indexDirectory);
-                }
+            if (! DirectoryReader.indexExists(FSDirectory.open(indexDir))) {
+                indexDir.mkdirs();
                 openIndex(true).close();
             }
         } catch (IOException e) {
             throw new IllegalStateException("Could not create search index: " + e.getMessage(),e);
         }
-    	// set maxfieldlength
+        // set maxfieldlength
         maxFieldLength = ConfigurationManager.getIntProperty("search", "maxfieldlength", -1);
     }
 

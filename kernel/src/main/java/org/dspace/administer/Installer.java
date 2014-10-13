@@ -8,12 +8,16 @@
 package org.dspace.administer;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.FileInputStream;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -34,8 +38,11 @@ import static java.util.Arrays.*;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Scanner;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -75,28 +82,48 @@ import org.dspace.storage.rdbms.DatabaseManager;
  * Contains methods for installing/updating mds modules from built code
  * to a configured location. main() method is a command-line tool invoking same.
  * 
- * The Installer requires a very specific configuration to operate. There
- * is a single directory (the 'base') where the kernel module is present.
+ * The Installer requires a very specific file and directory structure to operate.
+ * There is a single directory (the 'base') where the kernel module is present.
  * It contains a file declaring the maven coordinates of any dependent jars.
- * It is a simple text file ('deps.txt') in the format emitted by
- * the maven dependency plugin. It also must contain the maven
- * POM ('pom.xml') which is interrogated for module data.
+ * This is a simple text file ('deps.txt') in the format emitted by
+ * the maven dependency plugin. The base also must contain the maven POM
+ * ('pom.xml') which is interrogated for module data.
  * 
- * It also can contain the subdirectories:
- * 
- *   bin
- *   conf
- *   db
- *   lib
- *   reg
- *   modules
+ * The base also can contain any/all of the subdirectories: 
+ *   'bin' - containing any command-line scripts for the module,
+ *   'db' - containing any DDL for the module
+ *   'conf' - containing any modular '.cfg' files, or others
+ *   'lib' - containing jar files
+ *   'reg' - containg registry files (in XML) to be loaded into registries
+ *   'modules' - contains module tree subdirectories with this structure
  *   
  * The modules directory will contain any modules that are to be installed on
  * the kernel, and they can be added at any time after the kernel has been
- * installed. They can have arbitrary directory names and have the some
- * sub-structure as the kernel, except they will lack the modules subdirectory.
+ * installed. They can have arbitrary directory names and have the same
+ * sub-structure as the kernel, except they will lack a 'modules' subdirectory.
  * The directory name is used as the module name to install, update etc.
  * Another subdirectory - 'webapps' will contain any deployable wars.
+ *
+ * The specific actions performed by the installer are: 'install' a module - 
+ * which means copying the necessary files to the target runtime environment
+ * (which will be a directory, or a WAR, depending on the type of module), and adding
+ * any schema changes and data to the database instance. Alternately, these operations
+ * can be performed using a combination of the 'stage' and 'register' actions. Here one would
+ * 'stage' a set of modules (which establish a runtime environment), then 'register' that
+ * whole environment with an mds instance. It will fail if any of the modules in the environment
+ * conflict with the existing instance. Roughly then, 'install' = 'stage' + 'register'.
+ * Generally, 'install' should be preferred for a typical local installation,
+ * since it can examine the database prior to each operation to ensure its validity
+ * Stage/register is used when the runtime environment needs to be constructed independently,
+ * for example in a Docker container. The 'update' action will act very much
+ * like 'install', except that the module is assumed to be present. And again, updates can
+ * can be alternatively managed via a set of 'stage' actions with the updated modules,
+ * followed by a 'register' to the instance.
+ * Finally, a 'cleandb' action will purge the instance database.
+ *
+ * These action names are wired into the CommandLauncher as 'builtin' commands - so
+ * one would typically invoke the Installer using the 'dspace' script:
+ *   ./dspace install kernel
  * 
  * @author richardrodgers
  */
@@ -133,14 +160,18 @@ public final class Installer {
     private static final String DEPS_FILE = "deps.txt";
     // maven pom file
     private static final String POM_FILE = "pom.xml";
+    // staged data file 
+    private static final String STAGED_FILE = "staged.csv";
     // maven build dir
     private static final String BUILD_DIR = "target";
     // list of content locations to exclude from installation
     private static final String[] exclusions = { DEPS_FILE, POM_FILE, DDL_DIR, SRC_DIR, BUILD_DIR, LIB_DIR, REG_DIR, MODULES_DIR, WEBAPPS_DIR, JARS_DIR }; 
+    // list of runtime resource directories
+    private static final String[] rtResources = { CONF_DIR };
 
     private DSIndexer indexer = null;
 
-    enum Action {install, update, cleandb}
+    enum Action {stage, register, install, update, cleandb}
     @Argument(index=0, usage="action to take", required=true)
     private Action action;
 
@@ -159,6 +190,8 @@ public final class Installer {
     private String modScope;
     // path to deploy webapps to
     private String deployAs;
+    // map of staged components
+    private Map<String, Component> stagedMap = new LinkedHashMap<>();
 
     public Installer() {}
 
@@ -263,18 +296,22 @@ public final class Installer {
                   "Installer must be run from kernel 'bin' directory");
         // and a pom is present
         checkState(new File(baseDir, POM_FILE).exists(),
-                  "Module must possess a maven pom file");
+                  "Module must possess a maven POM file");
     }
     
     public void process() throws IOException, SQLException, Exception {
-    
-        try (Handle h = DatabaseManager.getHandle()) {
-            if (action.equals(Action.install)) {
-                install(h);
-            } else if (action.equals(Action.update)) {
-                update(h);
-            } else if (action.equals(Action.cleandb)) {
-                cleanDB(h);
+        if (action.equals(Action.stage)) {
+            // no DB connection needed
+            stage();
+        } else {
+            try (Handle h = DatabaseManager.getHandle()) {
+                switch (action) {
+                    case install: install(h); break;
+                    case register: register(h); break;
+                    case update: update(h); break;
+                    case cleandb: cleanDB(h); break;
+                    default: break;
+                }
             }
         }
     }
@@ -286,7 +323,7 @@ public final class Installer {
         //if (Component.findByCoordinates(h, groupId, artifactId) != null) {
         //    return  "Module: '" + artifactId + "' already installed";
         //}
-        List<List<String>> components = getDependencyActions(h);
+        List<List<String>> components = getDependencyActions(h, baseDir.toPath(), false);
         for (List<String> comp : components) {
             if ("fail".equals(comp.get(5))) {
                 return comp.get(6);
@@ -295,24 +332,212 @@ public final class Installer {
         return null;
     }
 
-    private void init() throws IOException {
+    private void init(String action) throws IOException {
         // reset base if not kernel
         setBaseDir();
         // read module POM so we know what we are dealing with
         readPOM();
+        // make sure module obeys the naming convention
+        checkState(artifactId.startsWith("dsm"),
+                   "Cannot " + action + " module: " + module + " improperly named");
+        checkState("jar".equals(packaging) || "war".equals(packaging),
+                   "Cannot " + action + " module: " + module + " not a valid dspace module");
+    }
+
+    public void stage() throws IOException, Exception {
+        init("stage");
+        // load up map of staging info
+        loadStagingInfo();
+        // Determine whether this module has already been staged
+        checkState(stagedMap.get(groupId + artifactId) == null,
+                   "Module: '" + artifactId + "' already installed");
+        System.out.println("Start dependency check");
+        // Determine whether the installation would create any classpath conflicts
+        List<List<String>> components = getStagingDependencyActions(baseDir.toPath());
+        for (List<String> comp : components) {
+            if ("fail".equals(comp.get(5))) {
+                throw new IOException(comp.get(6));
+            }
+        }
+        System.out.println("Finished dependency check");
+        String destPath = ConfigurationManager.getProperty("site.home");
+        File destFile = new File(destPath);
+        if ("kernel".equals(module)) {
+            // create destination directory if it doesn't exist
+            if (! destFile.isDirectory()) {
+                if (! destFile.exists()) {
+                    destFile.mkdirs();
+                }
+            }
+            createStagingEnv();
+        }
+        File modJar = getModuleArtifact();
+        stageModuleJar(modJar, destFile);
+        // next, update staging data with module
+        stagedMap.put(groupId + artifactId, new Component(stagedMap.size(), 0, groupId, artifactId, version, checksum(modJar), "self"));
+
+        // now process module resources
+        List<String> excludes = asList(exclusions);
+        for (File file : baseDir.listFiles()) {
+            if (! excludes.contains(file.getName()) && file.isDirectory()) {
+                // also exclude war config info - will remain in war classpath
+                if (! (file.getName().equals(CONF_DIR) && "war".equals(packaging))) {
+                    safeCopy(file, destFile, false);
+                }
+            }
+        }
+        // if a WAR module, stop after this step - dependent jars need not be added to the classpath,
+        // since they will be used only in the container classpath
+        if ("war".equals(packaging)) {
+            String warName = artifactId + "-" + version + ".war";
+            File srcLib = new File(baseDir, LIB_DIR);
+            File srcFile = new File(srcLib, warName);
+            File targLib = new File(kernelDir, WARS_DIR);
+            File targFile = new File(targLib, deployAs + "-" + warName);
+            Files.copy(srcFile.toPath(), targFile.toPath());
+            rebuildWar(artifactId, version);
+            saveStagingInfo();
+            return;
+        }
+
+        // Install dependent jars that aren't already there, updating their reference graph in any case
+        Component comp = stagedMap.get(groupId + artifactId);
+        File libSrcDir = new File(baseDir, LIB_DIR);
+        File libDestDir = new File(destFile, LIB_DIR);
+        for (List<String> cparts : components) {
+            String grpId = cparts.get(0);
+            String artId = cparts.get(1);
+            String vsn = cparts.get(3);
+            String status = cparts.get(5);
+            if ("count".equals(status)) {
+                // just update reference graph
+                Component updComp = stagedMap.get(grpId + artId);
+                if (updComp != null) {
+                    String graph = updComp.getGraph();
+                    updComp.setGraph(graph + "-" + String.valueOf(comp.getCompId()));
+                    //updComp.updateReferenceGraph(h, comp.getCompId());
+                }
+            } else if ("install".equals(status)) {
+                // copy jar to lib & add to installation table
+                File jarFile = new File(libSrcDir, artId + "-" + vsn + ".jar");
+                safeCopy(jarFile, libDestDir, false);
+                // also copy to (staging) jars directory for adding to webapps if core
+                if ("core".equals(modScope)) {
+                    safeCopy(jarFile, new File(kernelDir, JARS_DIR), false);
+                }
+                stagedMap.put(grpId + artId, new Component(stagedMap.size(), 1, grpId, artId, vsn, checksum(jarFile), String.valueOf(comp.getCompId())));
+                /*
+                h.execute("INSERT INTO installation (compid, comptype, groupid, artifactid, versionstr, checksum, graph, updated) " +
+                          "VALUES (nextval('installation_seq'), ?, ?, ?, ?, ?, ?, ?)",
+                          1, grpId, artId, vsn, checksum(jarFile), String.valueOf(comp.getCompId()), new Timestamp(System.currentTimeMillis()));
+                */
+            }
+        }
+        System.out.println("Copied components");
+        // OK - if this is a 'core'-scoped module, we need to regenerate all webapp modules, since they
+        // have new potential dependencies. Add any new dependencies to the war & republish
+        if ("core".equals(modScope)) {
+            rebuildWars();
+        }
+        saveStagingInfo();
+    }
+
+    public void register(Handle h) throws IOException, SQLException, Exception {
+        // make sure we are executing where we ought to be
+        kernelDir = new File(System.getProperty("user.dir")).getParentFile();
+        baseDir = kernelDir;
+        // load up map of staging info
+        loadStagingInfo();
+        // kernel is a special case as it has to be the first module installed 
+        // - initialize DB if not already done
+        if (! dbInitialized(h)) {
+            if (stagedMap.containsKey("org.dspacedsm-kernel")) {
+                initDB(h);
+            } else {
+                throw new IOException("Module 'kernel' must be staged");
+            }
+        }
+        // OK - for each module staged, consult the instance DB to determine:
+        // (1) if not present in DB, then it a new registration - ensure it is compatible - if so add it
+        // (2) if present in DB, and same version, skip it
+        // (3) if present in DB and different version, then upgrade - ensure it is compatible - if so, ugrade
+        // Since the registration is an atomic operation (the whole set of staged modules are accepted or rejected),
+        // we perform the dependency checks on *all* modules up front, then iterate over them again to register each one
+        System.out.println("Start dependency checks");
+        for (Component scomp : stagedMap.values()) {
+            if (scomp.getCompType() == 0) {
+                // it's a module (not a module dependency)
+                Component icomp = Component.findByCoordinates(h, scomp.getGroupId(), scomp.getArtifactId());
+                if (icomp == null) {
+                    // Determine whether the installation would create any classpath conflicts
+                    Path refDir = getModuleDir(scomp);
+                    List<List<String>> components = getDependencyActions(h, refDir, true);
+                    for (List<String> comp : components) {
+                        if ("fail".equals(comp.get(5))) {
+                            throw new IOException(comp.get(6));
+                        }
+                    }
+                } else {
+                    // check version
+                    if (! scomp.getVersionStr().equals(icomp.getVersionStr())) {
+                        // if version is newer, its an upgrade
+                        // RLR TODO
+                    }
+                } 
+            }
+        }
+        System.out.println("Finished dependency checks");
+        for (Component scomp : stagedMap.values()) {
+            if (scomp.getCompType() == 0) {
+                // it's a module
+                Component icomp = Component.findByCoordinates(h, scomp.getGroupId(), scomp.getArtifactId());
+                if (icomp == null) {
+                    // Cool - proceed to record this module and its dependencies and load its resources to DB
+                    System.out.println("About to insert - g: " + scomp.getGroupId() + " a: " + scomp.getArtifactId() + 
+                                       " v: " + scomp.getVersionStr() + " c: " + scomp.getChecksum());
+                    h.execute("INSERT INTO installation (compid, comptype, groupid, artifactid, versionstr, checksum, graph, updated) " +
+                              "VALUES (nextval('installation_seq'), ?, ?, ?, ?, ?, ?, ?)",
+                              0, scomp.getGroupId(), scomp.getArtifactId(), scomp.getVersionStr(), scomp.getChecksum(), "self",
+                              new Timestamp(System.currentTimeMillis()));
+                    // Install dependent jars that aren't already there, updating their reference graph in any case
+                    Path refDir = getModuleDir(scomp);
+                    List<List<String>> components = getDependencyActions(h, refDir, false);
+                    Component comp = Component.findByCoordinates(h, scomp.getGroupId(), scomp.getArtifactId());
+                    for (List<String> cparts : components) {
+                        String grpId = cparts.get(0);
+                        String artId = cparts.get(1);
+                        String vsn = cparts.get(3);
+                        String status = cparts.get(5);
+                        if ("count".equals(status)) {
+                            // just update reference graph
+                            Component updComp = Component.findByCoordinates(h, grpId, artId);
+                            if (updComp != null) {
+                                updComp.updateReferenceGraph(h, comp.getCompId());
+                            }
+                        } else if ("install".equals(status)) {
+                            Component stagedDep = stagedMap.get(grpId + artId);
+                            h.execute("INSERT INTO installation (compid, comptype, groupid, artifactid, versionstr, checksum, graph, updated) " +
+                           "VALUES (nextval('installation_seq'), ?, ?, ?, ?, ?, ?, ?)",
+                           1, grpId, artId, vsn, stagedDep.getChecksum(), String.valueOf(comp.getCompId()), new Timestamp(System.currentTimeMillis()));
+                        }
+                    }
+                    System.out.println("Copied components");
+                    loadModuleResources(refDir);
+                } else {
+                    // check version
+                    if (! scomp.getVersionStr().equals(icomp.getVersionStr())) {
+                        // if version is newer, its an upgrade
+                    } 
+                }
+            }
+        }
     }
     
     public void install(Handle h) throws IOException, SQLException, Exception {
-        // make sure module obeys the naming convention
-        init();
-        checkState(artifactId.startsWith("dsm"),
-                   "Cannot install module: " + module + " improperly named");
-
-        checkState("jar".equals(packaging) || "war".equals(packaging),
-                   "Cannot install module: " + module + " not a valid dspace module");
-        // kernel is a special case as first module - initialize DB if not already done
-        boolean dbReady = dbInitialized(h);
-        if (! dbReady) {
+        init("install");
+        // kernel is a special case as it has to be the first module installed 
+        // - initialize DB if not already done
+        if (! dbInitialized(h)) {
             if ("kernel".equals(module)) {
                 initDB(h);
             } else {
@@ -323,9 +548,8 @@ public final class Installer {
         checkState(Component.findByCoordinates(h, groupId, artifactId) == null,
                    "Module: '" + artifactId + "' already installed");
         System.out.println("Start dependency check");
-    
         // Determine whether the installation would create any classpath conflicts
-        List<List<String>> components = getDependencyActions(h);
+        List<List<String>> components = getDependencyActions(h, baseDir.toPath(), false);
         for (List<String> comp : components) {
             if ("fail".equals(comp.get(5))) {
                 throw new IOException(comp.get(6));
@@ -349,45 +573,23 @@ public final class Installer {
                     storeDir.mkdirs();
                 }
             }
-            // create modules (src) directory if it doesn't exist
-            File modsFile = new File(kernelDir, MODULES_DIR);
-            if (! modsFile.exists()) {
-                modsFile.mkdir();
-            }
-            // create webapps directory if it doesn't exist
-            File webappsFile = new File(kernelDir, WEBAPPS_DIR);
-            if (! webappsFile.exists()) {
-                webappsFile.mkdir();
-            }
-             // create jars sub-directory if it doesn't exist
-            File jarsFile = new File(kernelDir, JARS_DIR);
-            if (! jarsFile.exists()) {
-                jarsFile.mkdir();
-            }
-            // create wars sub-directory if it doesn't exist
-            File warsFile = new File(kernelDir, WARS_DIR);
-            if (! warsFile.exists()) {
-                warsFile.mkdir();
-            }
-            // create deploy sub-directory if it doesn't exist
-            File deployFile = new File(kernelDir, DEPLOY_DIR);
-            if (! deployFile.exists()) {
-                deployFile.mkdir();
-            }
+            createStagingEnv();
         }
     
         // first install the module jar itself - this is a special case,
         // since we check for locally modified version if available
-        File libDestDir = new File(destFile, LIB_DIR);
-        libDestDir.mkdir();
+        File modJar = getModuleArtifact();
+        stageModuleJar(modJar, destFile);
+        /*
         File modJar = getModuleArtifact();
         if ("jar".equals(packaging)) {
-            safeCopy(modJar, libDestDir, false);
+            safeCopy(modJar, new File(destFile, LIB_DIR), false);
             // also copy to (staging) jars directory for adding to webapps if core
             if ("core".equals(modScope)) {
                 safeCopy(modJar, new File(kernelDir, JARS_DIR), false);
             }
         }
+        */
         System.out.println("About to insert - g: " + groupId + " a: " + artifactId + " v: " + version + " c: " + checksum(modJar));
         // next, update the installation data with module
         h.execute("INSERT INTO installation (compid, comptype, groupid, artifactid, versionstr, checksum, graph, updated) " +
@@ -423,6 +625,7 @@ public final class Installer {
         // Install dependent jars that aren't already there, updating their reference graph in any case
         Component comp = Component.findByCoordinates(h, groupId, artifactId);
         File libSrcDir = new File(baseDir, LIB_DIR);
+        File libDestDir = new File(destFile, LIB_DIR);
         for (List<String> cparts : components) {
             String grpId = cparts.get(0);
             String artId = cparts.get(1);
@@ -453,7 +656,9 @@ public final class Installer {
         if ("core".equals(modScope)) {
             rebuildWars();
         }
-        loadDDL();
+        // update database schema, and load any module data into DB
+        loadModuleResources(baseDir.toPath());
+        //loadDDL();
         // special initialization in kernel module
         if ("kernel".equals(module)) {
             // create system-required groups   
@@ -470,22 +675,12 @@ public final class Installer {
             } catch (Exception e) {
                 System.out.println("Exception: " + e.getMessage());
             }
-        }
-        // now load registry data, emails, etc into DB
-        loadRegistries();
-        loadEmailTemplates();
-        if ("kernel".equals(module)) {
             initIndexes();
         }
     }
     
     public void update(Handle h) throws IOException, SQLException, Exception {
-        // make sure module obeys the naming convention
-        init();
-        checkState(artifactId.startsWith("dsm"),
-                   "Cannot install module: " + module + " improperly named");
-        checkState("jar".equals(packaging) || "war".equals(packaging),
-                   "Cannot update module: " + module + " not a dspace module");
+        init("update");
         checkState(dbInitialized(h), "No kernel module present - install one");
         Component curComp = Component.findByCoordinates(h, groupId, artifactId);
         checkState(curComp != null, "Module: '" + artifactId + "' is not installed - cannot update");
@@ -515,7 +710,7 @@ public final class Installer {
         } else {
             // a version change, need to check everything
             // Determine whether the update would create any classpath conflicts
-            List<List<String>> components = getDependencyActions(h);
+            List<List<String>> components = getDependencyActions(h, baseDir.toPath(), false);
             for (List<String> comp : components) {
                 if ("fail".equals(comp.get(5))) {
                     throw new IOException(comp.get(6));
@@ -601,6 +796,85 @@ public final class Installer {
         }
     }
 
+    private Path getModuleDir(Component comp) {
+        if (comp.getArtifactId().endsWith("kernel")) {
+            return baseDir.toPath();
+        }
+        String moduleDir = comp.getArtifactId();
+        moduleDir = moduleDir.substring("dsm-".length());
+        return baseDir.toPath().resolve(MODULES_DIR).resolve(moduleDir);
+    }
+
+    private void loadModuleResources(Path refDir) throws IOException, SQLException, Exception {
+        // first any schema changes, then data
+        loadDDL(refDir);
+        loadRegistries(refDir);
+        loadEmailTemplates(refDir);
+    }
+
+    /// create necessary directories for staging/installation environment
+    private void createStagingEnv() throws IOException {
+        // create modules (src) directory if it doesn't exist
+        File modsFile = new File(kernelDir, MODULES_DIR);
+        if (! modsFile.exists()) {
+            modsFile.mkdir();
+        }
+        // create webapps directory if it doesn't exist
+        File webappsFile = new File(kernelDir, WEBAPPS_DIR);
+        if (! webappsFile.exists()) {
+            webappsFile.mkdir();
+        }
+        // create jars sub-directory if it doesn't exist
+        File jarsFile = new File(kernelDir, JARS_DIR);
+        if (! jarsFile.exists()) {
+            jarsFile.mkdir();
+        }
+        // create wars sub-directory if it doesn't exist
+        File warsFile = new File(kernelDir, WARS_DIR);
+        if (! warsFile.exists()) {
+            warsFile.mkdir();
+        }
+        // create deploy sub-directory if it doesn't exist
+        File deployFile = new File(kernelDir, DEPLOY_DIR);
+        if (! deployFile.exists()) {
+            deployFile.mkdir();
+        }
+    }
+
+    private void loadStagingInfo() {
+        try (Scanner scanner = new Scanner(new File(kernelDir, STAGED_FILE))) {
+            while (scanner.hasNext()) {
+                String[] comps = scanner.next().split(",");
+                stagedMap.put(comps[2] + comps[3], new Component(Integer.parseInt(comps[0]), Integer.parseInt(comps[1]), 
+                             comps[2], comps[3], comps[4], comps[5], comps[6]));
+            }
+        } catch (FileNotFoundException fnfE) {}
+    }
+
+    private void stageModuleJar(File modJar, File destDir) throws IOException {
+        if ("jar".equals(packaging)) {
+            System.out.println("stageMJ - jar packaging");
+            safeCopy(modJar, new File(destDir, LIB_DIR), false);
+            // also copy to (staging) jars directory for adding to webapps if core
+            if ("core".equals(modScope)) {
+                safeCopy(modJar, new File(kernelDir, JARS_DIR), false);
+            }
+        }
+    }
+
+    private void saveStagingInfo() throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(new File(kernelDir, STAGED_FILE)))) {
+            for (Component comp: stagedMap.values()) {
+                StringBuilder compSB = new StringBuilder();
+                compSB.append(comp.getCompId()).append(",").append(comp.getCompType()).append(",").
+                append(comp.getGroupId()).append(",").append(comp.getArtifactId()).append(",").
+                append(comp.getVersionStr()).append(",").append(comp.getChecksum()).append(",").
+                append(comp.getGraph()).append("\n");
+                writer.write(compSB.toString());
+            }
+        }
+    }
+
     private void rebuildWars() throws IOException {
         // just redo all wars found in directory
         for (File warFile : new File(kernelDir, WARS_DIR).listFiles()) {
@@ -670,8 +944,8 @@ public final class Installer {
         }
     }
 
-    private List<List<String>> getDependencyActions(Handle h) throws IOException {
-        List<List<String>> components = readDependencies();
+    private List<List<String>> getDependencyActions(Handle h, Path refDir, boolean checkStaged) throws IOException {
+        List<List<String>> components = readModuleDependencies(refDir);
         for (List<String> cparts : components) {
             // determine if this component needs to be checked
             String grpId = cparts.get(0);
@@ -681,6 +955,10 @@ public final class Installer {
             if ("compile".equals(scope) || artId.startsWith("dsm-")) {
                 // Query the deployed system for this component
                 Component depComp = Component.findByCoordinates(h, grpId, artId);
+                // if not in instance, it might be in the staged transaction set we are examining
+                if (depComp == null && checkStaged) {
+                    depComp = stagedMap.get(grpId + artId);
+                }
                 if (depComp != null) {
                     // version differences will only matter if other components also depend on this one
                     String graph = depComp.getGraph();
@@ -709,7 +987,48 @@ public final class Installer {
             }
         }
         return components;
-    }
+    } 
+
+    private List<List<String>> getStagingDependencyActions(Path refDir) throws IOException {
+        List<List<String>> components = readModuleDependencies(refDir);
+        for (List<String> cparts : components) {
+            // determine if this component needs to be checked
+            String grpId = cparts.get(0);
+            String artId = cparts.get(1);
+            String vsn = cparts.get(3);
+            String scope = cparts.get(4);
+            if ("compile".equals(scope) || artId.startsWith("dsm-")) {
+                // Query the deployed system for this component
+                Component depComp = stagedMap.get(grpId + artId);
+                if (depComp != null) {
+                    // version differences will only matter if other components also depend on this one
+                    String graph = depComp.getGraph();
+                    if (graph.indexOf("-") > 0 || ! graph.equals(String.valueOf(depComp.getCompId()))) {
+                        // do versions conflict?
+                        if (! depComp.getVersionStr().equals(vsn)) {
+                            cparts.add("fail");
+                            cparts.add("Module dependency: '" + artId + "' version (" + vsn +
+                                       ") conflicts with existing component (" + depComp.getVersionStr() + ")");
+                        } else {
+                            cparts.add("ignore");
+                        }
+                    } else {
+                        cparts.add("update");
+                    }
+                } else {
+                    if (artId.startsWith("dsm-")) {
+                        cparts.add("fail");
+                        cparts.add("Module dependency: '" + artId + "' must be installed first");
+                    } else {
+                        cparts.add("install");
+                    }
+                }
+            } else {
+                cparts.add("ignore");
+            }
+        }
+        return components;
+    }   
     
     private boolean dbInitialized(Handle h) throws SQLException {
         DatabaseMetaData md = h.getConnection().getMetaData();
@@ -738,27 +1057,31 @@ public final class Installer {
         return modArt;
     }
     
-    private void safeCopy(File src, File dest, boolean overwrite) throws IOException {
-        File destFile = new File(dest, src.getName());
-    	if (src.isDirectory()) {
-    		if (! overwrite) {
-    			destFile.mkdir();
-    		}
-    		for (File file : src.listFiles()) {
-    			safeCopy(file, destFile, overwrite);
-    		}
-    	} else if (overwrite) {
-    		if (src.exists() && destFile.exists()) {
-    			Files.copy(src.toPath(), destFile.toPath());
-    		} else {
-    			System.out.println("Error - expected file to be present: " + destFile.getName());
-    		}
-    	} else {
-    		if (src.exists() && ! destFile.exists()) {
-    			Files.copy(src.toPath(), destFile.toPath());
-    		} else {
-    			System.out.println("Error - expected file to be unique: " + destFile.getName());
-    		}
+    private void safeCopy(File src, File destDir, boolean overwrite) throws IOException {
+        // ensure destDir exists if no overwrite assumption
+        if (! overwrite && Files.notExists(destDir.toPath())) {
+            destDir.mkdir();
+        }
+        File destFile = new File(destDir, src.getName());
+        if (src.isDirectory()) {
+            if (! overwrite) {
+                destFile.mkdir();
+            }
+            for (File file : src.listFiles()) {
+                safeCopy(file, destFile, overwrite);
+            }
+        } else if (overwrite) {
+            if (src.exists() && destFile.exists()) {
+                Files.copy(src.toPath(), destFile.toPath());
+            } else {
+                System.out.println("Error - expected file to be present: " + destFile.getName());
+            }
+        } else {
+            if (src.exists() && ! destFile.exists()) {
+                Files.copy(src.toPath(), destFile.toPath());
+            } else {
+                System.out.println("Error - expected file to be unique: " + destFile.getName());
+            }
         }
     }
     
@@ -809,19 +1132,18 @@ public final class Installer {
         return null;
     }
     
-    private List<List<String>> readDependencies() throws IOException {
+    private List<List<String>> readModuleDependencies(Path refDir) throws IOException {
         List<List<String>> compList = new ArrayList<List<String>>();
-        File comps = new File(baseDir, DEPS_FILE);
-        BufferedReader reader = new BufferedReader(new FileReader(comps));
-        String lineIn = null;
-        while ((lineIn = reader.readLine()) != null) {
-            lineIn = lineIn.trim();
-            if (lineIn.length() > 0 && ! lineIn.startsWith("The")) {
-                List<String> parts = new ArrayList(asList(lineIn.split(":")));
-                compList.add(parts);
+        try (BufferedReader reader = Files.newBufferedReader(refDir.resolve(DEPS_FILE), Charset.forName("UTF-8"))) {
+            String lineIn = null;
+            while ((lineIn = reader.readLine()) != null) {
+                lineIn = lineIn.trim();
+                if (lineIn.length() > 0 && ! lineIn.startsWith("The")) {
+                    List<String> parts = new ArrayList(asList(lineIn.split(":")));
+                    compList.add(parts);
+                }
             }
         }
-        reader.close();
         return compList;
     }
     
@@ -847,12 +1169,12 @@ public final class Installer {
     	//"CREATE DATABASE dspace ENCODING UTF8 OWNER dspace;");
     }
     
-    private void loadDDL() throws IOException, SQLException {
+    private void loadDDL(Path refDir) throws IOException, SQLException {
         String dbName = ConfigurationManager.getProperty("db.name");
         checkState(dbName != null, "no database name defined");
 
-        String path = baseDir.getAbsolutePath() + File.separator + DDL_DIR + File.separator + dbName;
-        File ddlFile = new File(path, DDL_UPFILE);
+        //String path = baseDir.getAbsolutePath() + File.separator + DDL_DIR + File.separator + dbName;
+        File ddlFile = refDir.resolve(DDL_DIR).resolve(dbName).resolve(DDL_UPFILE).toFile();
         // not all modules have DDLs
         //checkState(ddlFile.exists(), "no DDL file present");
         if (ddlFile.exists()) {
@@ -872,8 +1194,8 @@ public final class Installer {
         }
     }
     
-    private void loadRegistries() throws Exception {
-        File regDir = new File(baseDir, REG_DIR);
+    private void loadRegistries(Path refDir) throws Exception {
+        File regDir = refDir.resolve(REG_DIR).toFile();
         if (regDir.isDirectory()) {
             try (Context context = new Context()) {
                 context.turnOffAuthorisationSystem();
@@ -887,8 +1209,8 @@ public final class Installer {
         }
     }
 
-    private void loadEmailTemplates() throws Exception {
-        File emailDir = new File(baseDir, EMAIL_DIR);
+    private void loadEmailTemplates(Path refDir) throws Exception {
+        File emailDir = refDir.resolve(EMAIL_DIR).toFile();
         if (emailDir.isDirectory()) {
             try (Context context = new Context()) {
                 context.turnOffAuthorisationSystem();

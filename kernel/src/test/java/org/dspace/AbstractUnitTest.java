@@ -19,7 +19,6 @@ import java.util.TimeZone;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
 import org.dspace.authorize.AuthorizeException;
-import org.dspace.browse.BrowseException;
 import org.dspace.content.NonUniqueMetadataException;
 //import org.dspace.servicemanager.DSpaceKernelImpl;
 //import org.dspace.servicemanager.DSpaceKernelInit;
@@ -31,8 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.dspace.administer.RegistryLoader;
-import org.dspace.browse.IndexBrowse;
-import org.dspace.browse.MockBrowseCreateDAOOracle;
 import org.dspace.content.MetadataField;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Context;
@@ -49,7 +46,7 @@ import org.xml.sax.SAXException;
  *
  * @author pvillega
  */
-@UsingMocksAndStubs({MockDatabaseManager.class, MockBrowseCreateDAOOracle.class})
+@UsingMocksAndStubs({MockDatabaseManager.class})
 public class AbstractUnitTest
 {
     /** log4j category */
@@ -191,12 +188,6 @@ public class AbstractUnitTest
                 //DSIndexer.cleanIndex(ctx);
                 dsi.createIndex(ctx);
                 ctx.commit();
-
-                //indexer does a 'complete' on the context
-                IndexBrowse indexer = new IndexBrowse(ctx);
-                indexer.setRebuild(true);
-                indexer.setExecute(true);
-                indexer.initBrowse();
             }
             ctx.restoreAuthSystemState();
             //if(ctx.isValid())
@@ -205,11 +196,6 @@ public class AbstractUnitTest
             //}
             //ctx = null;    
         } 
-        catch (BrowseException ex)
-        {
-            log.error("Error creating the browse indexes", ex);
-            fail("Error creating the browse indexes");
-        }
         catch (NonUniqueMetadataException ex)
         {
             log.error("Error loading default data", ex);

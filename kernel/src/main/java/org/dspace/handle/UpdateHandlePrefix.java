@@ -14,7 +14,6 @@ import org.dspace.core.Context;
 import org.dspace.storage.rdbms.DatabaseManager;
 import org.dspace.storage.rdbms.TableRow;
 import org.dspace.search.DSIndexer;
-import org.dspace.browse.IndexBrowse;
 
 /**
  * A script to update the handle values in the database. This is typically used
@@ -68,10 +67,7 @@ public class UpdateHandlePrefix
                 // Commit the changes
                 context.complete();
 
-                System.out.print("Re-creating browse and search indexes... ");                
-
-                // Reinitialise the browse system
-                IndexBrowse.main(new String[] {"-i"});
+                System.out.print("Re-creating search indexes... ");                
 
                 // Reinitialise the browse system
                 try

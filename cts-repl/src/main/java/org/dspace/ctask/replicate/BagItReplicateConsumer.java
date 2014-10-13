@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.eventbus.Subscribe;
+
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.content.Collection;
 import org.dspace.content.Community;
@@ -30,11 +32,11 @@ import org.dspace.curate.Curator;
 import org.dspace.curate.queue.TaskQueue;
 import org.dspace.curate.queue.TaskQueueEntry;
 import org.dspace.eperson.EPerson;
-import org.dspace.event.Consumer;
-import org.dspace.event.Event;
+import org.dspace.event.Consumes;
+import org.dspace.event.ContainerEvent;
+import org.dspace.event.ContentEvent;
+import org.dspace.event.ContentEvent.EventType;
 
-// for readability
-import static org.dspace.event.Event.*;
 
 /**
  * BagItReplicateConsumer is an event consumer that tracks events relevant to
@@ -44,9 +46,11 @@ import static org.dspace.event.Event.*;
  * to perform the configured curation tasks, or directly performs the task
  * if so indicated.
  * 
+ * RLR FIXME - this class needs to be redone using new event model
  * @author richardrodgers
  */
-public class BagItReplicateConsumer implements Consumer {
+@Consumes("content")
+public class BagItReplicateConsumer {
 
     private ReplicaManager repMan = null;
     private TaskQueue taskQueue = null;
@@ -73,7 +77,6 @@ public class BagItReplicateConsumer implements Consumer {
     // create deletion catalogs?
     private boolean catalogDeletes = false;
 
-    @Override
     public void initialize() throws Exception {
         repMan = ReplicaManager.instance();
         taskQueue = (TaskQueue)ConfigurationManager.getInstance("curate", "taskqueue.impl");
@@ -114,20 +117,19 @@ public class BagItReplicateConsumer implements Consumer {
      * @param event
      * @throws Exception
      */
-    @Override
-    public void consume(Context ctx, Event event) throws Exception {
-        int evType = event.getEventType();
-        int subjType = event.getSubjectType();
+    @Subscribe
+    public void consumeContentEvent(ContentEvent event) throws Exception {
+        //int subjType = event.getSubjectType();
         // This is the Handle of the object on which an event occured
-        String id = event.getDetail();
+        String id = event.getObject().getHandle();
         //System.out.println("got event type: " + evType + " for subject type: " + subjType);
-        switch (evType)  {
+        switch (event.getEventType())  {
             case CREATE: //CREATE = Create a new object.
             case INSTALL: //INSTALL = Install an object (exits workflow/workspace). Only used for Items.
                 // if NOT (Item & Create)
                 // (i.e. We don't want to replicate items UNTIL they are Installed)
-                if (subjType != Constants.ITEM || evType != CREATE) {
-                    if (acceptId(id, event, ctx)) {
+                if (event.getObject().getType() != Constants.ITEM || event.getEventType() != EventType.CREATE) {
+                    if (acceptId(event)) {
                         // add it to the master lists of added/new objects
                         // for which we need to perform tasks
                         mapId(taskQMap, addQTasks, id);
@@ -136,14 +138,13 @@ public class BagItReplicateConsumer implements Consumer {
                 }
                 break;
             case MODIFY: //MODIFY = modify an object
-            case MODIFY_METADATA: //MODIFY_METADATA = just modify an object's metadata
+           // case MODIFY_METADATA: //MODIFY_METADATA = just modify an object's metadata
                 //For MODIFY events, the Handle of modified object needs to be obtained from the Subject
-                id = event.getSubject(ctx).getHandle();
                 // make sure handle resolves - these could be events
                 // for a newly created item that hasn't been assigned a handle
                 if (id != null)  {
                     // make sure we are supposed to process this object
-                    if (acceptId(id, event, ctx))    {
+                    if (acceptId(event))    {
                         // add it to the master lists of modified objects
                         // for which we need to perform tasks
                         mapId(taskQMap, modQTasks, id);
@@ -154,9 +155,9 @@ public class BagItReplicateConsumer implements Consumer {
             case REMOVE: //REMOVE = Remove an object from a container or group
             case DELETE: //DELETE = Delete an object (actually destroy it)
                 // make sure we are supposed to process this object
-                if (acceptId(id, event, ctx)) { 
+                if (acceptId(event)) { 
                     // analyze & process the deletion/removal event
-                    deleteEvent(ctx, id, event);
+                    deleteEvent(id, event);
                 }
                 break;
             default:
@@ -164,7 +165,6 @@ public class BagItReplicateConsumer implements Consumer {
         }
     }
 
-    @Override
     public void end(Context ctx) throws Exception {
         // if there are any pending objectIds, pass them to the curation
         // system to queue for later processing, or perform immediately
@@ -209,35 +209,28 @@ public class BagItReplicateConsumer implements Consumer {
         }
     }
 
-    @Override
-    public void finish(Context ctx) throws Exception {
-        // no-op
-    }
-
     /**
      * Check to see if an object ID (Handle) is allowed to be processed by
      * this consumer. Individual Objects may be filtered out of consumer
      * processing by using a filter file (a textual file with a list of
      * handles to either include or exclude).
      *
-     * @param id Object ID to check
      * @param event Event that was performed on the Object
-     * @param ctx Current DSpace Context
      * @return true if this consumer should process this object event, false if it should not
      * @throws SQLException if database error occurs
      */
-    private boolean acceptId(String id, Event event, Context ctx) throws SQLException {
+    private boolean acceptId(ContentEvent event) throws SQLException {
         // always accept if not filtering
         if (idFilter == null) {
             return true;
         }
         // filter supports only container ids - so if id is for an item,
         // find its owning collection
-        String id2check = id;
-        if (event.getSubjectType() == Constants.ITEM) {
+        String id2check = event.getObject().getHandle();
+        if (event.getObject().getType() == Constants.ITEM) {
             // NB: Item should be available form context cache - should
             // not incur a performance hit here
-            Item item = Item.find(ctx, event.getSubjectID());
+            Item item = (Item)event.getObject();
             Collection coll = item.getOwningCollection();
             if (coll != null) {
                 id2check = coll.getHandle();
@@ -256,9 +249,9 @@ public class BagItReplicateConsumer implements Consumer {
      * @param event event that was triggered
      * @throws Exception
      */
-    private void deleteEvent(Context ctx, String id, Event event) throws Exception {
-        int type = event.getEventType();
-        if (DELETE == type) {
+    private void deleteEvent(String id, ContentEvent event) throws Exception {
+        switch(event.getEventType()) {
+            case DELETE:
             // either marks start of new deletion or a member of enclosing one
             if (delObjId == null) {
                 //Start of a new deletion
@@ -267,22 +260,21 @@ public class BagItReplicateConsumer implements Consumer {
                 // just add to list of deleted members
                 delMemIds.add(id);
             }
-        } else if (REMOVE == type) {
+            break;
+            case REMOVE:
             // either marks end of current deletion or is member of
             // enclosing one: ignore if latter
             if (delObjId.equals(id)) {
                 // determine owner and write out deletion catalog
-                if (Constants.COLLECTION == event.getSubjectType()) {
-                    // my owner is a collection
-                    Collection ownColl = Collection.find(ctx, event.getSubjectID());
-                    delOwnerId = ownColl.getHandle();
-                } else if (Constants.COMMUNITY == event.getSubjectType()) {
-                    // my owner is a community
-                    Community comm = Community.find(ctx, event.getSubjectID());
-                    delOwnerId = comm.getHandle();
+                int type = event.getObject().getType();
+                if (Constants.COLLECTION == type || Constants.COMMUNITY == type) {
+                    // my owner is a collection or community
+                    delOwnerId = event.getObject().getHandle();
                 }
                 processDelete();
              }
+            break;
+            default: break;
         }
     }
 
@@ -386,8 +378,7 @@ public class BagItReplicateConsumer implements Consumer {
      * @param propName property name
      * @return property value
      */
-    private String localProperty(String propName)
-    {
+    private String localProperty(String propName) {
         return ConfigurationManager.getProperty("replicate", propName);
     }
 

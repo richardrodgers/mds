@@ -48,24 +48,27 @@ public class CommandLauncher {
                 String className = cmdLineArgs.remove(0);
                 invokeCommand(className, cmdLineArgs);
             }
-        } else if ("install".equals(cmdName) || "update".equals(cmdName)) {
-        	// Installer built-in simply because it is needed before DB exists
-        	// so cannot be read from registry - thus hard-coded case here
-        	// push the argument back to the command
-        	cmdLineArgs.add(0, cmdName);
-        	invokeCommand("org.dspace.administer.Installer", cmdLineArgs);
+        } else if ("install".equals(cmdName) ||
+                   "stage".equals(cmdName) ||
+                   "register".equals(cmdName) ||
+                   "update".equals(cmdName)) {
+            // Installer actions built-in simply because it is needed before DB exists
+            // so cannot be read from registry - thus hard-coded case here
+            // push the argument back to the command
+            cmdLineArgs.add(0, cmdName);
+            invokeCommand("org.dspace.administer.Installer", cmdLineArgs);
         } else if ("vizadmin".equals(cmdName)) {
             // launch the visual admin console
             invokeCommand("org.dspace.administer.VizAdmin", cmdLineArgs);
         } else {
-        	try (Context ctx = new Context()) {
+            try (Context ctx = new Context()) {
               ctx.turnOffAuthorisationSystem();
               if ("list".equals(cmdName)) {
                   // display list of commands accessible from launcher
-                	System.out.println("Available commands:");
-                	for (String cn : listCommands(ctx)) {
-                	    System.out.println(cn);
-                	}
+                  System.out.println("Available commands:");
+                  for (String cn : listCommands(ctx)) {
+                      System.out.println(cn);
+                  }
               } else if ("help".equals(cmdName)) {
                 	// Display a helpful message for a command
               		if (cmdLineArgs.size() == 0) {
@@ -123,14 +126,14 @@ public class CommandLauncher {
     }
     
     private static List<String> listCommands(Context ctx) throws Exception {
-    	List<String> commands = new ArrayList<String>(Arrays.asList(builtins));
-    	// then installed commands
-    	for (Command cmd : Command.findAll(ctx)) {
-    		if (cmd.isLaunchable()) {
-    			commands.add(cmd.getName());
-    		}
-    	}
-    	return commands;
+        List<String> commands = new ArrayList<String>(Arrays.asList(builtins));
+        // then installed commands
+        for (Command cmd : Command.findAll(ctx)) {
+            if (cmd.isLaunchable()) {
+                commands.add(cmd.getName());
+            }
+        }
+        return commands;
     }
     
     private static List<String> buildArgList(Command command, List<String> cmdLineArgs) {

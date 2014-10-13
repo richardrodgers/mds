@@ -38,6 +38,18 @@ public class Component {
     // update timestamp
     private Timestamp updated;
 
+    public Component() {}
+
+    public Component(int compId, int compType, String groupId, String artifactId, String versionStr, String checksum, String graph) {
+        this.compId = compId;
+        this.compType = compType;
+        this.groupId = groupId;
+        this.artifactId = artifactId;
+        this.versionStr = versionStr;
+        this.checksum = checksum;
+        this.graph = graph;
+    }
+
     public static List<Component> findAll(Handle handle) {
         return handle.createQuery("SELECT * FROM installation").
                map(new BeanMapper<Component>(Component.class)).list();        
