@@ -66,6 +66,7 @@ import org.skife.jdbi.v2.util.StringMapper;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Argument;
+import org.kohsuke.args4j.Option;
 
 import static com.google.common.base.Preconditions.*;
 import com.google.common.base.Strings;
@@ -178,6 +179,12 @@ public final class Installer {
     @Argument(index=1, usage="module name", required=true)
     private String module;
 
+    @Option(name="-s", usage="staging directory")
+    private String stagingDir;
+
+    @Option(name="-r", usage="runtime directory")
+    private String runtimeDir;
+
     // source/staging filesystem locations
     private File kernelDir;
     private File baseDir;
@@ -221,7 +228,7 @@ public final class Installer {
     }
 
     public static List<String> listModules() {
-        File kernelDir = new File(System.getProperty("user.dir")).getParentFile();
+        File kernelDir = /* (stagingDir != null) ? new File(stagingDir) : */ new File(System.getProperty("user.dir")).getParentFile();
         checkState(new File(kernelDir, "lib").isDirectory(),
                   "Installer must be run from kernel 'bin' directory");
         List<String> modules = new ArrayList<>();
@@ -237,7 +244,7 @@ public final class Installer {
 
     private void setBaseDir() {
         // make sure we are executing where we ought to be
-        kernelDir = new File(System.getProperty("user.dir")).getParentFile();
+        kernelDir = (stagingDir != null) ? new File(stagingDir) : new File(System.getProperty("user.dir")).getParentFile();
         if ("kernel".equals(module)) {
              baseDir = kernelDir;
         } else {
@@ -291,7 +298,7 @@ public final class Installer {
         checkState(System.getProperty("java.version").charAt(2) >= 7,
                    "Installed Java runtime below minimum required version: 1.7");
         // make sure we are executing where we ought to be
-        baseDir = new File(System.getProperty("user.dir")).getParentFile();
+        baseDir = (stagingDir != null) ? new File(stagingDir) : new File(System.getProperty("user.dir")).getParentFile();
         checkState(new File(baseDir, "lib").isDirectory(),
                   "Installer must be run from kernel 'bin' directory");
         // and a pom is present
@@ -360,7 +367,7 @@ public final class Installer {
             }
         }
         System.out.println("Finished dependency check");
-        String destPath = ConfigurationManager.getProperty("site.home");
+        String destPath = (runtimeDir != null) ? runtimeDir : ConfigurationManager.getProperty("site.home");
         File destFile = new File(destPath);
         if ("kernel".equals(module)) {
             // create destination directory if it doesn't exist
@@ -444,7 +451,7 @@ public final class Installer {
 
     public void register(Handle h) throws IOException, SQLException, Exception {
         // make sure we are executing where we ought to be
-        kernelDir = new File(System.getProperty("user.dir")).getParentFile();
+        kernelDir = (stagingDir != null) ? new File(stagingDir) : new File(System.getProperty("user.dir")).getParentFile();
         baseDir = kernelDir;
         // load up map of staging info
         loadStagingInfo();
@@ -556,7 +563,7 @@ public final class Installer {
             }
         }
         System.out.println("Finished dependency check");
-        String destPath = ConfigurationManager.getProperty("site.home");
+        String destPath = (runtimeDir != null) ? runtimeDir : ConfigurationManager.getProperty("site.home");
         File destFile = new File(destPath);
         if ("kernel".equals(module)) {
             // create destination directory if it doesn't exist
@@ -686,7 +693,7 @@ public final class Installer {
         checkState(curComp != null, "Module: '" + artifactId + "' is not installed - cannot update");
     
         boolean updateWars = false;
-        String destPath = ConfigurationManager.getProperty("site.home");
+        String destPath = (runtimeDir != null) ? runtimeDir : ConfigurationManager.getProperty("site.home");
         File destFile = new File(destPath);
         File libDestDir = new File(destFile, LIB_DIR);
       
