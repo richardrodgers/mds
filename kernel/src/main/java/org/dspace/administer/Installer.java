@@ -530,6 +530,9 @@ public final class Installer {
                     }
                     System.out.println("Copied components");
                     loadModuleResources(refDir);
+                    if (comp.getArtifactId().endsWith("kernel")) {
+                        createDefaultGroups();
+                    }
                 } else {
                     // check version
                     if (! scomp.getVersionStr().equals(icomp.getVersionStr())) {
@@ -668,21 +671,7 @@ public final class Installer {
         //loadDDL();
         // special initialization in kernel module
         if ("kernel".equals(module)) {
-            // create system-required groups   
-            try (Context ctx = new Context()) {
-                ctx.turnOffAuthorisationSystem();
-                Group anon = Group.create(ctx);
-                anon.setName("Anonymous");
-                anon.update();
-    
-                Group admin = Group.create(ctx);
-                admin.setName("Administrator");
-                admin.update();
-                ctx.complete();
-            } catch (Exception e) {
-                System.out.println("Exception: " + e.getMessage());
-            }
-            initIndexes();
+            createDefaultGroups();
         }
     }
     
@@ -801,6 +790,24 @@ public final class Installer {
         if (updateWars) {
             rebuildWars();
         }
+    }
+
+    private void createDefaultGroups() throws Exception {
+        // create system-required groups   
+        try (Context ctx = new Context()) {
+            ctx.turnOffAuthorisationSystem();
+            Group anon = Group.create(ctx);
+            anon.setName("Anonymous");
+            anon.update();
+    
+            Group admin = Group.create(ctx);
+            admin.setName("Administrator");
+            admin.update();
+            ctx.complete();
+        } catch (Exception e) {
+            System.out.println("Exception: " + e.getMessage());
+        }
+        initIndexes();
     }
 
     private Path getModuleDir(Component comp) {

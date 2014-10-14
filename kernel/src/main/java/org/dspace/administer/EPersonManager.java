@@ -32,14 +32,13 @@ import org.dspace.eperson.Group;
 /**
  * A utility class for managing (creating, modifying, deleting) EPersons.
  * Special use-case is creation of the first administrator of a new system.
- * The tool supports 3 modes of invocation/operation
+ * The tool supports 4 modes of invocation/operation
  * (1) Interactive - user is prompted on a command-line for field values (creation only)
  * (2) Non-Interactive - action and all values passed on the command-line:
- * 
  * EPersonManager add -e [email] -g [given name] -s [surname] -l [language] -p [password] -a
- * 
- * (3) Programmatic - action and field values set on an instance in Java code:
- *
+ * (3) Environment - action from command line, all values from environment variables
+ * EPersonManager add -a -v
+ * (4) Programmatic - action and field values set on an instance in Java code:
  * String status = new EPersonManager.email("a@b.com").password("foo").createEPerson(context);
  *
  * Derived from DSpace CreateAdministrator class.
@@ -57,18 +56,20 @@ public final class EPersonManager {
     private Action action;
     @Option(name="-a", usage="add to administrators group")
     private boolean admin;
-	@Option(name="-e", usage="email address")
-	private String email;
+    @Option(name="-v", usage="values from environment variables")
+    private boolean fromEnv;
+    @Option(name="-e", usage="email address")
+    private String email;
     @Option(name="-n", usage="netid")
     private String netid;
-	@Option(name="-g", usage="given name")
-	private String givenName;
-	@Option(name="-s", usage="surname")
-	private String surName;
-	@Option(name="-l", usage="language")
-	private String language;
-	@Option(name="-p", usage="password")
-	private String password;
+    @Option(name="-g", usage="given name")
+    private String givenName;
+    @Option(name="-s", usage="surname")
+    private String surName;
+    @Option(name="-l", usage="language")
+    private String language;
+    @Option(name="-p", usage="password")
+    private String password;
 
     /**
      * Sets wheather actions are committed atiomically.
@@ -134,7 +135,7 @@ public final class EPersonManager {
         this.password = checkNotNull(password);
         return this;
     }
-	
+
     /**
      * For invoking via the command line.  If called with the 'prompt'
      * argument, it will prompt the user for the eperson details.
@@ -143,10 +144,10 @@ public final class EPersonManager {
      *            command-line arguments
      */
     public static void main(String[] args) throws Exception {
-    	EPersonManager epm = new EPersonManager();
-    	CmdLineParser parser = new CmdLineParser(epm);
+        EPersonManager epm = new EPersonManager();
+        CmdLineParser parser = new CmdLineParser(epm);
         try {
-        	parser.parseArgument(args);
+            parser.parseArgument(args);
             try (Context context = new Context()) {
                 String status = null;
                 epm.setAtomicCommit(false);
@@ -160,8 +161,8 @@ public final class EPersonManager {
                 System.out.println(status);
             }
         }  catch (CmdLineException clE) {
-        	System.err.println(clE.getMessage());
-        	parser.printUsage(System.err);
+            System.err.println(clE.getMessage());
+            parser.printUsage(System.err);
         }
     }
     
@@ -172,95 +173,98 @@ public final class EPersonManager {
      * @throws Exception
      */
     private String negotiateDetails(Context context) throws Exception {
-    	// For easier reading of typing
-    	BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
-    	
-    	System.out.println("Creating an initial administrator account");
-    	
-    	boolean dataOK = false;
-    	
-    	language = I18nUtil.DEFAULTLOCALE.getLanguage();
-    	
-    	while (!dataOK) {
-    		System.out.print("E-mail address: ");
-    		System.out.flush();
-    		
-    		email = input.readLine();
+        // For easier reading of typing
+        BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
+    
+        System.out.println("Creating an initial administrator account");
+    
+        boolean dataOK = false;
+    
+        language = I18nUtil.DEFAULTLOCALE.getLanguage();
+    
+        while (!dataOK) {
+            System.out.print("E-mail address: ");
+            System.out.flush();
+    
+            email = input.readLine();
             if (email != null) {
                 email = email.trim();
             }
-    		
-    		System.out.print("Given name: ");
-    		System.out.flush();
-    		
-    		givenName = input.readLine();
+    
+            System.out.print("Given name: ");
+            System.out.flush();
+
+            givenName = input.readLine();
             if (givenName != null) {
                 givenName = givenName.trim();
             }
-    		
-    		System.out.print("Surname: ");
-    		System.out.flush();
-    		
-    		surName = input.readLine();
+    
+            System.out.print("Surname: ");
+            System.out.flush();
+    
+            surName = input.readLine();
             if (surName != null) {
                 surName = surName.trim();
             }
-   		
+   	
             if (ConfigurationManager.getProperty("webui.supported.locales") != null)  {
                 System.out.println("Select one of the following languages: " + ConfigurationManager.getProperty("webui.supported.locales"));
                 System.out.print("Language: ");
                 System.out.flush();
             
-    		    language = input.readLine();
+                language = input.readLine();
                 if (language != null) {
                     language = language.trim();
                     language = I18nUtil.getSupportedLocale(new Locale(language)).getLanguage();
                 }
             }
             
-    		System.out.println("WARNING: Password will appear on-screen.");
-    		System.out.print("Password: ");
-    		System.out.flush();
-    		
-    		password = input.readLine();
+            System.out.println("WARNING: Password will appear on-screen.");
+            System.out.print("Password: ");
+            System.out.flush();
+    
+            password = input.readLine();
             if (password != null) {
                 password = password.trim();
             }
-    		
-    		System.out.print("Again to confirm: ");
-    		System.out.flush();
-    		
-    		String password2 = input.readLine();
+    
+            System.out.print("Again to confirm: ");
+            System.out.flush();
+    
+            String password2 = input.readLine();
             if (password2 != null) {
                 password2 = password2.trim();
             }
-    		
-    		if (! isNullOrEmpty(password) && Objects.equal(password, password2)) {
-    			// password OK
-    			System.out.print("Is the above data correct? (y or n): ");
-    			System.out.flush();
-    			
-    			String s = input.readLine();
-
+    
+            if (! isNullOrEmpty(password) && Objects.equal(password, password2)) {
+                // password OK
+                System.out.print("Is the above data correct? (y or n): ");
+                System.out.flush();
+    
+                String s = input.readLine();
                 if (s != null) {
                     s = s.trim();
                     if (s.toLowerCase().startsWith("y")) {
                         dataOK = true;
                     }
                 }
-    		} else {
-    			System.out.println("Passwords don't match");
-    		}
-    	}
-    	
-    	// if we make it to here, we are ready to create an administrator
-    	return createEPerson(context);
+            } else {
+                System.out.println("Passwords don't match");
+            }
+        }
+    
+        // if we make it to here, we are ready to create an administrator
+        return createEPerson(context);
     }
 
     /**
      * Creates a new eperson record in the repository.
      */
     public String createEPerson(Context context) throws AuthorizeException, SQLException {
+
+        if (fromEnv) {
+            readEnvironmentVars();
+        }
 
         checkState(email != null || netid != null, "An email address or netid must be specified");
         checkState(givenName != null, "Required field 'given name' missing");
@@ -313,6 +317,11 @@ public final class EPersonManager {
 
      public String updateEPerson(Context context) 
         throws AuthorizeException, EPersonDeletionException, SQLException {
+
+        if (fromEnv) {
+            readEnvironmentVars();
+        }
+
         EPerson eperson = lookup(context);
         StringBuilder status = new StringBuilder();
         if (eperson != null) {
@@ -346,6 +355,10 @@ public final class EPersonManager {
 
     public String deleteEPerson(Context context) 
         throws AuthorizeException, EPersonDeletionException, SQLException {
+
+        if (fromEnv) {
+            readEnvironmentVars();
+        }
         EPerson eperson = lookup(context);
         StringBuilder status = new StringBuilder();
         if (eperson != null) {
@@ -357,6 +370,13 @@ public final class EPersonManager {
         } else {
             return status.append("No such EPerson: ").append(email).toString();
         }
+    }
+
+    private void readEnvironmentVars() {
+        email = System.getenv("MDS_ADMIN_EMAIL");
+        givenName = System.getenv("MDS_ADMIN_FIRST");
+        surName = System.getenv("MDS_ADMIN_LAST");
+        password = System.getenv("MDS_ADMIN_PASSWORD");
     }
 
     private EPerson lookup(Context context) throws AuthorizeException, SQLException {

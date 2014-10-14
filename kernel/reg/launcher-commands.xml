@@ -28,6 +28,17 @@
             <argument>-a</argument>
         </step>
     </command>
+
+    <command>
+        <name>create-administrator-env</name>
+        <description>Create a DSpace administrator account from environment variables</description>
+        <step>
+            <class>org.dspace.administer.EPersonManager</class>
+            <argument>add</argument>
+            <argument>-a</argument>
+            <argument>-v</argument>
+        </step>
+    </command>
     
     <command>
         <name>curate</name>
@@ -44,26 +55,10 @@
             <class>org.dspace.core.ConfigurationManager</class>
         </step>
     </command>
-
-    <command>
-        <name>index</name>
-        <description>General index command (requires extra parameters)</description>
-        <step>
-            <class>org.dspace.browse.IndexBrowse</class>
-        </step>
-    </command>
     
     <command>
         <name>index-init</name>
-        <description>Initialise the search and browse indexes</description>
-        <step passuserargs="false">
-            <class>org.dspace.browse.IndexBrowse</class>
-            <argument>full</argument>
-            <argument>-r</argument>
-        </step>
-        <step passuserargs="false">
-            <class>org.dspace.browse.ItemCounter</class>
-        </step>
+        <description>Initialise the search indexes</description>
         <step passuserargs="false">
             <class>org.dspace.search.DSIndexer</class>
             <argument>-b</argument>
@@ -74,24 +69,9 @@
         <name>index-update</name>
         <description>Update the search and browse indexes</description>
         <step passuserargs="false">
-            <class>org.dspace.browse.IndexBrowse</class>
-            <argument>-i</argument>
-        </step>
-        <step passuserargs="false">
-            <class>org.dspace.browse.ItemCounter</class>
-        </step>
-        <step passuserargs="false">
             <class>org.dspace.search.DSIndexer</class>
         </step>
      </command>
-
-    <command>
-        <name>itemcounter</name>
-        <description>Update the item strength counts in the user interface</description>
-        <step passuserargs="false">
-            <class>org.dspace.browse.ItemCounter</class>
-        </step>
-    </command>
 
     <command>
         <name>make-handle-config</name>
