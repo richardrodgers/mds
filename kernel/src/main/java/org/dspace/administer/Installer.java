@@ -921,9 +921,11 @@ public final class Installer {
             Path kernelConf = new File(kernelDir, CONF_DIR).toPath();
             Path jarPath = jarfs.getPath("/WEB-INF/classes/");
             Files.walkFileTree(kernelConf, new CopyVisitor(kernelConf, jarPath));
-            // the module conf files - same deal
+            // the module conf files - same deal if it exists
             Path moduleConf = new File(baseDir, CONF_DIR).toPath();
-            Files.walkFileTree(moduleConf, new CopyVisitor(moduleConf, jarPath));
+            if (Files.exists(moduleConf)) {
+                Files.walkFileTree(moduleConf, new CopyVisitor(moduleConf, jarPath));
+            }
         }
         System.out.println("rebuilt WAR: " + warName);
     }
