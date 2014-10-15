@@ -256,7 +256,7 @@ public final class Installer {
         // determine whether staged module has been modified more recently
         // than the module update timestamp in DB
         setBaseDir();
-        readPOM();
+        readPOM(baseDir);
         Component comp = Component.findByCoordinates(h, groupId, artifactId);
         if (comp != null) {
             File modBase = new File(System.getProperty("user.dir")).getParentFile();
@@ -326,7 +326,7 @@ public final class Installer {
     public String canInstall(Handle h) throws IOException {
         // Determine whether the installation would create any classpath conflicts
         //setBaseDir();
-        //readPOM();
+        //readPOM(baseDir);
         //if (Component.findByCoordinates(h, groupId, artifactId) != null) {
         //    return  "Module: '" + artifactId + "' already installed";
         //}
@@ -343,7 +343,7 @@ public final class Installer {
         // reset base if not kernel
         setBaseDir();
         // read module POM so we know what we are dealing with
-        readPOM();
+        readPOM(baseDir);
         // make sure module obeys the naming convention
         checkState(artifactId.startsWith("dsm"),
                    "Cannot " + action + " module: " + module + " improperly named");
@@ -507,28 +507,35 @@ public final class Installer {
                               0, scomp.getGroupId(), scomp.getArtifactId(), scomp.getVersionStr(), scomp.getChecksum(), "self",
                               new Timestamp(System.currentTimeMillis()));
                     // Install dependent jars that aren't already there, updating their reference graph in any case
+                    // These dependent jars are only recorded if the module in question is not a WAR package, since
+                    // the WAR classpath is isolated
                     Path refDir = getModuleDir(scomp);
-                    List<List<String>> components = getDependencyActions(h, refDir, false);
+                    readPOM(refDir.toFile());
                     Component comp = Component.findByCoordinates(h, scomp.getGroupId(), scomp.getArtifactId());
-                    for (List<String> cparts : components) {
-                        String grpId = cparts.get(0);
-                        String artId = cparts.get(1);
-                        String vsn = cparts.get(3);
-                        String status = cparts.get(5);
-                        if ("count".equals(status)) {
-                            // just update reference graph
-                            Component updComp = Component.findByCoordinates(h, grpId, artId);
-                            if (updComp != null) {
-                                updComp.updateReferenceGraph(h, comp.getCompId());
+                    if (! "war".equals(packaging)) {
+                        List<List<String>> components = getDependencyActions(h, refDir, false);
+                        for (List<String> cparts : components) {
+                            String grpId = cparts.get(0);
+                            String artId = cparts.get(1);
+                            String vsn = cparts.get(3);
+                            String status = cparts.get(5);
+                            System.out.println("Got component: " + grpId + ":" + artId);
+                            if ("count".equals(status)) {
+                                // just update reference graph
+                                Component updComp = Component.findByCoordinates(h, grpId, artId);
+                                if (updComp != null) {
+                                    updComp.updateReferenceGraph(h, comp.getCompId());
+                                }
+                            } else if ("install".equals(status)) {
+                                Component stagedDep = stagedMap.get(grpId + artId);
+                                System.out.println("About to insert dependency - g: " + grpId + " a: " + artId + 
+                                                   " v: " + vsn + " c: " + stagedDep.getChecksum());
+                                h.execute("INSERT INTO installation (compid, comptype, groupid, artifactid, versionstr, checksum, graph, updated) " +
+                                          "VALUES (nextval('installation_seq'), ?, ?, ?, ?, ?, ?, ?)",
+                                1, grpId, artId, vsn, stagedDep.getChecksum(), String.valueOf(comp.getCompId()), new Timestamp(System.currentTimeMillis()));
                             }
-                        } else if ("install".equals(status)) {
-                            Component stagedDep = stagedMap.get(grpId + artId);
-                            h.execute("INSERT INTO installation (compid, comptype, groupid, artifactid, versionstr, checksum, graph, updated) " +
-                           "VALUES (nextval('installation_seq'), ?, ?, ?, ?, ?, ?, ?)",
-                           1, grpId, artId, vsn, stagedDep.getChecksum(), String.valueOf(comp.getCompId()), new Timestamp(System.currentTimeMillis()));
                         }
                     }
-                    System.out.println("Copied components");
                     loadModuleResources(refDir);
                     if (comp.getArtifactId().endsWith("kernel")) {
                         createDefaultGroups();
@@ -811,10 +818,10 @@ public final class Installer {
     }
 
     private Path getModuleDir(Component comp) {
-        if (comp.getArtifactId().endsWith("kernel")) {
+        String moduleDir = comp.getArtifactId();
+        if (moduleDir.endsWith("kernel")) {
             return baseDir.toPath();
         }
-        String moduleDir = comp.getArtifactId();
         moduleDir = moduleDir.substring("dsm-".length());
         return baseDir.toPath().resolve(MODULES_DIR).resolve(moduleDir);
     }
@@ -1101,21 +1108,21 @@ public final class Installer {
         }
     }
     
-    private void readPOM() throws IOException {
-        File pomFile = new File(baseDir, POM_FILE);
+    private void readPOM(File moduleDir) throws IOException {
+        File pomFile = new File(moduleDir, POM_FILE);
         if (pomFile.exists()) {
             try {
-    		    DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-    		    Document pomDoc = builder.parse(pomFile);
-    		    // All we currently need is module coordinates
-    		    XPath xpath = XPathFactory.newInstance().newXPath();   		
-    		    groupId = findPomValue(pomDoc, xpath.compile("/project/groupId/text()"));
-    		    artifactId = findPomValue(pomDoc, xpath.compile("/project/artifactId/text()"));
-    		    version = findPomValue(pomDoc, xpath.compile("/project/version/text()"));
-    		    // packaging defaults to jar so this call may fail
-    		    packaging = findPomValue(pomDoc, xpath.compile("/project/packaging/text()"));
-    		    if (packaging == null) {
-    			    packaging = "jar";
+                DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+                Document pomDoc = builder.parse(pomFile);
+                // All we currently need is module coordinates
+                XPath xpath = XPathFactory.newInstance().newXPath();   		
+                groupId = findPomValue(pomDoc, xpath.compile("/project/groupId/text()"));
+                artifactId = findPomValue(pomDoc, xpath.compile("/project/artifactId/text()"));
+                version = findPomValue(pomDoc, xpath.compile("/project/version/text()"));
+                // packaging defaults to jar so this call may fail
+                packaging = findPomValue(pomDoc, xpath.compile("/project/packaging/text()"));
+                if (packaging == null) {
+                    packaging = "jar";
                 }
                 if ("war".equals(packaging)) {
                     deployAs = findPomValue(pomDoc, xpath.compile("/project/properties/deployAs/text()"));
